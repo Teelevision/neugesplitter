@@ -1,0 +1,51 @@
+# Build artifacts
+build/
+/*/build/
+
+# Gradle
+.gradle/
+local.properties
+
+# Kotlin
+.kotlin/
+
+# IntelliJ / Android Studio
+*.iml
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/caches/
+.idea/shelf/
+.idea/markdown.xml
+.idea/migrations.xml
+.idea/deviceManager.xml
+.idea/deploymentTargetSelector.xml
+.idea/runConfigurations.xml
+.idea/AndroidProjectSystem.xml
+.idea/usage.statistics.xml
+.idea/dictionary.xml
+.idea/tasks.xml
+
+# Android
+captures/
+.externalNativeBuild/
+.cxx/
+output.json
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+*.hprof
+
+# Keystore / Secrets
+*.jks
+*.keystore
+secrets.properties
+google-services.json
+
+# AI
+.artifacts/
+.idea/planningMode.xml
