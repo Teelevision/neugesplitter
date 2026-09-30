@@ -477,6 +477,12 @@ Division truncates toward zero. Products MUST be computed in a type wider than
 64 bits before dividing. `absolute` values MUST sum exactly to, and
 `adjustments` to no more than `amount`; an event violating either is malformed.
 
+A `share` is a natural number and their sum MUST be positive; an event violating
+either is malformed. A share of zero is allowed and means a part of zero: a
+member who is on the side and takes nothing from it. Leaving them off the side
+entirely says the same thing about the balances and is what the app writes, but
+both are legal and a reader MUST accept either.
+
 **No remainder is distributed.** The parts of a side may therefore fall short of
 the entry's amount by up to one unit per member. Only the inputs are stored, so
 a later version MAY compute more precisely without any stored data becoming
@@ -491,14 +497,34 @@ to the shortfall above, so rounding for display or settlement MUST follow:
 1.  Round every member's balance to the group's `scale` _d_ (section 4.2), half
     away from zero.
 2.  Let _R_ be the sum of the rounded balances. It may be non-zero.
-3.  Subtract _R_ from the **creditors** — members whose balance is positive —
-    one unit of 10⁻ᵈ at a time, taking them in order of descending balance, then
-    by member identifier ascending, and repeating the sequence if there are more
-    units than creditors.
+3.  Subtract _R_ from the **creditors** — members whose **exact** balance is
+    positive — one unit of 10⁻ᵈ at a time, taking them in order of descending
+    exact balance, then by member identifier ascending, and repeating the
+    sequence if there are more units than creditors. The unit comes off the
+    member's **rounded** balance, and is never taken from one already at zero.
 
-Debtors therefore owe exactly what they are shown. BA-2 holds after step 3,
-which is well defined whenever _R_ is non-zero, because a non-zero sum of
-balances requires at least one positive balance.
+Both halves of step 3 matter. Selecting and ordering by the exact balance keeps
+the order from depending on _d_, separates two creditors whose rounded balances
+are equal, and admits a creditor whose balance rounds to zero. Subtracting from
+the rounded balance is what makes the result sum to zero: rounding half away
+from zero does not commute with subtraction across zero, so re-rounding an exact
+balance after the subtraction can move it by a whole unit and leave the total
+non-zero. A balance of exactly half a unit, for instance, rounds up to one unit,
+but one unit less than it rounds to minus one unit rather than to zero.
+
+A creditor is skipped once at zero for the same reason: a member who is owed
+something, however little, must never be shown owing money. Skipping cannot
+exhaust the creditors, because a positive _R_ is the amount by which the rounded
+credits exceed the rounded debts, and so is never more than the creditors hold.
+
+Debtors therefore owe exactly what they are shown, and BA-2 holds after step 3.
+A positive _R_ always has a creditor to take from, since it requires a positive
+rounded balance. A negative _R_ need not: the shortfall above can outweigh a
+member's credit when _d_ is fine enough for it to survive rounding, leaving
+every balance zero or negative. **If no balance is positive, step 3 takes every
+member in that same order instead**, so that the unit falls first on whoever is
+closest to being owed something and no debtor's figure moves while a member at
+zero could absorb it.
 
 ## 8. Compatibility
 
