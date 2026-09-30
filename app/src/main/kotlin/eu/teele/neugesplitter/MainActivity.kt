@@ -20,10 +20,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             NeugesplitterTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "world",
-                        modifier = Modifier.padding(innerPadding),
-                    )
+                    Greeting(name = "world", modifier = Modifier.padding(innerPadding))
                 }
             }
         }
@@ -32,16 +29,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello, $name!",
-        modifier = modifier
-    )
+    Text(text = "Hello, $name!", modifier = modifier)
 }
 
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
-    NeugesplitterTheme {
-        Greeting("world")
-    }
+    NeugesplitterTheme { Greeting("world") }
 }

@@ -4,6 +4,7 @@ import java.io.File
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.android) apply false
+    alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.compose.compiler) apply false
     id("com.diffplug.spotless") version "8.10.2"
 }
@@ -16,6 +17,16 @@ val npmLocation =
         ?.firstOrNull { it.canExecute() }
 
 spotless {
+    kotlin {
+        target("**/*.kt")
+        targetExclude("**/build/**")
+        ktfmt("0.58").kotlinlangStyle()
+    }
+    kotlinGradle {
+        target("**/*.gradle.kts")
+        targetExclude("**/build/**")
+        ktfmt("0.58").kotlinlangStyle()
+    }
     format("markdown") {
         target("**/*.md")
         targetExclude("**/build/**")
@@ -24,12 +35,7 @@ spotless {
         if (npmLocation != null) {
             prettier()
                 .npmExecutable(npmLocation)
-                .config(
-                    mapOf(
-                        "printWidth" to 80,
-                        "proseWrap" to "always",
-                    ),
-                )
+                .config(mapOf("printWidth" to 80, "proseWrap" to "always"))
         } else {
             logger.lifecycle("npm not found; skipping prettier for markdown.")
         }
