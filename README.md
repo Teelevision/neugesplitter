@@ -39,5 +39,6 @@ and design notes. The Android client will be added as a top-level module.
 - [Format specification](docs/format-spec.md) — what is actually written to a
   backend.
 - [Threat model](docs/threat-model.md) — what is protected, and what is not.
+- [User interface](docs/ui-design.md) — what screens exist and how they behave.
 - [Architecture](docs/architecture.md) — where the code lives.
 - [Development](docs/development.md) — how work on this repository is done.
