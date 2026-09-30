@@ -42,3 +42,5 @@ and design notes. The Android client will be added as a top-level module.
 - [User interface](docs/ui-design.md) — what screens exist and how they behave.
 - [Architecture](docs/architecture.md) — where the code lives.
 - [Development](docs/development.md) — how work on this repository is done.
+- [Implementation plan](docs/implementation-plan.md) — the order the work
+  happens in.
