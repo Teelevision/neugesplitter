@@ -3,15 +3,27 @@ package eu.teele.neugesplitter.domain
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.group.Group
+import eu.teele.neugesplitter.domain.recurrence.Decision
+import eu.teele.neugesplitter.domain.recurrence.Interval
+import eu.teele.neugesplitter.domain.recurrence.Mode
+import eu.teele.neugesplitter.domain.recurrence.Segment
+import eu.teele.neugesplitter.domain.recurrence.Series
+import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.domain.value.SeriesId
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
+import io.kotest.property.arbitrary.boolean
 import io.kotest.property.arbitrary.enum
 import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.long
 import io.kotest.property.arbitrary.map
+import io.kotest.property.arbitrary.orNull
+import java.time.DayOfWeek
+import java.time.LocalDate
 
 val POOL: List<MemberId> = (1..5).map { member(it) }
 
@@ -57,6 +69,63 @@ val arbSplit: Arb<Pair<Amount, Side>> = arbitrary {
     amount to arbSideFor(amount).bind()
 }
 
+/** Dates from 2024 to a month past [TODAY], so that some series have not begun yet. */
+val arbDate: Arb<EntryDate> =
+    Arb.int(0..1000).map { EntryDate.of(LocalDate.of(2024, 1, 1).plusDays(it.toLong())) }
+
+val arbInterval: Arb<Interval> = arbitrary {
+    when (Arb.int(0..2).bind()) {
+        0 -> Interval.EveryDays(Arb.int(1..60).bind())
+        1 ->
+            Interval.WeeklyOn(
+                DayOfWeek.entries
+                    .filter { Arb.boolean().bind() }
+                    .ifEmpty { listOf(DayOfWeek.MONDAY) }
+                    .toSet()
+            )
+        else ->
+            Interval.MonthlyOn(
+                (1..31).filter { Arb.int(0..9).bind() == 0 }.ifEmpty { listOf(31) }.toSet()
+            )
+    }
+}
+
+val arbTemplate: Arb<Template> = arbitrary {
+    val amount = arbAmount.bind()
+    Template(
+        Arb.enum<Kind>().bind(),
+        "Series",
+        amount,
+        arbSideFor(amount).bind(),
+        arbSideFor(amount).bind(),
+    )
+}
+
+val arbSegment: Arb<Segment> = arbitrary {
+    Segment(arbInterval.bind(), Arb.enum<Mode>().bind(), arbTemplate.bind())
+}
+
+/**
+ * A series of up to four segments, any of which after the first may be an end (RE-7), with
+ * decisions on dates drawn freely and deleted and restored in between.
+ */
+val arbSeries: Arb<Series> = arbitrary {
+    val later = List(Arb.int(0..3).bind()) { arbDate.bind() to arbSegment.orNull(0.25).bind() }
+    var series = Series(RENT, listOf(arbDate.bind() to arbSegment.bind()) + later)
+    repeat(Arb.int(0..6).bind()) {
+        val due = arbDate.bind()
+        series =
+            when (Arb.int(0..5).bind()) {
+                0 -> series.removed()
+                1 -> series.restored()
+                2 -> series.decided(due, Decision.Confirmed)
+                3 -> series.decided(due, Decision.Deleted)
+                else -> series.decided(due, Decision.Amended(arbDate.bind(), arbTemplate.bind()))
+            }
+    }
+    series
+}
+
 /** A whole group, built the way a real one is: a log of events, replayed. */
 val arbGroup: Arb<Group> = arbitrary {
     val log = Log().create(scale = arbScale.bind())
@@ -72,6 +141,22 @@ val arbGroup: Arb<Group> = arbitrary {
                 kind = Arb.enum<Kind>().bind(),
             )
         )
+    }
+    repeat(Arb.int(0..2).bind()) { index ->
+        val series = SeriesId.parse("%032x".format(0x5e00 + index))
+        log.start(series, arbDate.bind().toString(), arbSegment.bind())
+        repeat(Arb.int(0..4).bind()) {
+            // Dates are drawn freely, so some decisions name a date that is not due.
+            val date = arbDate.bind().toString()
+            when (Arb.int(0..5).bind()) {
+                0 -> log.amend(series, date, arbSegment.bind())
+                1 -> log.end(series, date)
+                2 -> log.confirm(series, date)
+                3 -> log.decline(series, date)
+                4 -> log.delete(series)
+                else -> log.amend(series, date, arbDate.bind().toString(), arbTemplate.bind())
+            }
+        }
     }
     log.replay()
 }
