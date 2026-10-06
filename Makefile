@@ -19,6 +19,9 @@ test: ## Run the JVM tests
 domain: ## Run the domain tests alone, which is the fast loop
 	$(GRADLE) :domain:test
 
+.PHONY: codec
+codec: ## Run the :format tests and the format-spec vectors
+	$(GRADLE) :format:test
 .PHONY: format
 format: ## Apply ktfmt and prettier
 	$(GRADLE) spotlessApply

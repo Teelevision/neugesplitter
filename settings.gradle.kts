@@ -28,3 +28,5 @@ rootProject.name = "Neugesplitter"
 include(":app")
 
 include(":domain")
+
+include(":format")
