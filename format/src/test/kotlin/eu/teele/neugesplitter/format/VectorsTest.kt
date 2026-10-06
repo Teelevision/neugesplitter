@@ -7,9 +7,11 @@ import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.format.chain.ChainKey
 import eu.teele.neugesplitter.format.chain.Link
+import eu.teele.neugesplitter.format.crypto.KageCodec
 import eu.teele.neugesplitter.format.json.LogObject
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -33,6 +35,23 @@ class VectorsTest {
     private fun JsonObject.string(name: String): String = getValue(name).jsonPrimitive.content
 
     private fun file(path: String): ByteArray = manifest.resolveSibling(path).readBytes()
+
+    @Test
+    fun `files the age tool wrote open as format-spec 5 says`() {
+        val codec = KageCodec()
+        for (vector in section("encrypted")) {
+            val key =
+                codec.unlock(file(vector.string("root")), vector.string("passphrase").toCharArray())
+            assertEquals(vector.string("identity"), key.identity)
+            for (encrypted in vector.getValue("objects").jsonArray.map { it.jsonObject }) {
+                assertContentEquals(
+                    file(encrypted.string("payloadFile")),
+                    codec.decrypt(key, file(encrypted.string("file"))),
+                    encrypted.string("file"),
+                )
+            }
+        }
+    }
 
     @Test
     fun `occurrence ids are derived as format-spec 6 says`() {
