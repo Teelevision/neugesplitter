@@ -3,6 +3,7 @@ package eu.teele.neugesplitter.domain.entry
 import eu.teele.neugesplitter.domain.ANNA
 import eu.teele.neugesplitter.domain.BEN
 import eu.teele.neugesplitter.domain.CLARA
+import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.value.Amount
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -60,24 +61,24 @@ class SideTest {
     @Test
     fun `absolute values that do not sum to the amount are malformed (format-spec 7)`() {
         val side = Side.Absolute(mapOf(ANNA to Amount.parse("400000000"), BEN to Amount.ZERO))
-        assertFailsWith<MalformedSide> { side.parts(tenEuro) }
+        assertFailsWith<Malformed> { side.parts(tenEuro) }
     }
 
     @Test
     fun `adjustments summing to more than the amount are malformed (format-spec 7)`() {
         val side = Side.Adjustments(mapOf(ANNA to Amount.parse("1000000001"), BEN to Amount.ZERO))
-        assertFailsWith<MalformedSide> { side.parts(tenEuro) }
+        assertFailsWith<Malformed> { side.parts(tenEuro) }
     }
 
     @Test
     fun `a side with no members is malformed (format-spec 4_2)`() {
-        assertFailsWith<MalformedSide> { Side.Equal(emptyList()) }
-        assertFailsWith<MalformedSide> { Side.Absolute(emptyMap()) }
+        assertFailsWith<Malformed> { Side.Equal(emptyList()) }
+        assertFailsWith<Malformed> { Side.Absolute(emptyMap()) }
     }
 
     @Test
     fun `a member appearing twice is malformed (format-spec 4_2)`() {
-        assertFailsWith<MalformedSide> { Side.Equal(listOf(ANNA, ANNA)) }
+        assertFailsWith<Malformed> { Side.Equal(listOf(ANNA, ANNA)) }
     }
 
     @Test
@@ -89,11 +90,11 @@ class SideTest {
 
     @Test
     fun `a negative share is malformed (format-spec 7)`() {
-        assertFailsWith<MalformedSide> { Side.Shares(mapOf(ANNA to -1L, BEN to 3L)) }
+        assertFailsWith<Malformed> { Side.Shares(mapOf(ANNA to -1L, BEN to 3L)) }
     }
 
     @Test
     fun `shares that sum to zero cannot divide (format-spec 7)`() {
-        assertFailsWith<MalformedSide> { Side.Shares(mapOf(ANNA to 0L, BEN to 0L)) }
+        assertFailsWith<Malformed> { Side.Shares(mapOf(ANNA to 0L, BEN to 0L)) }
     }
 }

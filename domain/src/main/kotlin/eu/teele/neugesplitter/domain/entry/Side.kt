@@ -1,5 +1,6 @@
 package eu.teele.neugesplitter.domain.entry
 
+import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.MemberId
 import java.math.BigInteger
@@ -11,13 +12,6 @@ enum class Scheme {
     ADJUSTMENTS,
     ABSOLUTE,
 }
-
-/**
- * An event that cannot be split is malformed, and a malformed event stops reading rather than being
- * skipped (format-spec 8): an ignored event is a balance that is wrong on one device and right on
- * every other, silently and permanently.
- */
-class MalformedSide(message: String) : IllegalArgumentException(message)
 
 /**
  * One side of an entry — its payers or its beneficiaries (format-spec 4.2).
@@ -38,7 +32,7 @@ sealed interface Side {
      * No remainder is distributed, so the parts may fall short of [amount] by up to one unit of
      * 10⁻⁸ per member. That shortfall is what format-spec 7.1 absorbs at settlement.
      *
-     * @throws MalformedSide if the inputs cannot be reconciled with [amount].
+     * @throws Malformed if the inputs cannot be reconciled with [amount].
      */
     fun parts(amount: Amount): Map<MemberId, Amount>
 
@@ -64,8 +58,8 @@ sealed interface Side {
 
         init {
             requireNonEmptyAndDistinct(input.keys.toList())
-            if (input.values.any { it < 0 }) throw MalformedSide("a share is negative: $input")
-            if (total <= 0) throw MalformedSide("shares sum to $total, which cannot divide")
+            if (input.values.any { it < 0 }) throw Malformed("a share is negative: $input")
+            if (total <= 0) throw Malformed("shares sum to $total, which cannot divide")
         }
 
         override fun parts(amount: Amount): Map<MemberId, Amount> {
@@ -89,7 +83,7 @@ sealed interface Side {
         override fun parts(amount: Amount): Map<MemberId, Amount> {
             val adjusted = Amount.sum(input.values)
             if (adjusted > amount) {
-                throw MalformedSide("adjustments sum to $adjusted, more than the amount $amount")
+                throw Malformed("adjustments sum to $adjusted, more than the amount $amount")
             }
             val base = (amount - adjusted).units / input.size
             return input.mapValues { (_, adjustment) -> Amount.ofUnits(base) + adjustment }
@@ -108,7 +102,7 @@ sealed interface Side {
         override fun parts(amount: Amount): Map<MemberId, Amount> {
             val stated = Amount.sum(input.values)
             if (stated != amount) {
-                throw MalformedSide("absolute values sum to $stated, not the amount $amount")
+                throw Malformed("absolute values sum to $stated, not the amount $amount")
             }
             return input
         }
@@ -116,9 +110,9 @@ sealed interface Side {
 
     private companion object {
         fun requireNonEmptyAndDistinct(members: List<MemberId>) {
-            if (members.isEmpty()) throw MalformedSide("a side has no members")
+            if (members.isEmpty()) throw Malformed("a side has no members")
             if (members.toSet().size != members.size) {
-                throw MalformedSide("a member appears twice on one side: $members")
+                throw Malformed("a member appears twice on one side: $members")
             }
         }
     }
