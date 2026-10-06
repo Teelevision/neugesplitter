@@ -40,6 +40,18 @@ are described in [sync-design.md](sync-design.md).
   audited and implemented in several languages. It also means a member can read
   their own history with the `age` command-line tool if this app ever stops
   existing (BE-16).
+- **Which implementation of age?** kage, the Kotlin one, adopted on the evidence
+  TR-23 asks for. It passes the C2SP age test suite, including the scrypt
+  recipient and ASCII armouring that the root object depends on; it encrypts and
+  decrypts as a stream; it is dual-licensed MIT and Apache-2.0; and it is
+  maintained, with 0.8.0 following age 1.2's APIs. What it brings with it —
+  Bouncy Castle, an HKDF library and kotlin-result — is plain JVM code from
+  Maven Central under permissive licences. Being a JVM library, it keeps
+  `:format` a Kotlin JVM module, so neither the gomobile build of the Go
+  reference nor a JNI one was needed. It sits behind the `AgeCodec` port all the
+  same: what every group depends on is age's file format, which any
+  implementation reads, not kage, so replacing it later touches one adapter and
+  no stored byte (architecture.md 1).
 - **Passphrase or key pair?** A key pair. age can encrypt to a passphrase
   directly, but it derives a key with scrypt for every file, deliberately and
   expensively — which would make decrypting a whole history, in the app or at a

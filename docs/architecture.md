@@ -39,10 +39,10 @@ graph TD
 
 Dependencies point inward. `:sync` declares what it needs as interfaces and
 never learns which implementation it got; only `:app` knows that `LogStore` is
-S3 today (TR-29, BE-14). The one caveat is TR-23: if the age answer turns out to
-be a gomobile AAR rather than a Kotlin library, `:format` becomes an Android
-library, and the port in front of the age binding keeps that from spreading
-further than its dependents.
+S3 today (TR-29, BE-14). `:format` is a JVM module because TR-23 settled on
+kage, a Kotlin library (decisions.md); had the answer been a gomobile AAR, it
+would have become an Android library, and the port in front of the age binding
+is what would have kept that from spreading further than its dependents.
 
 Modules get created when there is code to put in them. Starting with `:domain`
 and `:app` and splitting outward as the sync path arrives is not a departure
