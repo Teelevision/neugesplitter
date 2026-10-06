@@ -1,0 +1,172 @@
+{
+  "neugesplitter": 1,
+  "batch": "ba7cba7cba7cba7cba7cba7cba7cba7c",
+  "events": [
+    {
+      "id": "00000000000000000000000000000001",
+      "type": "group.created",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "group": {
+        "id": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+        "scale": 2,
+        "name": "Vectors",
+        "emoji": "🧾",
+        "colour": "#336699"
+      }
+    },
+    {
+      "id": "00000000000000000000000000000002",
+      "type": "member.added",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "member": {
+        "id": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "name": "Anna"
+      }
+    },
+    {
+      "id": "00000000000000000000000000000003",
+      "type": "member.added",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "member": {
+        "id": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+        "name": "Ben"
+      }
+    },
+    {
+      "id": "00000000000000000000000000000004",
+      "type": "member.added",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "member": {
+        "id": "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+        "name": "Clara"
+      }
+    },
+    {
+      "id": "00000000000000000000000000000005",
+      "type": "entry.created",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "entry": {
+        "id": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+        "kind": "expense",
+        "description": "Groceries",
+        "date": "2026-01-02",
+        "amount": "9000000000",
+        "payers": {
+          "scheme": "equal",
+          "input": [
+            "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+          ]
+        },
+        "beneficiaries": {
+          "scheme": "equal",
+          "input": [
+            "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+            "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+            "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+          ]
+        }
+      }
+    },
+    {
+      "id": "00000000000000000000000000000006",
+      "type": "entry.created",
+      "by": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "at": "2026-01-01T12:00:00Z",
+      "entry": {
+        "id": "e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2",
+        "kind": "expense",
+        "description": "Café",
+        "date": "2026-01-03",
+        "amount": "6000000000",
+        "payers": {
+          "scheme": "equal",
+          "input": [
+            "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+          ]
+        },
+        "beneficiaries": {
+          "scheme": "shares",
+          "input": {
+            "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1": 1,
+            "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2": 2,
+            "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3": 3
+          }
+        },
+        "note": "Shared by appetite",
+        "category": {
+          "name": "food",
+          "pinned": true,
+          "parent": null
+        }
+      }
+    },
+    {
+      "id": "00000000000000000000000000000007",
+      "type": "entry.created",
+      "by": "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+      "at": "2026-01-01T12:00:00Z",
+      "entry": {
+        "id": "e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3",
+        "kind": "expense",
+        "description": "Tickets",
+        "date": "2026-01-04",
+        "amount": "3000000000",
+        "payers": {
+          "scheme": "equal",
+          "input": [
+            "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+          ]
+        },
+        "beneficiaries": {
+          "scheme": "adjustments",
+          "input": {
+            "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1": "600000000",
+            "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2": "0",
+            "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3": "-300000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "00000000000000000000000000000008",
+      "type": "entry.created",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "entry": {
+        "id": "e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4",
+        "kind": "expense",
+        "description": "Hotel",
+        "date": "2026-01-05",
+        "amount": "2000000000",
+        "payers": {
+          "scheme": "absolute",
+          "input": {
+            "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1": "1500000000",
+            "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2": "500000000"
+          }
+        },
+        "beneficiaries": {
+          "scheme": "equal",
+          "input": [
+            "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+          ]
+        }
+      }
+    },
+    {
+      "id": "00000000000000000000000000000009",
+      "type": "entry.updated",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "target": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+      "entry": {
+        "amount": "12000000000"
+      }
+    }
+  ]
+}

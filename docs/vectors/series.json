@@ -1,0 +1,221 @@
+{
+  "neugesplitter": 1,
+  "batch": "ba7cba7cba7cba7cba7cba7cba7cba7c",
+  "events": [
+    {
+      "id": "00000000000000000000000000000001",
+      "type": "group.created",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "group": {
+        "id": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+        "scale": 2,
+        "name": "Flat"
+      }
+    },
+    {
+      "id": "00000000000000000000000000000002",
+      "type": "member.added",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "member": {
+        "id": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "name": "Anna"
+      }
+    },
+    {
+      "id": "00000000000000000000000000000003",
+      "type": "member.added",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "member": {
+        "id": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+        "name": "Ben"
+      }
+    },
+    {
+      "id": "00000000000000000000000000000004",
+      "type": "group.updated",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "group": {
+        "defaultParticipants": [
+          "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+          "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+        ],
+        "description": null
+      }
+    },
+    {
+      "id": "00000000000000000000000000000005",
+      "type": "series.created",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "series": {
+        "id": "5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+        "from": "2026-01-01",
+        "segment": {
+          "interval": {
+            "monthlyOn": [
+              15,
+              1
+            ]
+          },
+          "mode": "automatic",
+          "template": {
+            "kind": "expense",
+            "description": "Rent",
+            "amount": "1000000000",
+            "payers": {
+              "scheme": "equal",
+              "input": [
+                "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+              ]
+            },
+            "beneficiaries": {
+              "scheme": "equal",
+              "input": [
+                "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+                "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "00000000000000000000000000000006",
+      "type": "series.amended",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "target": "5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+      "from": "2026-02-01",
+      "segment": {
+        "interval": {
+          "weeklyOn": [
+            "mo"
+          ]
+        },
+        "mode": "suggested",
+        "template": {
+          "kind": "expense",
+          "description": "Rent",
+          "amount": "1000000000",
+          "payers": {
+            "scheme": "equal",
+            "input": [
+              "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+            ]
+          },
+          "beneficiaries": {
+            "scheme": "equal",
+            "input": [
+              "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+              "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "745386254d90263f9faafeaed8c06d2f",
+      "type": "occurrence.amended",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "series": "5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+      "due": "2026-01-15",
+      "entry": {
+        "kind": "expense",
+        "description": "Rent and repairs",
+        "amount": "3000000000",
+        "payers": {
+          "scheme": "equal",
+          "input": [
+            "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+          ]
+        },
+        "beneficiaries": {
+          "scheme": "equal",
+          "input": [
+            "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+            "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+          ]
+        },
+        "date": "2026-01-16"
+      }
+    },
+    {
+      "id": "eb327c31602f4e02b77f90b2a7f4487b",
+      "type": "occurrence.confirmed",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "series": "5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+      "due": "2026-02-02"
+    },
+    {
+      "id": "091c688e54dbe7206247b7673512a827",
+      "type": "occurrence.deleted",
+      "by": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "at": "2026-01-01T12:00:00Z",
+      "series": "5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+      "due": "2026-02-09"
+    },
+    {
+      "id": "70bf3ae9266cc7c0a8d95caa92b777a6",
+      "type": "occurrence.confirmed",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "series": "5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+      "due": "2026-02-16"
+    },
+    {
+      "id": "0000000000000000000000000000000b",
+      "type": "series.ended",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "target": "5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+      "from": "2026-03-01"
+    },
+    {
+      "id": "0000000000000000000000000000000c",
+      "type": "series.created",
+      "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "at": "2026-01-01T12:00:00Z",
+      "series": {
+        "id": "5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f",
+        "from": "2026-01-01",
+        "segment": {
+          "interval": {
+            "everyDays": 14
+          },
+          "mode": "automatic",
+          "template": {
+            "kind": "expense",
+            "description": "Cleaning",
+            "amount": "5000000000",
+            "payers": {
+              "scheme": "equal",
+              "input": [
+                "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+              ]
+            },
+            "beneficiaries": {
+              "scheme": "equal",
+              "input": [
+                "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+                "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "0000000000000000000000000000000d",
+      "type": "series.deleted",
+      "by": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "at": "2026-01-01T12:00:00Z",
+      "target": "5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f"
+    }
+  ]
+}

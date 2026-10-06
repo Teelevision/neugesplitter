@@ -97,7 +97,12 @@ in an unencrypted group it is the stored bytes themselves.
 ```
 
 `neugesplitter` repeats the format version on every object, so that a single
-decrypted file is self-describing when it turns up on its own.
+decrypted file is self-describing when it turns up on its own. A reader that
+finds a version later than its own MUST stop as it would at an unknown `type`
+(section 8). The JSON restrictions and limits below come first, whatever version
+an object claims, because they protect the reader rather than describe the
+content; everything else in this document is a rule of version 1 and is checked
+only once the version says it applies.
 
 `batch` is a fresh 128-bit random identifier, hex. It exists so that a writer
 that lost the response to a `PUT` can tell whether the object it finds is its
@@ -125,6 +130,20 @@ MUST enforce them as it goes — the size before the body is fetched, the rest
 while the document is consumed — and MUST NOT allocate on the strength of a
 length the object itself declares. Raising any of these is a format version
 change.
+
+Every reader has to draw these lines in the same place, so they are measured as
+follows, and each bound is inclusive. The size is the object's length in bytes
+as stored. Depth counts the object itself as level 1 and every array or object
+inside a value one level deeper, so `events` is level 2 and an event level 3. A
+string's length is the length of its value in UTF-8 once escapes are resolved,
+keys included, so `"\u20ac"` counts three bytes and not six. A number may be
+exactly ±2⁵³.
+
+Beyond what the JSON grammar (RFC 8259) already excludes, these are malformed:
+text that is not valid UTF-8 or that begins with a byte-order mark (section 1);
+an escape that leaves a surrogate unpaired, because what it encodes is not text;
+a number written with a fraction or an exponent, even `1.0`; and a document
+whose top-level value is not an object.
 
 An object that breaks any rule in this section is malformed, and a malformed
 object is treated exactly as an unrecognised `type` is (section 8): reading
@@ -674,3 +693,55 @@ reference always resolves.
 Nothing deletes an attachment. One uploaded for an entry that was never saved
 stays where it is, and no installation ever fetches it, because nothing points
 at it (event-model section 7).
+
+## 10. Test vectors
+
+The vectors are in [format-vectors.json](format-vectors.json), and the objects
+it names are in [vectors/](vectors/). An object file is exact bytes, to be read
+as stored and never reformatted. Every implementation MUST reproduce every
+vector (TR-45); where one disagrees with the text above, the defect is in this
+document, and it is fixed here rather than left for implementations to choose
+between.
+
+They were produced independently of this project's code: the occurrence
+identifiers and the chain with a script written from this document, the chain
+key and links checked against OpenSSL's HKDF and HMAC, and the identity checked
+against the `age` tool, which derives a recipient from it and decrypts what was
+encrypted to that recipient.
+
+- **`occurrenceIds`** — a `series` and a `due` date, and the `id` section 6
+  derives from them.
+- **`chain`** — an `identity`, the `chainKey` section 5.3 derives from it, and
+  the `prev` that follows a predecessor whose payload is the file `payloadFile`,
+  or the empty byte string where there is none.
+- **`groups`** — the `objects` of an unencrypted group's log, read in order, and
+  every member's balance on the date `today`: unrounded, in units of 10⁻⁸
+  (section 7.1). `entry-schemes.json` holds `entry.created` with each of the
+  four schemes, an `entry.updated` that names only `amount`, and fields this
+  version does not define, holding `null` and booleans. `series.json` holds each
+  series and occurrence event, a suggested occurrence nobody confirmed and a
+  series that was deleted.
+- **`accepted`** — objects a reader MUST accept, near the edges of what section
+  2.2 allows.
+- **`refused`** — objects a reader MUST refuse, whatever was read before them,
+  each `as` malformed or unsupported (section 8) and with `why`. Each is `text`,
+  meaning its UTF-8 bytes, or `hex` where the bytes are not text.
+- **`limits`** — one object at each end of every limit in section 2.2, built as
+  follows, and whether it is `accepted`.
+
+Each limit object is the object below, without whitespace, changed in one place:
+
+```
+{"neugesplitter":1,"batch":"ba7cba7cba7cba7cba7cba7cba7cba7c","events":[E]}
+E = {"id":"00000000000000000000000000000001","type":"member.renamed",
+     "by":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","at":"2026-01-01T12:00:00Z",
+     "target":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","name":"a"}
+```
+
+| `limit`         | The object with _n_                                                                     |
+| --------------- | --------------------------------------------------------------------------------------- |
+| `size`          | spaces inserted before the final `}` until the object is _n_ bytes                      |
+| `depth`         | a last field `"x"` in E whose value is _n_ − 3 nested arrays, the innermost empty       |
+| `string`        | a `name` of _n_ letters `a`                                                             |
+| `escapedString` | a `name` of ⌊_n_ / 3⌋ escapes `\u20ac` followed by _n_ mod 3 letters `a`                |
+| `events`        | _n_ copies of E in `events`, the _i_-th with `id` _i_ in 32 hex digits, counting from 1 |
