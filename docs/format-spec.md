@@ -249,6 +249,31 @@ stops a series from a date onward and leaves what already happened standing.
 occurrence was suggested, confirmed, amended or automatic, and the series
 carries on.
 
+#### An event is read against the log before it
+
+An event MUST agree with the state the log has produced so far:
+
+- every identifier an event names MUST already be in the group — the `target` of
+  `member.renamed`, `member.removed`, `entry.updated` and `entry.deleted`, the
+  `series` of an occurrence event, and every member identifier in a side;
+- `member.added` and `entry.created` MUST NOT reuse an identifier the group
+  already has, whether or not what it named has since been removed or deleted.
+
+An event breaking either is malformed and reading stops (section 8). Requiring
+it costs a writer nothing, because writing requires being caught up (sync-design
+section 4): an installation cannot name an identifier it has not already seen,
+so no valid writer can produce such an event. It is the same ordering that puts
+an attachment on the server before the event referencing it (section 9), and it
+buys the property that a reference always resolves — the alternative is a
+balance belonging to a member nobody can name, which no reader could display and
+two readers would handle differently.
+
+Repeating `member.removed`, `entry.deleted`, `series.deleted` or
+`occurrence.deleted` is **not** a contradiction and MUST be accepted: two
+installations may each decide to remove the same thing, and the second event
+asserts nothing the first did not. `entry.updated` MAY name a deleted entry,
+which puts it back (HI-9).
+
 #### Update events carry only what changed
 
 The payload of `group.updated` and `entry.updated` is drawn from the same fixed
