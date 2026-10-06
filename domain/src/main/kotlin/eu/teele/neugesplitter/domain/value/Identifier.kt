@@ -49,3 +49,15 @@ value class EntryId private constructor(val hex: String) : Comparable<EntryId> {
         fun parse(hex: String): EntryId = EntryId(requireIdentifier(hex, "entry id"))
     }
 }
+
+/** Identifies the intent rather than the object, so that one intent written twice is one event. */
+@JvmInline
+value class EventId private constructor(val hex: String) : Comparable<EventId> {
+    override fun compareTo(other: EventId): Int = hex.compareTo(other.hex)
+
+    override fun toString(): String = hex
+
+    companion object {
+        fun parse(hex: String): EventId = EventId(requireIdentifier(hex, "event id"))
+    }
+}
