@@ -58,7 +58,7 @@ fun entry(
  * A log in the order it was written, with event identifiers handed in rather than drawn, because
  * the domain may not draw one itself (development.md 1).
  */
-class Log(private val by: MemberId = ANNA) {
+class Log(private val by: MemberId = ANNA, private val group: GroupId = GROUP) {
 
     private val events = mutableListOf<Event>()
     private var serial = 0
@@ -66,7 +66,7 @@ class Log(private val by: MemberId = ANNA) {
     private fun id(): EventId = EventId.parse("%032x".format(++serial))
 
     fun create(name: String = "Test", scale: Scale = Scale.DEFAULT) = apply {
-        events += Event.GroupCreated(id(), by, AT, GroupDetails(GROUP, scale, name))
+        events += Event.GroupCreated(id(), by, AT, GroupDetails(group, scale, name))
     }
 
     fun update(changes: GroupChanges) = apply {

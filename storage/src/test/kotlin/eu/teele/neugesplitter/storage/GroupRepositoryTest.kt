@@ -1,0 +1,296 @@
+package eu.teele.neugesplitter.storage
+
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import eu.teele.neugesplitter.domain.ANNA
+import eu.teele.neugesplitter.domain.BEN
+import eu.teele.neugesplitter.domain.CLARA
+import eu.teele.neugesplitter.domain.GROUP
+import eu.teele.neugesplitter.domain.Log
+import eu.teele.neugesplitter.domain.Malformed
+import eu.teele.neugesplitter.domain.RENT
+import eu.teele.neugesplitter.domain.TODAY
+import eu.teele.neugesplitter.domain.date
+import eu.teele.neugesplitter.domain.entry
+import eu.teele.neugesplitter.domain.entry.Kind
+import eu.teele.neugesplitter.domain.entry.Side
+import eu.teele.neugesplitter.domain.entryId
+import eu.teele.neugesplitter.domain.event.Change
+import eu.teele.neugesplitter.domain.event.EntryChanges
+import eu.teele.neugesplitter.domain.event.Event
+import eu.teele.neugesplitter.domain.event.GroupChanges
+import eu.teele.neugesplitter.domain.recurrence.Interval
+import eu.teele.neugesplitter.domain.recurrence.Mode
+import eu.teele.neugesplitter.domain.segment
+import eu.teele.neugesplitter.domain.template
+import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.Colour
+import eu.teele.neugesplitter.domain.value.GroupId
+import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.SeriesId
+import eu.teele.neugesplitter.format.json.EventJson
+import eu.teele.neugesplitter.storage.projection.Projection
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+
+class GroupRepositoryTest {
+
+    private val driver =
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).also { Database.Schema.create(it) }
+    private val database = Database(driver)
+    private val groups = GroupRepository(driver)
+
+    private val trip = GroupId.parse("%032x".format(0xc0a2))
+    private val cleaning = SeriesId.parse("%032x".format(0x5e2))
+    private val gym = SeriesId.parse("%032x".format(0x5e3))
+
+    private fun euros(n: Long) = Amount.ofUnits(n * 100_000_000)
+
+    private fun equal(members: List<MemberId>) = Side.Equal(members)
+
+    /** A household that has used every kind of event at least once. */
+    private val household =
+        Log()
+            .create("WG")
+            .add(ANNA, "Anna")
+            .add(BEN, "Ben")
+            .add(CLARA, "Clara")
+            .update(
+                GroupChanges(
+                    colour = Change.To(Colour.parse("#3366cc")),
+                    defaultParticipants = Change.To(listOf(ANNA, BEN)),
+                )
+            )
+            .record(entry(1, euros(10), equal(listOf(ANNA)), equal(listOf(ANNA, BEN, CLARA))))
+            .record(
+                entry(
+                    2,
+                    euros(90),
+                    equal(listOf(BEN)),
+                    Side.Shares(mapOf(ANNA to 2L, BEN to 1L)),
+                    kind = Kind.INCOME,
+                )
+            )
+            .record(
+                entry(
+                    3,
+                    euros(50),
+                    Side.Absolute(mapOf(CLARA to euros(50))),
+                    Side.Adjustments(mapOf(ANNA to euros(5), CLARA to euros(0))),
+                )
+            )
+            .update(entryId(1), EntryChanges(description = Change.To("Groceries")))
+            .delete(entryId(3))
+            .rename(BEN, "Benedikt")
+            .start(RENT, "2026-06-01", segment(Interval.MonthlyOn(setOf(1)), rent(900)))
+            .confirm(RENT, "2026-06-01")
+            .decline(RENT, "2026-07-01")
+            .amend(RENT, "2026-08-01", "2026-08-03", rent(950))
+            .start(cleaning, "2026-08-20", segment(Interval.EveryDays(3), rent(20), Mode.SUGGESTED))
+            .end(cleaning, "2026-08-28")
+            .start(gym, "2026-08-01", segment(Interval.EveryDays(7), rent(15)))
+            .delete(gym)
+            .remove(CLARA)
+            .events()
+
+    private val weekend =
+        Log(BEN, trip)
+            .create("Wochenende")
+            .add(BEN, "Ben")
+            .add(ANNA, "Anna")
+            .record(entry(1, euros(120), equal(listOf(BEN)), equal(listOf(ANNA, BEN))))
+            .events()
+
+    private fun rent(euros: Long) =
+        template(euros(euros), equal(listOf(ANNA)), equal(listOf(ANNA, BEN)))
+
+    private fun appendedOneByOne(group: GroupId, events: List<Event>) {
+        for (event in events) groups.append(group, listOf(event), TODAY)
+    }
+
+    private fun rows(sql: String): List<String> =
+        driver
+            .executeQuery(
+                null,
+                sql,
+                { cursor ->
+                    val rows = mutableListOf<String>()
+                    while (cursor.next().value) rows += cursor.getString(0) ?: "NULL"
+                    QueryResult.Value(rows)
+                },
+                0,
+            )
+            .value
+
+    private fun tables(): List<String> =
+        rows("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+
+    private fun columns(table: String): List<String> =
+        rows("SELECT name FROM pragma_table_info('$table')")
+
+    /** Every row of [table] as text, in a stable order. */
+    private fun dump(table: String): List<String> {
+        val row = columns(table).joinToString(" || '|' || ") { "quote($it)" }
+        return rows("SELECT $row FROM $table ORDER BY 1")
+    }
+
+    /** Every row of every derived table. */
+    private fun projection(): Map<String, List<String>> = Projection.TABLES.associateWith(::dump)
+
+    @Test
+    fun `an appended event is kept as the text it was written as (TR-17b)`() {
+        appendedOneByOne(GROUP, household)
+        groups.append(trip, weekend, TODAY)
+
+        assertEquals(
+            household.map(EventJson::write),
+            database.eventRowQueries.inGroup(GROUP.hex).executeAsList(),
+        )
+        assertEquals(
+            weekend.map(EventJson::write),
+            database.eventRowQueries.inGroup(trip.hex).executeAsList(),
+        )
+    }
+
+    @Test
+    fun `an event's text is never rewritten, not even what this version ignores (TR-17c)`() {
+        val written = EventJson.write(household.first())
+        val received = "{ \"later\" : [1, \"zwei\", {}],\n" + written.drop(1)
+        database.eventRowQueries.append(GROUP.hex, received)
+
+        groups.append(GROUP, household.drop(1), TODAY)
+        groups.rebuild(TODAY)
+
+        assertEquals(received, database.eventRowQueries.inGroup(GROUP.hex).executeAsList().first())
+        assertEquals("WG", groups.load(GROUP)?.name)
+    }
+
+    @Test
+    fun `an append that fails keeps neither its events nor their projection (TR-7, TR-17b)`() {
+        groups.append(GROUP, household.take(4), TODAY)
+        val events = rows("SELECT json FROM event_row")
+        val projected = projection()
+
+        val sound = entry(1, euros(10), equal(listOf(ANNA)), equal(listOf(ANNA, BEN)))
+        // Every reader refuses a string over 64 KiB, so the second cannot be written at all.
+        val oversized =
+            entry(
+                2,
+                euros(10),
+                equal(listOf(ANNA)),
+                equal(listOf(BEN)),
+                description = "x".repeat(70_000),
+            )
+        assertFailsWith<Malformed> {
+            groups.append(GROUP, Log().record(sound).record(oversized).events(), TODAY)
+        }
+        // A member added twice contradicts the state before it.
+        assertFailsWith<Malformed> {
+            groups.append(GROUP, Log().record(sound).add(ANNA, "Anna").events(), TODAY)
+        }
+
+        assertEquals(events, rows("SELECT json FROM event_row"))
+        assertEquals(projected, projection())
+    }
+
+    @Test
+    fun `the projection kept up to date is the one a rebuild from the log produces (TR-18)`() {
+        // Two groups written in turn, each in its own order.
+        val interleaved =
+            household.indices.flatMap { i ->
+                listOfNotNull(GROUP to household[i], weekend.getOrNull(i)?.let { trip to it })
+            }
+        for ((group, event) in interleaved) {
+            groups.append(group, listOf(event), TODAY)
+            val kept = projection()
+
+            groups.rebuild(TODAY)
+
+            assertEquals(kept, projection(), "after ${event.type} ${event.id}")
+        }
+    }
+
+    @Test
+    fun `a projection dropped or contradicting the log is replaced by one rebuilt from it (TR-18)`() {
+        appendedOneByOne(GROUP, household)
+        groups.append(trip, weekend, TODAY)
+        val kept = projection()
+
+        driver.execute(null, "UPDATE entry SET amount = 1 WHERE group_id = '${GROUP.hex}'", 0)
+        driver.execute(null, "INSERT INTO member VALUES ('${GROUP.hex}', 'stray', 'Stray', 0)", 0)
+        for (table in listOf("side", "occurrence", "balance")) {
+            driver.execute(null, "DROP TABLE $table", 0)
+        }
+
+        groups.rebuild(TODAY)
+
+        assertEquals(kept, projection())
+    }
+
+    @Test
+    fun `a projection built by another version is rebuilt before anything reads it (TR-18b)`() {
+        appendedOneByOne(GROUP, household)
+        groups.refresh(TODAY)
+        val kept = projection()
+
+        database.projectionQueries.setVersion(Projection.VERSION - 1)
+        driver.execute(null, "DELETE FROM balance", 0)
+        groups.refresh(TODAY)
+
+        assertEquals(kept, projection())
+        assertEquals(Projection.VERSION, database.projectionQueries.version().executeAsOne())
+    }
+
+    @Test
+    fun `occurrences and balances move on with the local date (RE-14)`() {
+        appendedOneByOne(GROUP, household)
+        groups.refresh(TODAY)
+        val due = "SELECT due FROM occurrence WHERE series = '${RENT.hex}' ORDER BY due"
+        assertEquals(listOf("2026-06-01", "2026-08-01"), rows(due))
+
+        val later = date("2026-09-01")
+        groups.refresh(later)
+
+        assertEquals(listOf("2026-06-01", "2026-08-01", "2026-09-01"), rows(due))
+        assertEquals(listOf(later.toString()), rows("SELECT projected_on FROM group_row"))
+        val moved = projection()
+        groups.rebuild(later)
+        assertEquals(moved, projection())
+    }
+
+    @Test
+    fun `deleting a group removes its log, retained objects and projection (TR-20, GR-11)`() {
+        appendedOneByOne(GROUP, household)
+        groups.append(trip, weekend, TODAY)
+        for (group in listOf(GROUP, trip)) {
+            database.logObjectQueries.retain(group.hex, 1, "ba7c".repeat(8), byteArrayOf(1, 2, 3))
+        }
+        groups.actAs(GROUP, ANNA)
+        groups.actAs(trip, BEN)
+        val others = Projection.TABLES.associateWith { dump(it).filter { trip.hex in it } }
+
+        groups.delete(GROUP)
+
+        for (table in tables()) {
+            val column =
+                when {
+                    "group_id" in columns(table) -> "group_id"
+                    table == "group_row" -> "id"
+                    else -> continue
+                }
+            assertEquals(
+                listOf("0"),
+                rows("SELECT count(*) FROM $table WHERE $column = '${GROUP.hex}'"),
+                table,
+            )
+        }
+        assertNull(groups.load(GROUP))
+        assertNull(groups.actingAs(GROUP))
+        assertNotNull(groups.load(trip))
+        assertEquals(BEN, groups.actingAs(trip))
+        assertEquals(others, projection())
+    }
+}

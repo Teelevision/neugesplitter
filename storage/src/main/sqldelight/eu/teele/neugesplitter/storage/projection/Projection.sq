@@ -1,0 +1,151 @@
+-- The projection: what the domain's replay made of each group's event log, kept for display
+-- (TR-18, TR-18a). Every table here but `projection_state` is derived, may be dropped at any time,
+-- and is rebuilt from `event_row` when it is (architecture.md 5).
+
+CREATE TABLE IF NOT EXISTS projection_state (
+    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 0),
+    version INTEGER NOT NULL
+);
+
+-- Named so only because GROUP is a keyword. `projected_on` is the local date the group's
+-- occurrences and balances were derived for (RE-14).
+CREATE TABLE IF NOT EXISTS group_row (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    emoji TEXT,
+    colour TEXT,
+    scale INTEGER NOT NULL,
+    projected_on TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS member (
+    group_id TEXT NOT NULL,
+    id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    removed INTEGER NOT NULL,
+    PRIMARY KEY (group_id, id)
+);
+
+-- Every entry, deleted ones and occurrences included. Amounts are integers at 10⁻⁸.
+CREATE TABLE IF NOT EXISTS entry (
+    group_id TEXT NOT NULL,
+    id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    description TEXT NOT NULL,
+    date TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    note TEXT,
+    deleted INTEGER NOT NULL,
+    PRIMARY KEY (group_id, id)
+);
+
+CREATE INDEX IF NOT EXISTS entry_by_date ON entry (group_id, date);
+
+-- One member of one side of an entry: what was entered for them, and their part of the amount.
+CREATE TABLE IF NOT EXISTS side (
+    group_id TEXT NOT NULL,
+    entry TEXT NOT NULL,
+    role TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    member TEXT NOT NULL,
+    scheme TEXT NOT NULL,
+    input INTEGER,
+    part INTEGER NOT NULL,
+    PRIMARY KEY (group_id, entry, role, position)
+);
+
+-- Which series and due date an entry is the occurrence of, and whether it is still only offered.
+CREATE TABLE IF NOT EXISTS occurrence (
+    group_id TEXT NOT NULL,
+    series TEXT NOT NULL,
+    due TEXT NOT NULL,
+    entry TEXT NOT NULL,
+    pending INTEGER NOT NULL,
+    PRIMARY KEY (group_id, series, due)
+);
+
+-- Each member's exact balance, and the one shown and settled at the group's scale (BA-2).
+CREATE TABLE IF NOT EXISTS balance (
+    group_id TEXT NOT NULL,
+    member TEXT NOT NULL,
+    exact INTEGER NOT NULL,
+    settled INTEGER NOT NULL,
+    PRIMARY KEY (group_id, member)
+);
+
+version:
+SELECT version
+FROM projection_state;
+
+setVersion:
+INSERT OR REPLACE INTO projection_state (id, version)
+VALUES (0, ?);
+
+projectedOn:
+SELECT projected_on
+FROM group_row
+WHERE id = ?;
+
+stale:
+SELECT id
+FROM group_row
+WHERE projected_on != ?;
+
+putGroup:
+INSERT OR REPLACE INTO group_row (id, name, description, emoji, colour, scale, projected_on)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+putMember:
+INSERT OR REPLACE INTO member (group_id, id, name, removed)
+VALUES (?, ?, ?, ?);
+
+putEntry:
+INSERT OR REPLACE INTO entry (group_id, id, kind, description, date, amount, note, deleted)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+putSide:
+INSERT INTO side (group_id, entry, role, position, member, scheme, input, part)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+putOccurrence:
+INSERT INTO occurrence (group_id, series, due, entry, pending)
+VALUES (?, ?, ?, ?, ?);
+
+putBalance:
+INSERT INTO balance (group_id, member, exact, settled)
+VALUES (?, ?, ?, ?);
+
+dropEntry {
+    DELETE FROM side
+    WHERE group_id = :group_id AND entry = :entry;
+
+    DELETE FROM entry
+    WHERE group_id = :group_id AND id = :entry;
+}
+
+dropOccurrences {
+    DELETE FROM side
+    WHERE group_id = :group_id
+      AND entry IN (SELECT entry FROM occurrence WHERE group_id = :group_id AND series = :series);
+
+    DELETE FROM entry
+    WHERE group_id = :group_id
+      AND id IN (SELECT entry FROM occurrence WHERE group_id = :group_id AND series = :series);
+
+    DELETE FROM occurrence
+    WHERE group_id = :group_id AND series = :series;
+}
+
+dropBalances:
+DELETE FROM balance
+WHERE group_id = ?;
+
+forget {
+    DELETE FROM balance WHERE group_id = :group_id;
+    DELETE FROM occurrence WHERE group_id = :group_id;
+    DELETE FROM side WHERE group_id = :group_id;
+    DELETE FROM entry WHERE group_id = :group_id;
+    DELETE FROM member WHERE group_id = :group_id;
+    DELETE FROM group_row WHERE id = :group_id;
+}

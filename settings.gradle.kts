@@ -30,3 +30,5 @@ include(":app")
 include(":domain")
 
 include(":format")
+
+include(":storage")

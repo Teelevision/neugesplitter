@@ -1,0 +1,19 @@
+-- Which member this installation writes into `by` in each group. It is local to the installation
+-- and no event records it (ID-3, format-spec 4.2).
+CREATE TABLE IF NOT EXISTS acting_as (
+    group_id TEXT NOT NULL PRIMARY KEY,
+    member TEXT NOT NULL
+);
+
+actAs:
+INSERT OR REPLACE INTO acting_as (group_id, member)
+VALUES (?, ?);
+
+member:
+SELECT member
+FROM acting_as
+WHERE group_id = ?;
+
+forget:
+DELETE FROM acting_as
+WHERE group_id = ?;

@@ -1,0 +1,32 @@
+-- The canonical local event log of each group (TR-17b).
+--
+-- `json` is the event's text exactly as it was written or received, and nothing rewrites it
+-- (TR-17c). An event with no `object_number` has not been written to a backend yet, and until it
+-- is, its `local_order` is provisional (architecture.md 4).
+CREATE TABLE IF NOT EXISTS event_row (
+    group_id TEXT NOT NULL,
+    local_order INTEGER NOT NULL,
+    json TEXT NOT NULL,
+    object_number INTEGER,
+    PRIMARY KEY (group_id, local_order)
+);
+
+append:
+INSERT INTO event_row (group_id, local_order, json)
+SELECT :group_id, coalesce(max(local_order), 0) + 1, :json
+FROM event_row
+WHERE group_id = :group_id;
+
+inGroup:
+SELECT json
+FROM event_row
+WHERE group_id = ?
+ORDER BY local_order;
+
+groups:
+SELECT DISTINCT group_id
+FROM event_row;
+
+forget:
+DELETE FROM event_row
+WHERE group_id = ?;

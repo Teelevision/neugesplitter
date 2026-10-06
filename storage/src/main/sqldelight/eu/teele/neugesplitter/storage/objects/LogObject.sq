@@ -1,0 +1,23 @@
+-- Each log object's bytes exactly as the backend holds them, encrypted for an encrypted group, kept
+-- so that a backend can be restored by putting the same objects back (TR-17, TR-17a).
+CREATE TABLE IF NOT EXISTS log_object (
+    group_id TEXT NOT NULL,
+    number INTEGER NOT NULL,
+    batch TEXT NOT NULL,
+    bytes BLOB NOT NULL,
+    PRIMARY KEY (group_id, number)
+);
+
+retain:
+INSERT INTO log_object (group_id, number, batch, bytes)
+VALUES (?, ?, ?, ?);
+
+inGroup:
+SELECT number, batch, bytes
+FROM log_object
+WHERE group_id = ?
+ORDER BY number;
+
+forget:
+DELETE FROM log_object
+WHERE group_id = ?;
