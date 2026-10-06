@@ -5,6 +5,7 @@ kotlin { jvmToolchain(17) }
 dependencies {
     api(project(":domain"))
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kage)
 
     testImplementation(testFixtures(project(":domain")))
     testImplementation(libs.junit)
@@ -14,6 +15,8 @@ dependencies {
 
 tasks.test {
     useJUnit()
+    // age's scrypt work factor takes 256 MiB per derivation (format-spec 5.1).
+    maxHeapSize = "1g"
 
     // The vectors live beside the specification they belong to (format-spec 10).
     val docs = rootProject.layout.projectDirectory.dir("docs")
