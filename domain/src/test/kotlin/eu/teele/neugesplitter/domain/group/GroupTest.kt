@@ -6,6 +6,7 @@ import eu.teele.neugesplitter.domain.CLARA
 import eu.teele.neugesplitter.domain.GROUP
 import eu.teele.neugesplitter.domain.Log
 import eu.teele.neugesplitter.domain.Malformed
+import eu.teele.neugesplitter.domain.TODAY
 import eu.teele.neugesplitter.domain.entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
@@ -191,7 +192,7 @@ class GroupTest {
                 .replay()
         assertTrue(group.entries.isEmpty())
         assertEquals(setOf(entryId(1)), group.deleted.keys)
-        assertTrue(group.balances().values.all { it.isZero })
+        assertTrue(group.balances(TODAY).values.all { it.isZero })
     }
 
     @Test
@@ -216,9 +217,9 @@ class GroupTest {
                     entry(1, thirty, Side.Equal(listOf(ANNA)), Side.Equal(listOf(ANNA, BEN, CLARA)))
                 )
                 .replay()
-        assertEquals(Amount.parse("2000000000"), group.balances().getValue(ANNA))
-        assertEquals(Amount.parse("-1000000000"), group.balances().getValue(BEN))
-        assertEquals(Amount.parse("-1000000000"), group.balances().getValue(CLARA))
+        assertEquals(Amount.parse("2000000000"), group.balances(TODAY).getValue(ANNA))
+        assertEquals(Amount.parse("-1000000000"), group.balances(TODAY).getValue(BEN))
+        assertEquals(Amount.parse("-1000000000"), group.balances(TODAY).getValue(CLARA))
     }
 
     @Test
@@ -235,8 +236,8 @@ class GroupTest {
                     )
                 )
                 .replay()
-        assertEquals(Amount.parse("-2000000000"), group.balances().getValue(ANNA))
-        assertEquals(Amount.parse("1000000000"), group.balances().getValue(BEN))
+        assertEquals(Amount.parse("-2000000000"), group.balances(TODAY).getValue(ANNA))
+        assertEquals(Amount.parse("1000000000"), group.balances(TODAY).getValue(BEN))
     }
 
     @Test
@@ -253,15 +254,15 @@ class GroupTest {
                     )
                 )
                 .replay()
-        assertEquals(thirty, group.balances().getValue(ANNA))
-        assertEquals(-thirty, group.balances().getValue(BEN))
-        assertEquals(Amount.ZERO, group.balances().getValue(CLARA))
+        assertEquals(thirty, group.balances(TODAY).getValue(ANNA))
+        assertEquals(-thirty, group.balances(TODAY).getValue(BEN))
+        assertEquals(Amount.ZERO, group.balances(TODAY).getValue(CLARA))
     }
 
     @Test
     fun `balances cover every member, including those with nothing to settle (BA-2)`() {
         val group = threePeople().replay()
-        assertEquals(setOf(ANNA, BEN, CLARA), group.balances().keys)
-        assertEquals(setOf(ANNA, BEN, CLARA), group.settlement().keys)
+        assertEquals(setOf(ANNA, BEN, CLARA), group.balances(TODAY).keys)
+        assertEquals(setOf(ANNA, BEN, CLARA), group.settlement(TODAY).keys)
     }
 }

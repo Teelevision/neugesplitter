@@ -3,16 +3,23 @@ package eu.teele.neugesplitter.domain.group
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.balance.Settlement
 import eu.teele.neugesplitter.domain.entry.Entry
+import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.event.GroupChanges
 import eu.teele.neugesplitter.domain.event.or
+import eu.teele.neugesplitter.domain.recurrence.Decision
+import eu.teele.neugesplitter.domain.recurrence.Occurrence
+import eu.teele.neugesplitter.domain.recurrence.Series
+import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.Colour
+import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.domain.value.SeriesId
 
 /**
  * A group, which is the only aggregate: one group is one consistency boundary and nothing refers
@@ -35,6 +42,8 @@ data class Group(
     val removed: Set<MemberId> = emptySet(),
     val entries: Map<EntryId, Entry> = emptyMap(),
     val deleted: Map<EntryId, Entry> = emptyMap(),
+    /** Deleted ones included, because an occurrence amended after the deletion still stands. */
+    val series: Map<SeriesId, Series> = emptyMap(),
 ) {
 
     /**
@@ -83,12 +92,51 @@ data class Group(
                 val entry = known(event.target)
                 copy(entries = entries - entry.id, deleted = deleted + (entry.id to entry))
             }
+
+            is Event.SeriesCreated -> {
+                if (event.series in series) {
+                    throw Malformed("series ${event.series} is created twice")
+                }
+                checked(event.segment.template, "series ${event.series}")
+                val created = Series(event.series, listOf(event.from to event.segment))
+                copy(series = series + (event.series to created))
+            }
+
+            is Event.SeriesAmended -> {
+                checked(event.segment.template, "series ${event.target}")
+                revised(event.target) { it.from(event.from, event.segment).restored() }
+            }
+
+            is Event.SeriesEnded -> revised(event.target) { it.from(event.from, null) }
+
+            is Event.SeriesDeleted -> revised(event.target) { it.removed() }
+
+            is Event.OccurrenceConfirmed ->
+                revised(event.series) { it.decided(event.due, Decision.Confirmed) }
+
+            is Event.OccurrenceDeleted ->
+                revised(event.series) { it.decided(event.due, Decision.Deleted) }
+
+            is Event.OccurrenceAmended -> {
+                checked(event.entry, "occurrence ${event.due} of series ${event.series}")
+                revised(event.series) {
+                    it.decided(event.due, Decision.Amended(event.date, event.entry))
+                }
+            }
         }
 
+    /**
+     * Every occurrence due by [today], the installation's local date, pending ones included
+     * (RE-14).
+     */
+    fun occurrences(today: EntryDate): List<Occurrence> =
+        series.values.flatMap { it.occurrences(today) }
+
     /** Every member's exact balance in 10⁻⁸ units, zero included (format-spec 7.1). */
-    fun balances(): Map<MemberId, Amount> {
+    fun balances(today: EntryDate): Map<MemberId, Amount> {
         val totals = members.keys.associateWithTo(mutableMapOf()) { Amount.ZERO }
-        for (entry in entries.values) {
+        val due = occurrences(today).filterNot { it.pending }.map { it.entry }
+        for (entry in entries.values + due) {
             for ((member, contribution) in entry.contributions()) {
                 totals[member] = (totals[member] ?: Amount.ZERO) + contribution
             }
@@ -97,7 +145,8 @@ data class Group(
     }
 
     /** The balances as they are shown and settled, at this group's scale (BA-2). */
-    fun settlement(): Map<MemberId, Amount> = Settlement.rounded(balances(), scale)
+    fun settlement(today: EntryDate): Map<MemberId, Amount> =
+        Settlement.rounded(balances(today), scale)
 
     /** Who a new entry starts out with: everyone, unless the group says otherwise (SP-8, GR-8). */
     fun participants(): List<MemberId> =
@@ -132,15 +181,28 @@ data class Group(
     private fun known(target: EntryId): Entry =
         entries[target] ?: deleted[target] ?: throw Malformed("no entry $target in group $id")
 
+    private fun revised(target: SeriesId, change: (Series) -> Series): Group {
+        val known = series[target] ?: throw Malformed("no series $target in group $id")
+        return copy(series = series + (target to change(known)))
+    }
+
     /** An entry is checked when it enters the state, so that a stored one can always be split. */
     private fun checked(entry: Entry): Entry {
-        for (member in entry.payers.members + entry.beneficiaries.members) {
+        requireSplittable("entry ${entry.id}", entry.amount, entry.payers, entry.beneficiaries)
+        return entry
+    }
+
+    private fun checked(template: Template, what: String) =
+        requireSplittable(what, template.amount, template.payers, template.beneficiaries)
+
+    private fun requireSplittable(what: String, amount: Amount, payers: Side, beneficiaries: Side) {
+        for (member in payers.members + beneficiaries.members) {
             if (member !in members) {
-                throw Malformed("entry ${entry.id} names $member, who is not a member of group $id")
+                throw Malformed("$what names $member, who is not a member of group $id")
             }
         }
-        entry.contributions()
-        return entry
+        payers.parts(amount)
+        beneficiaries.parts(amount)
     }
 
     companion object {

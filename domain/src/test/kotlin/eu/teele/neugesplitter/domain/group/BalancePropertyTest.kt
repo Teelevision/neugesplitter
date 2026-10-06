@@ -1,5 +1,6 @@
 package eu.teele.neugesplitter.domain.group
 
+import eu.teele.neugesplitter.domain.TODAY
 import eu.teele.neugesplitter.domain.arbGroup
 import io.kotest.property.checkAll
 import kotlin.test.Test
@@ -16,7 +17,7 @@ class BalancePropertyTest {
     fun `balances sum to zero once the residue is absorbed (BA-2)`() {
         runBlocking {
             checkAll(arbGroup) { group ->
-                val settled = group.settlement()
+                val settled = group.settlement(TODAY)
                 val total = settled.values.fold(0L) { sum, value -> sum + value.units }
                 assertTrue(total == 0L, "balances sum to $total at scale ${group.scale}")
             }
@@ -27,7 +28,7 @@ class BalancePropertyTest {
     fun `every balance is a whole number of the group's units (BA-2)`() {
         runBlocking {
             checkAll(arbGroup) { group ->
-                val settled = group.settlement()
+                val settled = group.settlement(TODAY)
                 assertTrue(
                     settled.values.all { it.units % group.scale.unit == 0L },
                     "not at scale ${group.scale}: $settled",
@@ -40,8 +41,8 @@ class BalancePropertyTest {
     fun `a member in credit is never shown owing money (format-spec 7_1)`() {
         runBlocking {
             checkAll(arbGroup) { group ->
-                val exact = group.balances()
-                val settled = group.settlement()
+                val exact = group.balances(TODAY)
+                val settled = group.settlement(TODAY)
                 assertTrue(
                     settled.none { (member, value) ->
                         exact.getValue(member).isPositive && value.isNegative
@@ -57,8 +58,8 @@ class BalancePropertyTest {
         runBlocking {
             checkAll(arbGroup) { group ->
                 assertTrue(
-                    group.settlement().keys == group.members.keys,
-                    "balances ${group.settlement().keys} against members ${group.members.keys}",
+                    group.settlement(TODAY).keys == group.members.keys,
+                    "balances ${group.settlement(TODAY).keys} against members ${group.members.keys}",
                 )
             }
         }

@@ -9,6 +9,10 @@ import eu.teele.neugesplitter.domain.event.GroupChanges
 import eu.teele.neugesplitter.domain.event.GroupDetails
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.recurrence.Interval
+import eu.teele.neugesplitter.domain.recurrence.Mode
+import eu.teele.neugesplitter.domain.recurrence.Segment
+import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
@@ -16,6 +20,7 @@ import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.domain.value.SeriesId
 import java.time.Instant
 
 val GROUP: GroupId = GroupId.parse("%032x".format(0xc0a1))
@@ -25,6 +30,20 @@ val AT: Instant = Instant.parse("2026-08-31T18:04:11Z")
 val TODAY: EntryDate = EntryDate.parse("2026-08-31")
 
 fun entryId(n: Int): EntryId = EntryId.parse("%032x".format(0xe000 + n))
+
+val RENT: SeriesId = SeriesId.parse("%032x".format(0x5e1))
+
+fun date(text: String): EntryDate = EntryDate.parse(text)
+
+fun template(
+    amount: Amount,
+    payers: Side,
+    beneficiaries: Side,
+    description: String = "Rent",
+): Template = Template(Kind.EXPENSE, description, amount, payers, beneficiaries)
+
+fun segment(interval: Interval, template: Template, mode: Mode = Mode.AUTOMATIC) =
+    Segment(interval, mode, template)
 
 fun entry(
     n: Int,
@@ -71,6 +90,56 @@ class Log(private val by: MemberId = ANNA) {
     }
 
     fun delete(target: EntryId) = apply { events += Event.EntryDeleted(id(), by, AT, target) }
+
+    fun start(series: SeriesId, from: String, segment: Segment) = apply {
+        events += Event.SeriesCreated(id(), by, AT, series, date(from), segment)
+    }
+
+    fun amend(target: SeriesId, from: String, segment: Segment) = apply {
+        events += Event.SeriesAmended(id(), by, AT, target, date(from), segment)
+    }
+
+    fun end(target: SeriesId, from: String) = apply {
+        events += Event.SeriesEnded(id(), by, AT, target, date(from))
+    }
+
+    fun delete(target: SeriesId) = apply { events += Event.SeriesDeleted(id(), by, AT, target) }
+
+    // Occurrence events take the derived id, as format-spec 6 requires, not the next serial.
+    fun confirm(series: SeriesId, due: String) = apply {
+        events +=
+            Event.OccurrenceConfirmed(
+                EventId.occurrence(series, date(due)),
+                by,
+                AT,
+                series,
+                date(due),
+            )
+    }
+
+    fun decline(series: SeriesId, due: String) = apply {
+        events +=
+            Event.OccurrenceDeleted(
+                EventId.occurrence(series, date(due)),
+                by,
+                AT,
+                series,
+                date(due),
+            )
+    }
+
+    fun amend(series: SeriesId, due: String, on: String, entry: Template) = apply {
+        events +=
+            Event.OccurrenceAmended(
+                EventId.occurrence(series, date(due)),
+                by,
+                AT,
+                series,
+                date(due),
+                date(on),
+                entry,
+            )
+    }
 
     fun events(): List<Event> = events.toList()
 

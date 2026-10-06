@@ -1,5 +1,8 @@
 package eu.teele.neugesplitter.domain.value
 
+import java.nio.ByteBuffer
+import java.security.MessageDigest
+
 /**
  * The shared form of every identifier in the format: 128 bits as 32 lowercase hex characters, with
  * no type prefix (format-spec 3.1).
@@ -47,6 +50,10 @@ value class EntryId private constructor(val hex: String) : Comparable<EntryId> {
 
     companion object {
         fun parse(hex: String): EntryId = EntryId(requireIdentifier(hex, "entry id"))
+
+        /** The id an occurrence has in the entry list (format-spec 6). */
+        fun occurrence(series: SeriesId, due: EntryDate): EntryId =
+            EntryId(occurrenceId(series, due))
     }
 }
 
@@ -59,5 +66,31 @@ value class EventId private constructor(val hex: String) : Comparable<EventId> {
 
     companion object {
         fun parse(hex: String): EventId = EventId(requireIdentifier(hex, "event id"))
+
+        /** The id every occurrence event for [due] shares, so the last one written wins. */
+        fun occurrence(series: SeriesId, due: EntryDate): EventId =
+            EventId(occurrenceId(series, due))
     }
+}
+
+@JvmInline
+value class SeriesId private constructor(val hex: String) : Comparable<SeriesId> {
+    override fun compareTo(other: SeriesId): Int = hex.compareTo(other.hex)
+
+    override fun toString(): String = hex
+
+    companion object {
+        fun parse(hex: String): SeriesId = SeriesId(requireIdentifier(hex, "series id"))
+    }
+}
+
+private fun occurrenceId(series: SeriesId, due: EntryDate): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    digest.update("neugesplitter/occurrence/v1".toByteArray(Charsets.US_ASCII))
+    for (field in listOf(series.hex, due.toString())) {
+        val bytes = field.toByteArray(Charsets.US_ASCII)
+        digest.update(ByteBuffer.allocate(Int.SIZE_BYTES).putInt(bytes.size).array())
+        digest.update(bytes)
+    }
+    return digest.digest().take(16).joinToString("") { "%02x".format(it) }
 }

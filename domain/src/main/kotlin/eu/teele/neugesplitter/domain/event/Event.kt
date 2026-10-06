@@ -4,6 +4,8 @@ import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.recurrence.Segment
+import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.AttachmentName
 import eu.teele.neugesplitter.domain.value.Colour
@@ -13,6 +15,7 @@ import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.domain.value.SeriesId
 import java.time.Instant
 
 /**
@@ -57,8 +60,6 @@ data class EntryChanges(
  * The event types are fixed from outside the model and cannot be renamed by a refactor, so the
  * hierarchy is sealed here and the mapping to JSON lives in `:format` (development.md 1). `at` is
  * recorded and never consulted: order is the order of the log (event-model 1).
- *
- * Recurrence is not here yet; the series and occurrence types arrive with it.
  */
 sealed interface Event {
     val id: EventId
@@ -140,5 +141,79 @@ sealed interface Event {
         val target: EntryId,
     ) : Event {
         override val type = "entry.deleted"
+    }
+
+    data class SeriesCreated(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val series: SeriesId,
+        val from: EntryDate,
+        val segment: Segment,
+    ) : Event {
+        override val type = "series.created"
+    }
+
+    data class SeriesAmended(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val target: SeriesId,
+        val from: EntryDate,
+        val segment: Segment,
+    ) : Event {
+        override val type = "series.amended"
+    }
+
+    data class SeriesEnded(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val target: SeriesId,
+        val from: EntryDate,
+    ) : Event {
+        override val type = "series.ended"
+    }
+
+    data class SeriesDeleted(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val target: SeriesId,
+    ) : Event {
+        override val type = "series.deleted"
+    }
+
+    data class OccurrenceConfirmed(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val series: SeriesId,
+        val due: EntryDate,
+    ) : Event {
+        override val type = "occurrence.confirmed"
+    }
+
+    data class OccurrenceDeleted(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val series: SeriesId,
+        val due: EntryDate,
+    ) : Event {
+        override val type = "occurrence.deleted"
+    }
+
+    /** The wire's `entry` is [date] and [entry] together: an entry with no `id`. */
+    data class OccurrenceAmended(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val series: SeriesId,
+        val due: EntryDate,
+        val date: EntryDate,
+        val entry: Template,
+    ) : Event {
+        override val type = "occurrence.amended"
     }
 }
