@@ -256,8 +256,8 @@ of everyone entering the same backend settings.
   Where a rounded unit cannot be divided evenly, the member who is owed MUST
   absorb it rather than the members who owe.
 - **SP-8** (Core): A group MUST be able to define the default set of
-  participants for new entries. The default split scheme is always equal (SP-2)
-  and is not configurable.
+  participants for new entries. Where a group defines none, every member takes
+  part. The default split scheme is always equal (SP-2) and is not configurable.
 
 ### 4.7 Amount Entry
 

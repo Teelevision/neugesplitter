@@ -193,6 +193,12 @@ every group this version creates. Later changes to name, description, emoji,
 colour and the default participant set (GR-2, SP-8) are `group.updated`, which
 names only the fields it changes, exactly as an entry update does.
 
+The default participant set is the one thing `group.updated` can carry that
+`group.created` cannot. It names members, and object zero is written before any
+member exists, so there is nobody it could legally name (format-spec section
+4.2). Nothing is lost: a group with no default splits between everyone, which is
+what a group would have chosen on its first day in any case.
+
 The decimal places are the _d_ the balance rounding in section 3 needs. They are
 written from the first release even though nothing offers a choice yet, because
 a field that arrives later has no answer for the groups already in existence —

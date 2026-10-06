@@ -255,7 +255,8 @@ An event MUST agree with the state the log has produced so far:
 
 - every identifier an event names MUST already be in the group — the `target` of
   `member.renamed`, `member.removed`, `entry.updated` and `entry.deleted`, the
-  `series` of an occurrence event, and every member identifier in a side;
+  `series` of an occurrence event, and every member identifier in a side or in
+  `defaultParticipants`;
 - `member.added` and `entry.created` MUST NOT reuse an identifier the group
   already has, whether or not what it named has since been removed or deleted.
 
@@ -305,15 +306,30 @@ its own; the choice is made per field, as each one is added.
 
 `group`:
 
-| Field                 | Type                                         |
-| --------------------- | -------------------------------------------- |
-| `id`                  | identifier, `group.created` only             |
-| `scale`               | integer 0–8                                  |
-| `name`                | string                                       |
-| `description`         | string, optional                             |
-| `emoji`               | string, optional                             |
-| `colour`              | string, optional, `#rrggbb`                  |
-| `defaultParticipants` | array of member identifiers, optional (SP-8) |
+| Field                 | Type                                                               |
+| --------------------- | ------------------------------------------------------------------ |
+| `id`                  | identifier, `group.created` only                                   |
+| `scale`               | integer 0–8                                                        |
+| `name`                | string                                                             |
+| `description`         | string, optional                                                   |
+| `emoji`               | string, optional                                                   |
+| `colour`              | string, optional, `#rrggbb`                                        |
+| `defaultParticipants` | array of member identifiers, optional, `group.updated` only (SP-8) |
+
+`defaultParticipants` is the set of members a new entry starts out with; the
+scheme it starts out with is always equal and is not configurable (SP-8). It
+MUST NOT appear in `group.created`, which is the first event of the log and so
+runs before any `member.added`: there is no member it could name that the rule
+above would allow. Every group therefore begins without one, and its absence
+means **every member of the group**, which is what a group of people who have
+just created one would have chosen anyway. A group sets it with `group.updated`
+once there are members to name, and clears it back to that default by sending
+`null`.
+
+A member named in `defaultParticipants` who is later removed does not make the
+group malformed — removal takes nothing out of the log and the identifier is
+still a member's. The default is simply not offered for them when a new entry is
+written (GR-8).
 
 `member`: `id`, `name`. Which member an installation acts as is local to that
 installation and has no event: an installation simply writes that member into
