@@ -185,17 +185,20 @@ which is how HI-9 is implemented without a second mechanism.
 
 ## 5. Members and the group
 
-`group.created` is the first event of every group, and therefore the payload of
-object zero, which is also what identifies the location (sync-design section 5).
-It carries the group id, its name, the creating member, and **the number of
-decimal places the group's amounts are entered and displayed in** — two, in
-every group this version creates. Later changes to name, description, emoji,
-colour and the default participant set (GR-2, SP-8) are `group.updated`, which
-names only the fields it changes, exactly as an entry update does.
+`group.created` is the first event of every group, and therefore in the first
+batch of its log, which is also what identifies the location (sync-design
+section 5). It carries the group id, its name and **the number of decimal places
+the group's amounts are entered and displayed in** — two, in every group this
+version creates. There is no creator field: the creating member is its `by`, as
+for every event, and joins the member list through a `member.added` like
+everybody else, since nobody can be added to a group before it exists. Later
+changes to name, description, emoji, colour and the default participant set
+(GR-2, SP-8) are `group.updated`, which names only the fields it changes,
+exactly as an entry update does.
 
 The default participant set is the one thing `group.updated` can carry that
-`group.created` cannot. It names members, and object zero is written before any
-member exists, so there is nobody it could legally name (format-spec section
+`group.created` cannot. It names members, and `group.created` is written before
+any member exists, so there is nobody it could legally name (format-spec section
 4.2). Nothing is lost: a group with no default splits between everyone, which is
 what a group would have chosen on its first day in any case.
 

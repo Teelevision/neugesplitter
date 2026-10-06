@@ -219,7 +219,7 @@ document does not define is ignored (section 8).
 
 | `type`                 | Payload field               | Notes                       |
 | ---------------------- | --------------------------- | --------------------------- |
-| `group.created`        | `group`                     | Object zero, first event.   |
+| `group.created`        | `group`                     | First event of the log.     |
 | `group.updated`        | `group`                     | Only what changed.          |
 | `member.added`         | `member`                    |                             |
 | `member.renamed`       | `target`, `name`            |                             |
