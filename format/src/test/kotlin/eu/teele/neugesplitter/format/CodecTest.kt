@@ -9,6 +9,7 @@ import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.format.chain.Link
 import eu.teele.neugesplitter.format.json.BatchId
+import eu.teele.neugesplitter.format.json.EventJson
 import eu.teele.neugesplitter.format.json.LogObject
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.boolean
@@ -50,6 +51,17 @@ class CodecTest {
                 val prev = if (chained) Link.parse("5a".repeat(32)) else null
                 val original = LogObject(batch, prev, events)
                 assertEquals(original, LogObject.read(original.write()))
+            }
+        }
+    }
+
+    @Test
+    fun `an event's text is the one its log object carries, and reads back (TR-17b)`() {
+        runBlocking {
+            checkAll(arbEvent) { event ->
+                val text = EventJson.write(event)
+                assertEquals(written(event), Json.parseToJsonElement(text))
+                assertEquals(event, EventJson.read(text))
             }
         }
     }
