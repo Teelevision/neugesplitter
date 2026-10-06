@@ -52,6 +52,17 @@ are described in [sync-design.md](sync-design.md).
   same: what every group depends on is age's file format, which any
   implementation reads, not kage, so replacing it later touches one adapter and
   no stored byte (architecture.md 1).
+- **How does `:storage` reach SQLite?** Through SQLDelight. The schema and every
+  query are written as SQL and checked at build time, which suits a store whose
+  most important column is event text that nothing may rewrite (TR-16, TR-17c):
+  the SQL that touches it is in plain view rather than inferred from annotated
+  classes. It generates Kotlin from a Gradle plugin with no annotation
+  processing, the same cost that ruled out Hilt (development.md 5). And its JDBC
+  driver runs the same schema on the JVM, so the storage tests — the event log
+  kept as written, the projection rebuilt from it — run in `check` without an
+  emulator or Robolectric. Room was the alternative; it is the platform's
+  default, but it would have brought KSP and shaped the tables around entity
+  classes the domain does not have.
 - **Passphrase or key pair?** A key pair. age can encrypt to a passphrase
   directly, but it derives a key with scrypt for every file, deliberately and
   expensively — which would make decrypting a whole history, in the app or at a

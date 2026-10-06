@@ -23,6 +23,7 @@ graph TD
     sync --> format[":format"]
     sync --> domain[":domain"]
     format --> domain
+    storage --> format
     storage --> domain
     s3 -. implements LogStore .-> sync
     storage -. implements LocalLog .-> sync
@@ -43,6 +44,9 @@ S3 today (TR-29, BE-14). `:format` is a JVM module because TR-23 settled on
 kage, a Kotlin library (decisions.md); had the answer been a gomobile AAR, it
 would have become an Android library, and the port in front of the age binding
 is what would have kept that from spreading further than its dependents.
+`:storage` depends on `:format` for one reason: the local event log keeps each
+event as JSON text in the wire schema (TR-17b), so writing a row and replaying
+one both go through the codec.
 
 Modules get created when there is code to put in them. Starting with `:domain`
 and `:app` and splitting outward as the sync path arrives is not a departure
@@ -147,14 +151,20 @@ will eventually fire while a manual sync is running (TR-15).
 
 ## 5. Local storage
 
-| Table              | Derived? | Notes                                                                  |
-| ------------------ | -------- | ---------------------------------------------------------------------- |
-| `event_row`        | no       | group, local order, canonical event JSON text, sync state, object link |
-| `log_object`       | no       | group, number, batch id, exact bytes as the backend holds them         |
-| `event_item_ref`   | no       | event-to-projection references used to find partial rebuild candidates |
-| `backend_settings` | no       | endpoint and prefix; credentials encrypted with a keystore key (TR-36) |
-| `sync_state`       | no       | last successful sync, halt state and its reason                        |
-| everything else    | yes      | group, member, entry, side, series, occurrence, balances               |
+| Table              | Derived? | Notes                                                                   |
+| ------------------ | -------- | ----------------------------------------------------------------------- |
+| `event_row`        | no       | group, local order, canonical event JSON text, sync state, object link  |
+| `log_object`       | no       | group, number, batch id, exact bytes as the backend holds them          |
+| `event_item_ref`   | no       | event-to-projection references used to find partial rebuild candidates  |
+| `acting_as`        | no       | which member this installation writes into `by` (ID-3, format-spec 4.2) |
+| `backend_settings` | no       | endpoint and prefix; credentials encrypted with a keystore key (TR-36)  |
+| `sync_state`       | no       | last successful sync, halt state and its reason                         |
+| `projection_state` | no       | the projection version the derived tables were built by (TR-18b)        |
+| everything else    | yes      | `group_row`, `member`, `entry`, `side`, `occurrence`, `balance`         |
+
+`group_row` is named so only because `GROUP` is an SQL keyword. Occurrences sit
+in `entry` like any other entry, and `occurrence` says which series and due date
+each came from and whether it is still pending.
 
 The local event log is the installation's source of truth for a group, and the
 retained backend objects are the source of truth for restore and chain
@@ -163,6 +173,15 @@ any time, and that is the resolution to any disagreement between them (TR-18,
 TR-18b). Day to day, partial invalidation starts from `event_item_ref`, but the
 domain decides how far the rebuild propagates (TR-18aa, TR-18c). Deleting a
 group deletes both halves (TR-20).
+
+Every table is created `IF NOT EXISTS`, so discarding the projection is dropping
+the derived tables and creating them again in their current shape. A change to a
+derived table therefore needs no migration, only a new projection version, which
+the next start turns into a rebuild before anything is read (TR-18b).
+
+Occurrences and balances depend on the installation's local date (RE-14), so a
+group's row records the date it was projected for, and the projection is brought
+forward when that date has passed.
 
 ## 6. Lifecycle and threading
 

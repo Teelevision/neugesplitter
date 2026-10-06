@@ -88,6 +88,7 @@ milliseconds, with no emulator anywhere near it.
 | Gradle with the Kotlin DSL     | build, one version catalog in `gradle/libs.versions.toml`   |
 | AGP + Kotlin, JVM toolchain 17 | `minSdk` 33, `targetSdk` current (TR-2, TR-3)               |
 | Jetpack Compose + Material 3   | UI (TR-5)                                                   |
+| SQLDelight                     | SQLite schema and queries as SQL (TR-16), decisions.md      |
 | Spotless                       | ktfmt for Kotlin, prettier for Markdown at 80 columns       |
 | Android Lint                   | the platform checks, run as part of `check`                 |
 | JUnit 4 + kotlin.test          | unit tests; JUnit 4 because instrumentation needs it anyway |
@@ -106,6 +107,7 @@ that can be abandoned, and this app is meant to still build in five years.
 | Domain unit         | `:domain` JVM tests     | splits, balances, rounding, recurrence, replay                                                      |
 | Property            | `:domain` JVM tests     | split truncation bounds of format-spec 7 (SP-7), balances sum to zero after residue handling (BA-2) |
 | Format conformance  | `:format` JVM tests     | the specification's test vectors (TR-45), update merge semantics (TR-47)                            |
+| Storage             | `:storage` JVM tests    | event text kept as written (TR-17c), the projection rebuilt from the log (TR-18), group deletion    |
 | Backend integration | `:backend-s3` JVM tests | conditional write, losing write, interrupted write, refusing a backend without `If-None-Match`      |
 | UI smoke            | `:app` instrumentation  | a handful of screens; not a test strategy, a canary                                                 |
 
