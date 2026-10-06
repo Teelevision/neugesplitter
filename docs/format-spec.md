@@ -707,7 +707,8 @@ They were produced independently of this project's code: the occurrence
 identifiers and the chain with a script written from this document, the chain
 key and links checked against OpenSSL's HKDF and HMAC, and the identity checked
 against the `age` tool, which derives a recipient from it and decrypts what was
-encrypted to that recipient.
+encrypted to that recipient. The encrypted files were written by the `age` tool
+itself.
 
 - **`occurrenceIds`** — a `series` and a `due` date, and the `id` section 6
   derives from them.
@@ -728,6 +729,10 @@ encrypted to that recipient.
   meaning its UTF-8 bytes, or `hex` where the bytes are not text.
 - **`limits`** — one object at each end of every limit in section 2.2, built as
   follows, and whether it is `accepted`.
+- **`encrypted`** — a `root` object, the `passphrase` that opens it and the
+  `identity` it holds, and `objects` encrypted to that identity, each with the
+  `payloadFile` it decrypts to. The passphrase is given decomposed, so it opens
+  the root only once normalised as section 5.1 requires.
 
 Each limit object is the object below, without whitespace, changed in one place:
 

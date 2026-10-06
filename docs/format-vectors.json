@@ -294,5 +294,18 @@
       "n": 10001,
       "accepted": false
     }
+  ],
+  "encrypted": [
+    {
+      "root": "vectors/root.age",
+      "passphrase": "Grüße aus Köln, sieben Bäume",
+      "identity": "AGE-SECRET-KEY-1QQQSYQCYQ5RQWZQFPG9SCRGWPUGPZYSNZS23V9CCRYDPK8QARC0SWRYDWG",
+      "objects": [
+        {
+          "file": "vectors/entry-schemes.age",
+          "payloadFile": "vectors/entry-schemes.json"
+        }
+      ]
+    }
   ]
 }
