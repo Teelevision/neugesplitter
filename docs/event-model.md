@@ -235,8 +235,9 @@ would not stop anyone who wanted to write a false one.
 ## 6. Recurring series
 
 A series is not a template that occurrences are copied from. It is **a sequence
-of segments**, each with an effective-from date, an interval (RE-2), and the
-entry template in force from that date:
+of segments**, each with an effective-from date, an interval (RE-2), whether it
+is automatic or suggested (RE-3), and the entry template in force from that
+date:
 
 ```json
 { "id": "…", "type": "series.amended", "by": "m-7a3d", "at": "…",
@@ -251,13 +252,16 @@ mutable definition, raising the rent from 800 to 850 would retroactively raise
 every rent payment since the group began. Selecting the segment in force _at the
 due date_ means an edit reaches forward and nothing else.
 
-Pausing and resuming (RE-7) are segments that produce no occurrences and then
-resume, and `series.ended` is a segment boundary with nothing after it: the
-series stops, and everything it already produced stands. That is the right
-behaviour and the wrong word for a button marked delete, so deleting is a
-separate event. `series.deleted` takes the series and every occurrence of it,
-past ones included, out of the group — exactly what `entry.deleted` does to an
-entry, and just as recoverable, because the history keeps both (HI-3).
+Pausing (RE-7) is `series.ended`, and resuming is a `series.amended` from a
+later date. `series.ended` is a segment that produces nothing: the series stops,
+everything it already produced stands, and an amendment after it simply begins
+the next segment. Nothing distinguishes a pause from an end except that somebody
+later resumed it, so the format does not ask anyone to know in advance which of
+the two they meant. Ending is the right behaviour and the wrong word for a
+button marked delete, so deleting is a separate event. `series.deleted` takes
+the series and every occurrence of it, past ones included, out of the group —
+exactly what `entry.deleted` does to an entry, and just as recoverable, because
+the history keeps both (HI-3).
 
 **Only departures from the calculation produce events**, each with an id derived
 from the series id and the due date:
@@ -267,7 +271,19 @@ from the series id and the due date:
   (RE-5) and deleting an occurrence that already exists are the same statement
   about the same date, so they are one event; the series continues either way.
 - `occurrence.amended` — edited, whether it was suggested or automatic. Carries
-  a full entry.
+  a full entry, whose date may differ from the due date.
+
+All three share the derived id, so they are not three facts about an occurrence
+but successive answers to one question — what is this due date's occurrence? —
+and the last one written is the answer. Confirming and then editing, or editing
+twice, or deleting and changing one's mind, all need nothing more than that.
+
+The three differ in what they lose when the calculation moves. A confirmation or
+a deletion carries nothing, so if an amendment to the series makes its date stop
+being due, the date that is due instead simply asks the question again. An
+amended occurrence carries an entry somebody typed in, so it stands on its own:
+it outlives a schedule that moves away from its due date, and a `series.deleted`
+written before it, and only a later event naming it removes it.
 
 An automatic series that nobody touches produces no events whatsoever, and its
 occurrences exist only as the result of replay.

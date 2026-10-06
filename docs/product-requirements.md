@@ -295,8 +295,9 @@ of everyone entering the same backend settings.
   pending occurrence to the user, who can **confirm**, **decline**, or **edit
   and confirm** it.
 - **RE-5** (Core): Declining an occurrence MUST NOT stop the series.
-- **RE-6** (Core): Editing a series MUST affect future occurrences only. Already
-  created entries are never changed by editing the series.
+- **RE-6** (Core): Editing a series from a date MUST affect only occurrences
+  from that date onward. An occurrence somebody edited is never changed by
+  editing the series.
 - **RE-7** (Core): A user MUST be able to pause and resume a recurring series,
   to stop it from a date onward with its past occurrences left standing, and to
   delete it. Deleting a series MUST remove it and every occurrence it ever

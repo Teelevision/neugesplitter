@@ -203,6 +203,15 @@ are described in [sync-design.md](sync-design.md).
   suggestion is refused — both say that one due date produces nothing (RE-5,
   RE-15). Nothing leaves the log in any of these cases; the history keeps it and
   a later event can restore it.
+- **What happens to an edited occurrence when its series moves?** It stays. An
+  amendment to the series, written concurrently or from a past date, can make an
+  edited occurrence's date stop being due, and so can a `series.deleted` that
+  the editor had not seen. Dropping the edit would leave the balances wrong with
+  nothing on screen to say so, so an amended occurrence stands until an event
+  names it, at the cost of a possible second occurrence in the same period that
+  somebody can see and delete (format-spec 4.2). A confirmation or a refusal
+  carries nothing and keeps following the calculation, because losing one only
+  asks the question again.
 - **Does an entry need a schema version of its own?** No. The object header
   carries the format version, and a change to what an event _means_ is a change
   of `type`, which older installations already refuse rather than misread. If

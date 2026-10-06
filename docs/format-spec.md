@@ -243,22 +243,25 @@ no longer part of the group. Nothing leaves the log, the history still shows it
 
 `series.deleted` takes the series and every occurrence it ever produced,
 including past ones, out of the entry list and out of the balances — the same
-thing `entry.deleted` does to an entry. `series.ended` is the other one: it
-stops a series from a date onward and leaves what already happened standing.
-`occurrence.deleted` removes exactly one due date's occurrence, whether that
-occurrence was suggested, confirmed, amended or automatic, and the series
-carries on.
+thing `entry.deleted` does to an entry. An occurrence amended after the deletion
+is not taken with it (see "What a due date yields"). `series.ended` is the other
+one: it stops a series from a date onward and leaves what already happened
+standing. `occurrence.deleted` removes exactly one due date's occurrence,
+whether that occurrence was suggested, confirmed, amended or automatic, and the
+series carries on.
 
 #### An event is read against the log before it
 
 An event MUST agree with the state the log has produced so far:
 
 - every identifier an event names MUST already be in the group — the `target` of
-  `member.renamed`, `member.removed`, `entry.updated` and `entry.deleted`, the
-  `series` of an occurrence event, and every member identifier in a side or in
+  `member.renamed`, `member.removed`, `entry.updated`, `entry.deleted`,
+  `series.amended`, `series.ended` and `series.deleted`, the `series` of an
+  occurrence event, and every member identifier in a side or in
   `defaultParticipants`;
-- `member.added` and `entry.created` MUST NOT reuse an identifier the group
-  already has, whether or not what it named has since been removed or deleted.
+- `member.added`, `entry.created` and `series.created` MUST NOT reuse an
+  identifier the group already has, whether or not what it named has since been
+  removed or deleted.
 
 An event breaking either is malformed and reading stops (section 8). Requiring
 it costs a writer nothing, because writing requires being caught up (sync-design
@@ -272,8 +275,8 @@ two readers would handle differently.
 Repeating `member.removed`, `entry.deleted`, `series.deleted` or
 `occurrence.deleted` is **not** a contradiction and MUST be accepted: two
 installations may each decide to remove the same thing, and the second event
-asserts nothing the first did not. `entry.updated` MAY name a deleted entry,
-which puts it back (HI-9).
+asserts nothing the first did not. `entry.updated` MAY name a deleted entry, and
+`series.amended` a deleted series, which puts it back (HI-9).
 
 #### Update events carry only what changed
 
@@ -366,9 +369,9 @@ A **side**:
 `input` values are integers for `shares` and amounts for `adjustments` and
 `absolute`. A member MUST NOT appear twice, and `input` MUST NOT be empty.
 
-`series`: `id`, `from` (date), `segment`. A `segment` is `interval` plus
-`template`, where `template` is an entry without `id` or `date`. `interval` is
-one of:
+`series`: `id`, `from` (date), `segment`. A `segment` is `interval`, `mode` and
+`template`, where `mode` is `automatic` or `suggested` (RE-3) and `template` is
+an entry without `id` or `date`. `interval` is one of:
 
 ```json
 { "everyDays": 14 }
@@ -380,14 +383,86 @@ one of:
 their order carries no meaning. `monthlyOn` values are 1 to 31 and clamp to the
 last day of a shorter month, so a series on the 30th and the 31st yields **one**
 occurrence in February, not two: clamping happens first and the resulting dates
-are then deduplicated. A series also carries `mode`, either `automatic` or
-`suggested` (RE-3).
+are then deduplicated. `everyDays` is a positive integer, and `weeklyOn` values
+are `mo`, `tu`, `we`, `th`, `fr`, `sa` and `su`.
 
 Everything about a recurrence is a **date**. `from` on `series.created`,
 `series.amended` and `series.ended` is a date, and a due date is a date; no
 field in a series is an instant. Two series falling due on the same date have no
 defined order relative to each other, and implementations MUST NOT depend on one
 — balances are a sum, so no result depends on it.
+
+#### Which dates are due
+
+A series is a sequence of segments, each in force from its `from`:
+`series.created` begins the first, every `series.amended` begins another, and
+`series.ended` begins one that produces nothing. The segment in force on a date
+is the one with the latest `from` on or before that date, and of two with the
+same `from`, the later in the log.
+
+A date is **due** when the segment in force on it produces it, counting from
+that segment's own `from`: `everyDays: n` produces `from`, then every \_n_th day
+after it; `weeklyOn` and `monthlyOn` produce every date on or after `from` that
+matches them. So `from` is itself due whenever the interval produces it, and an
+amendment restarts the count of `everyDays` at its own `from` rather than
+carrying on from the segment before it.
+
+Pausing a series is `series.ended` from one date and resuming it is
+`series.amended` from a later one (RE-7). An ended series is simply one whose
+last segment produces nothing, and an amendment after it puts it back in force.
+
+A reader applies `from` as written, including one in the past: a series MAY be
+created or edited retrospectively, and what falls due between that `from` and
+the local date is due at once — produced if the segment is automatic, pending if
+it is suggested. An edit still reaches only from its own `from` onward (RE-6).
+Within that reach a retrospective edit changes automatic and confirmed
+occurrences, which are nothing but the calculation, and leaves amended ones as
+they are.
+
+An installation shows a due date once its own local date has reached it (RE-14),
+and not before, whatever events name that date.
+
+#### What a due date yields
+
+Each due date yields one **occurrence**: the template of the segment in force on
+it, dated on the due date. If that segment's `mode` is `automatic` the
+occurrence is an entry like any other, in the entry list and in the balances. If
+it is `suggested`, the occurrence is **pending** — offered to the user (RE-4,
+RE-10) but in neither until it is confirmed.
+
+An occurrence event overrides this for its due date. The three share one
+identifier (section 6), so the later in the log supersedes the earlier entirely
+and whichever was written last is the occurrence's state:
+
+- `occurrence.confirmed` makes it an entry, as if the segment were automatic;
+- `occurrence.amended` makes it the entry the event carries, which has no `id`
+  and whose `date` MAY differ from the due date — rent paid on the third is
+  still the occurrence due on the first;
+- `occurrence.deleted` makes it nothing, and the series carries on (RE-5,
+  RE-15).
+
+An amended occurrence is an entry somebody wrote, and only a later event naming
+it removes it: another occurrence event for its due date, or `series.deleted`.
+So it stands whether or not its due date is still due — an amendment to the
+series, written concurrently or from a date in the past, can move the schedule
+away from it, and what somebody typed in MUST NOT disappear because of that. It
+also stands while its series is deleted, provided it was written after the
+`series.deleted`, just as an `entry.updated` after an `entry.deleted` puts the
+entry back (HI-9). Like any occurrence it is shown once the local date reaches
+its due date. The price is that a moved schedule can yield two occurrences in
+one period, both in the entry list where somebody can delete one; the
+alternative is an edit lost without anyone seeing it.
+
+`occurrence.confirmed` and `occurrence.deleted` carry nothing of their own and
+follow the calculation. On a date that is not due, or on a series that is
+deleted, they are **not** malformed and have no effect for as long as that
+remains so. Nothing is lost by it: whatever date is due instead is offered or
+produced in its place. When `series.amended` puts a deleted series back, every
+occurrence event on it applies again, whenever it was written.
+
+An occurrence appears in the entry list with its occurrence identifier as its
+`id`. That identifier is not an entry's, so `entry.updated` and `entry.deleted`
+cannot name it; an occurrence is edited and deleted only by occurrence events.
 
 ## 5. Encryption and integrity
 
@@ -497,8 +572,8 @@ of the due date. `truncate16` takes the leading 16 bytes, rendered as hex.
 
 This is the `id` of `occurrence.confirmed`, `occurrence.deleted` and
 `occurrence.amended`, so two installations acting on the same occurrence produce
-one event rather than two (event-model section 2). It is the only derived value
-in the format.
+one event rather than two (event-model section 2), and the `id` of the
+occurrence itself in the entry list. It is the only derived value in the format.
 
 ## 7. Splitting
 
