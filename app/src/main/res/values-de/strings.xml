@@ -90,4 +90,14 @@
     <string name="problem_side">Wähle jemanden unter „%1$s“</string>
     <string name="save_failed">Der Eintrag konnte nicht gespeichert werden.</string>
     <string name="created_by">Erstellt von %1$s</string>
+
+    <!-- Amount calculator -->
+    <string name="calculator_back">Letzte Eingabe löschen</string>
+    <string name="calculator_clear">Alles löschen</string>
+    <string name="calculator_plus">Plus</string>
+    <string name="calculator_minus">Minus</string>
+    <string name="calculator_times">Mal</string>
+    <string name="calculator_divide">Geteilt durch</string>
+    <string name="calculator_division_by_zero">Division durch null nicht möglich</string>
+    <string name="calculator_too_large">Zu groß</string>
 </resources>

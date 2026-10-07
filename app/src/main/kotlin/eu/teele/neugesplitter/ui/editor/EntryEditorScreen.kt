@@ -1,5 +1,7 @@
 package eu.teele.neugesplitter.ui.editor
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -44,12 +47,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
@@ -60,6 +63,7 @@ import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.ui.calculator.CalculatorSheet
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.kindLabel
 import eu.teele.neugesplitter.ui.longDate
@@ -76,10 +80,21 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     val (payersLabel, beneficiariesLabel) = sideLabels(state.kind)
     var picking by rememberSaveable { mutableStateOf(false) }
+    var calculating by rememberSaveable { mutableStateOf(false) }
+    val focus = LocalFocusManager.current
     val description = remember { FocusRequester() }
+    val amountTaps = remember { MutableInteractionSource() }
 
     LaunchedEffect(state.done) { if (state.done) onClose() }
     LaunchedEffect(state.loaded) { if (state.loaded && !state.editing) description.requestFocus() }
+    LaunchedEffect(amountTaps) {
+        amountTaps.interactions.collect {
+            if (it is PressInteraction.Release) {
+                focus.clearFocus()
+                calculating = true
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -163,23 +178,27 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                         capitalization = KeyboardCapitalization.Sentences,
                         imeAction = ImeAction.Next,
                     ),
+                keyboardActions =
+                    KeyboardActions(
+                        onNext = {
+                            focus.clearFocus()
+                            calculating = true
+                        }
+                    ),
                 modifier = Modifier.fillMaxWidth().focusRequester(description),
             )
-            // A plain field until the calculator replaces it (AM-2).
+            // Read-only: tapping it opens the calculator instead of the keyboard (AM-2).
             OutlinedTextField(
-                value = state.amount,
-                onValueChange = viewModel::amount,
+                value = state.amount?.let { formatted(it, state.scale, locale) }.orEmpty(),
+                onValueChange = {},
+                readOnly = true,
                 label = { Text(stringResource(R.string.entry_amount)) },
                 singleLine = true,
                 textStyle =
                     MaterialTheme.typography.headlineSmall.merge(
                         TextStyle(fontFeatureSettings = "tnum")
                     ),
-                keyboardOptions =
-                    KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal,
-                        imeAction = ImeAction.Done,
-                    ),
+                interactionSource = amountTaps,
                 modifier = Modifier.fillMaxWidth(),
             )
             Section(stringResource(R.string.entry_date)) {
@@ -187,11 +206,11 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
             }
             Section(stringResource(payersLabel)) {
                 Chooser(state.members, state.payers, viewModel::payer)
-                Parts(state.members, state.payerSide, state.parsed, state.scale, locale)
+                Parts(state.members, state.payerSide, state.amount, state.scale, locale)
             }
             Section(stringResource(beneficiariesLabel)) {
                 Chooser(state.members, state.beneficiaries, viewModel::beneficiary)
-                Parts(state.members, state.beneficiarySide, state.parsed, state.scale, locale)
+                Parts(state.members, state.beneficiarySide, state.amount, state.scale, locale)
             }
         }
     }
@@ -204,6 +223,17 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                 picking = false
             },
             onDismiss = { picking = false },
+        )
+    }
+    if (calculating) {
+        CalculatorSheet(
+            start = state.amount,
+            scale = state.scale,
+            onConfirm = {
+                viewModel.amount(it)
+                calculating = false
+            },
+            onDismiss = { calculating = false },
         )
     }
 }

@@ -17,9 +17,6 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.storage.GroupRepository
-import java.math.BigDecimal
-import java.math.RoundingMode
-import java.text.DecimalFormatSymbols
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,21 +52,18 @@ data class EntryEditorState(
     val source: Entry? = null,
     val kind: Kind = Kind.EXPENSE,
     val description: String = "",
-    val amount: String = "",
+    val amount: Amount? = null,
     val payers: Set<MemberId> = emptySet(),
     val beneficiaries: Set<MemberId> = emptySet(),
     val saving: Boolean = false,
     val failed: Boolean = false,
     val done: Boolean = false,
 ) {
-    val parsed: Amount?
-        get() = typed(amount, scale)
-
     val problem: Problem?
         get() =
             when {
                 description.isBlank() -> Problem.DESCRIPTION
-                parsed == null -> Problem.AMOUNT
+                amount?.isPositive != true -> Problem.AMOUNT
                 payers.isEmpty() -> Problem.PAYERS
                 beneficiaries.isEmpty() -> Problem.BENEFICIARIES
                 else -> null
@@ -91,29 +85,6 @@ data class EntryEditorState(
             else -> Side.Equal(members.map { it.id }.filter { it in selected })
         }
 }
-
-/**
- * An amount as typed into the plain field that stands in until the calculator arrives: digits, and
- * at most [scale] of them after a point or comma. Null if that is not what [text] is, or if it is
- * not a positive amount the format can hold (AM-6, AM-7).
- */
-internal fun typed(text: String, scale: Scale): Amount? {
-    val match = TYPED.matchEntire(text) ?: return null
-    val (whole, fraction) = match.destructured
-    if (fraction.length > scale.digits) return null
-    val units = BigDecimal("$whole.${fraction.ifEmpty { "0" }}").movePointRight(Amount.UNIT_DIGITS)
-    if (units.signum() == 0 || units >= BigDecimal.valueOf(Amount.LIMIT)) return null
-    return Amount.ofUnits(units.longValueExact())
-}
-
-private val TYPED = Regex("""(\d*)(?:[.,](\d*))?""")
-
-/** [amount] as [typed] reads it back, with this device's decimal separator. */
-private fun typing(amount: Amount, scale: Scale): String =
-    BigDecimal.valueOf(amount.units, Amount.UNIT_DIGITS)
-        .setScale(scale.digits, RoundingMode.HALF_UP)
-        .toPlainString()
-        .replace('.', DecimalFormatSymbols.getInstance().decimalSeparator)
 
 /**
  * Writes a new entry, or a change to [entry] — or, with [duplicate], a new entry starting out as a
@@ -166,7 +137,7 @@ class EntryEditorViewModel(
                         source = source,
                         kind = source.kind,
                         description = source.description,
-                        amount = typing(source.amount, loaded.scale),
+                        amount = source.amount,
                         date = if (duplicate) state.date else source.date,
                         payers = source.payers.members.toSet(),
                         beneficiaries = source.beneficiaries.members.toSet(),
@@ -192,12 +163,8 @@ class EntryEditorViewModel(
 
     fun description(text: String) = mutable.update { it.copy(description = text) }
 
-    /** Takes [text] if it can still become an amount, and ignores it otherwise. */
-    fun amount(text: String) =
-        mutable.update {
-            val partial = Regex("""\d{0,10}(?:[.,]\d{0,${it.scale.digits}})?""")
-            if (partial.matches(text)) it.copy(amount = text) else it
-        }
+    /** Takes the calculator's committed result (AM-5). */
+    fun amount(amount: Amount) = mutable.update { it.copy(amount = amount) }
 
     fun date(date: EntryDate) = mutable.update { it.copy(date = date) }
 
@@ -217,7 +184,7 @@ class EntryEditorViewModel(
                 kind = state.kind,
                 description = state.description.trim(),
                 date = state.date,
-                amount = state.parsed!!,
+                amount = state.amount!!,
                 payers = state.payerSide!!,
                 beneficiaries = state.beneficiarySide!!,
                 note = state.source?.note,
