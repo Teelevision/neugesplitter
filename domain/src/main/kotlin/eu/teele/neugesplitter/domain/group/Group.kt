@@ -45,6 +45,8 @@ data class Group(
     val removed: Set<MemberId> = emptySet(),
     val entries: Map<EntryId, Entry> = emptyMap(),
     val deleted: Map<EntryId, Entry> = emptyMap(),
+    /** Every entry ever created, deleted ones included, in the order of creation (HI-4). */
+    val authors: Map<EntryId, Authorship> = emptyMap(),
     /** Deleted ones included, because an occurrence amended after the deletion still stands. */
     val series: Map<SeriesId, Series> = emptyMap(),
 ) {
@@ -83,12 +85,19 @@ data class Group(
                 if (event.entry.id in entries || event.entry.id in deleted) {
                     throw Malformed("entry ${event.entry.id} is created twice")
                 }
-                copy(entries = entries + (event.entry.id to checked(event.entry)))
+                copy(
+                    entries = entries + (event.entry.id to checked(event.entry)),
+                    authors = authors + (event.entry.id to Authorship(event.by)),
+                )
             }
 
             is Event.EntryUpdated -> {
                 val entry = checked(known(event.target).merged(event.entry))
-                copy(entries = entries + (entry.id to entry), deleted = deleted - entry.id)
+                copy(
+                    entries = entries + (entry.id to entry),
+                    deleted = deleted - entry.id,
+                    authors = authors + (entry.id to authors.getValue(entry.id).copy(edited = true)),
+                )
             }
 
             is Event.EntryDeleted -> {

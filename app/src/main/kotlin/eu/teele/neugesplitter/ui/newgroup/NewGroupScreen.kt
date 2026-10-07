@@ -60,6 +60,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
+import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.storage.ListedGroup
 import eu.teele.neugesplitter.ui.grouplist.GroupCard
@@ -87,11 +88,15 @@ private val NAME_OPTIONS =
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewGroupScreen(viewModel: NewGroupViewModel, onClose: () -> Unit) {
+fun NewGroupScreen(
+    viewModel: NewGroupViewModel,
+    onClose: () -> Unit,
+    onCreated: (GroupId) -> Unit,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val back = { if (!viewModel.back()) onClose() }
 
-    LaunchedEffect(state.created) { if (state.created) onClose() }
+    LaunchedEffect(state.created) { if (state.created) onCreated(state.id) }
     BackHandler(onBack = back)
 
     Scaffold(

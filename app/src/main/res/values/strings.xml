@@ -56,4 +56,16 @@
     <string name="storage_local_warning">Quick to set up. This group is lost if the device is lost.</string>
     <string name="create_group">Create group</string>
     <string name="create_failed">The group could not be saved.</string>
+
+    <!-- Overview -->
+    <string name="total_spending">Total spending</string>
+    <string name="entry_paid_by">Paid by %1$s</string>
+    <string name="entry_received_by">Received by %1$s</string>
+    <string name="entry_transfer_from">From %1$s</string>
+    <string name="entry_own_share">Your share %1$s</string>
+    <string name="entry_edited">edited</string>
+    <string name="entry_repeats">Recurring</string>
+    <string name="kind_expense">Expense</string>
+    <string name="kind_income">Income</string>
+    <string name="kind_transfer">Transfer</string>
 </resources>

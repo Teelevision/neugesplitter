@@ -9,15 +9,21 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import eu.teele.neugesplitter.AppGraph
+import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.ui.grouplist.GroupListScreen
 import eu.teele.neugesplitter.ui.grouplist.GroupListViewModel
 import eu.teele.neugesplitter.ui.newgroup.NewGroupScreen
 import eu.teele.neugesplitter.ui.newgroup.NewGroupViewModel
+import eu.teele.neugesplitter.ui.overview.OverviewScreen
+import eu.teele.neugesplitter.ui.overview.OverviewViewModel
 import kotlinx.serialization.Serializable
 
 @Serializable data object GroupList : NavKey
 
 @Serializable data object NewGroup : NavKey
+
+/** @property group the group's id, as hex. */
+@Serializable data class GroupOverview(val group: String) : NavKey
 
 /** Every screen, and how one leads to the next (ui-design 2). */
 @Composable
@@ -36,8 +42,9 @@ fun App(graph: AppGraph) {
             entryProvider {
                 entry<GroupList> {
                     GroupListScreen(
-                        viewModel { GroupListViewModel(graph.groups) },
+                        viewModel { GroupListViewModel(graph.groups, graph::today) },
                         onNewGroup = { stack.add(NewGroup) },
+                        onOpen = { stack.add(GroupOverview(it.hex)) },
                     )
                 }
                 entry<NewGroup> {
@@ -51,6 +58,18 @@ fun App(graph: AppGraph) {
                             )
                         },
                         onClose = { pop() },
+                        onCreated = {
+                            pop()
+                            stack.add(GroupOverview(it.hex))
+                        },
+                    )
+                }
+                entry<GroupOverview> { key ->
+                    OverviewScreen(
+                        viewModel {
+                            OverviewViewModel(graph.groups, GroupId.parse(key.group), graph::today)
+                        },
+                        onBack = { pop() },
                     )
                 }
             },

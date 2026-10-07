@@ -214,6 +214,30 @@ class GroupTest {
     }
 
     @Test
+    fun `an entry keeps who created it and whether it was changed since (HI-4)`() {
+        val log =
+            Log(by = BEN)
+                .create()
+                .add(ANNA, "Anna")
+                .add(BEN, "Ben")
+                .record(entry(1, thirty, Side.Equal(listOf(ANNA)), Side.Equal(listOf(ANNA, BEN))))
+                .record(entry(2, thirty, Side.Equal(listOf(BEN)), Side.Equal(listOf(ANNA, BEN))))
+        assertEquals(
+            listOf(entryId(1) to Authorship(BEN), entryId(2) to Authorship(BEN)),
+            log.replay().authors.toList(),
+        )
+
+        val group =
+            log.update(entryId(1), EntryChanges(description = Change.To("Einkauf")))
+                .delete(entryId(2))
+                .replay()
+        assertEquals(
+            listOf(entryId(1) to Authorship(BEN, edited = true), entryId(2) to Authorship(BEN)),
+            group.authors.toList(),
+        )
+    }
+
+    @Test
     fun `an expense leaves the payer in credit and the others in debt (BA-1)`() {
         val group =
             threePeople()

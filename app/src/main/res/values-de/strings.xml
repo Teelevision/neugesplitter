@@ -54,4 +54,16 @@
     <string name="storage_local_warning">Schnell eingerichtet. Diese Gruppe geht verloren, wenn das Gerät verloren geht.</string>
     <string name="create_group">Gruppe erstellen</string>
     <string name="create_failed">Die Gruppe konnte nicht gespeichert werden.</string>
+
+    <!-- Overview -->
+    <string name="total_spending">Gesamtausgaben</string>
+    <string name="entry_paid_by">Bezahlt von %1$s</string>
+    <string name="entry_received_by">Erhalten von %1$s</string>
+    <string name="entry_transfer_from">Von %1$s</string>
+    <string name="entry_own_share">Dein Anteil %1$s</string>
+    <string name="entry_edited">bearbeitet</string>
+    <string name="entry_repeats">Wiederkehrend</string>
+    <string name="kind_expense">Ausgabe</string>
+    <string name="kind_income">Einnahme</string>
+    <string name="kind_transfer">Übertrag</string>
 </resources>

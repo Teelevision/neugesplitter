@@ -39,27 +39,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
+import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.storage.ListedGroup
 import eu.teele.neugesplitter.ui.GroupAvatar
-import eu.teele.neugesplitter.ui.formatted
+import eu.teele.neugesplitter.ui.position
 
 /** The root screen: every group on this device (GR-1, ui-design 3). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GroupListScreen(viewModel: GroupListViewModel, onNewGroup: () -> Unit) {
+fun GroupListScreen(
+    viewModel: GroupListViewModel,
+    onNewGroup: () -> Unit,
+    onOpen: (GroupId) -> Unit,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val selecting = state.selected.isNotEmpty()
     var confirming by rememberSaveable { mutableStateOf(false) }
@@ -116,8 +117,9 @@ fun GroupListScreen(viewModel: GroupListViewModel, onNewGroup: () -> Unit) {
                         GroupCard(
                             group = group,
                             selected = group.id in state.selected,
-                            // Tapping opens the group once its overview exists (ui-design 3).
-                            onClick = { if (selecting) viewModel.toggle(group.id) },
+                            onClick = {
+                                if (selecting) viewModel.toggle(group.id) else onOpen(group.id)
+                            },
                             onLongClick = { viewModel.toggle(group.id) },
                         )
                     }
@@ -243,24 +245,9 @@ fun GroupCard(
     }
 }
 
-/** "You are owed 64.20", with the amount in bold tabular figures (BA-7, ui-design 9). */
+/** Where the user stands in [group], or that nothing has happened in it yet (BA-7). */
 @Composable
 private fun summary(group: ListedGroup): AnnotatedString? {
     if (group.entries == 0L) return AnnotatedString(stringResource(R.string.group_no_entries))
-    val own = group.own ?: return null
-    if (own.isZero) return AnnotatedString(stringResource(R.string.group_settled))
-    val amount = formatted(own, group.scale, LocalConfiguration.current.locales[0])
-    val text =
-        stringResource(if (own.isPositive) R.string.group_owed else R.string.group_owe, amount)
-    val start = text.indexOf(amount)
-    return buildAnnotatedString {
-        append(text)
-        if (start >= 0) {
-            addStyle(
-                SpanStyle(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"),
-                start,
-                start + amount.length,
-            )
-        }
-    }
+    return group.own?.let { position(it, group.scale) }
 }

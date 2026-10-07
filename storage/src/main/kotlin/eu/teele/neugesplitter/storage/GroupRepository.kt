@@ -4,11 +4,13 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.db.SqlDriver
 import eu.teele.neugesplitter.domain.Malformed
+import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
+import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
@@ -17,6 +19,11 @@ import eu.teele.neugesplitter.storage.projection.Projection
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.onStart
 
 /**
  * The groups this installation holds: each one's local event log, which is the source of truth, and
@@ -32,8 +39,14 @@ class GroupRepository(private val driver: SqlDriver) {
     /** Group [id] as its log produces it, or null if this installation holds no such group. */
     fun load(id: GroupId): Group? = database.transactionWithResult { replayed(id) }
 
-    /** Every group this installation holds, again whenever a write changes the list. */
-    fun list(context: CoroutineContext = Dispatchers.IO): Flow<List<ListedGroup>> =
+    /**
+     * Every group this installation holds, again whenever a write changes the list. The projection
+     * is brought to [today] first.
+     */
+    fun list(
+        today: EntryDate,
+        context: CoroutineContext = Dispatchers.IO,
+    ): Flow<List<ListedGroup>> =
         database.projectionQueries
             .listed { id, name, emoji, colour, scale, entries, own ->
                 ListedGroup(
@@ -48,6 +61,70 @@ class GroupRepository(private val driver: SqlDriver) {
             }
             .asFlow()
             .mapToList(context)
+            .onStart { refresh(today) }
+            .flowOn(context)
+
+    /**
+     * Group [id] as its overview shows it, again whenever a write changes it, or null once the
+     * installation no longer holds it. The projection is brought to [today] first.
+     */
+    fun overview(
+        id: GroupId,
+        today: EntryDate,
+        context: CoroutineContext = Dispatchers.IO,
+    ): Flow<Overview?> {
+        val queries = database.projectionQueries
+        val heading = queries.heading(id.hex)
+        val entries =
+            queries.entries(id.hex) {
+                entry,
+                kind,
+                description,
+                date,
+                amount,
+                edited,
+                repeats,
+                own,
+                payer ->
+                ListedEntry(
+                    id = EntryId.parse(entry),
+                    kind = Kind.valueOf(kind.uppercase()),
+                    description = description,
+                    date = EntryDate.parse(date),
+                    amount = Amount.ofUnits(amount),
+                    payers = listOf(payer),
+                    own = own?.let(Amount::ofUnits),
+                    repeats = repeats,
+                    edited = edited != 0L,
+                )
+            }
+        // Either query may be told of a write first; both are read again, together, either way.
+        return merge(heading.asFlow(), entries.asFlow())
+            .map {
+                database.transactionWithResult {
+                    heading.executeAsOneOrNull()?.let {
+                        Overview(
+                            name = it.name,
+                            emoji = it.emoji,
+                            colour = it.colour?.let(Colour::parse),
+                            scale = Scale.of(it.scale.toInt()),
+                            own = it.own?.let(Amount::ofUnits),
+                            entries =
+                                entries
+                                    .executeAsList()
+                                    .groupBy { it.id }
+                                    .values
+                                    .map { rows ->
+                                        rows.first().copy(payers = rows.map { it.payers.single() })
+                                    },
+                        )
+                    }
+                }
+            }
+            .distinctUntilChanged()
+            .onStart { refresh(today) }
+            .flowOn(context)
+    }
 
     /**
      * Stores a new group from the events [Group.create] returned for it, and acts from then on as

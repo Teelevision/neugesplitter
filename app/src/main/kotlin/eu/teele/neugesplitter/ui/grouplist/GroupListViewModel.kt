@@ -2,6 +2,7 @@ package eu.teele.neugesplitter.ui.grouplist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.storage.ListedGroup
@@ -24,12 +25,13 @@ data class GroupListState(
     val selected: Set<GroupId> = emptySet(),
 )
 
-class GroupListViewModel(private val repository: GroupRepository) : ViewModel() {
+class GroupListViewModel(private val repository: GroupRepository, today: () -> EntryDate) :
+    ViewModel() {
 
     private val selected = MutableStateFlow(emptySet<GroupId>())
 
     val state: StateFlow<GroupListState> =
-        combine(repository.list(), selected) { groups, selected ->
+        combine(repository.list(today()), selected) { groups, selected ->
                 GroupListState(
                     groups,
                     selected.filterTo(mutableSetOf()) { id -> groups.any { it.id == id } },

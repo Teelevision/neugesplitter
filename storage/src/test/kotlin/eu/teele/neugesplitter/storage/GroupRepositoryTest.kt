@@ -37,6 +37,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
@@ -300,14 +301,14 @@ class GroupRepositoryTest {
                 ),
                 ListedGroup(trip, "Wochenende", null, null, Scale.DEFAULT, 0, own = null),
             ),
-            runBlocking { groups.list().first() },
+            runBlocking { groups.list(TODAY).first() },
         )
 
         groups.actAs(GROUP, BEN)
 
         assertEquals(
             group.settlement(TODAY).getValue(BEN),
-            runBlocking { groups.list().first() }.first().own,
+            runBlocking { groups.list(TODAY).first() }.first().own,
         )
     }
 
@@ -315,7 +316,7 @@ class GroupRepositoryTest {
     fun `the group list follows every write (GR-1, GR-11)`() {
         val seen = mutableListOf<List<String>>()
         runBlocking {
-            groups.list(Dispatchers.Unconfined).take(3).collect { listed ->
+            groups.list(TODAY, Dispatchers.Unconfined).take(3).collect { listed ->
                 seen += listed.map { it.name }
                 when (seen.size) {
                     1 -> groups.create(weekend, TODAY)
@@ -324,6 +325,88 @@ class GroupRepositoryTest {
             }
         }
         assertEquals(listOf(emptyList(), listOf("Wochenende"), emptyList()), seen)
+    }
+
+    @Test
+    fun `the overview lists what counts, newest first, with the part acted as (BA-7, HI-4, RE-9)`() {
+        appendedOneByOne(GROUP, household)
+        groups.actAs(GROUP, ANNA)
+        val group = Group.replay(household)
+        val groceries = group.entries.getValue(entryId(1))
+
+        val overview = assertNotNull(runBlocking { groups.overview(GROUP, TODAY).first() })
+
+        assertEquals("WG", overview.name)
+        assertEquals(Colour.parse("#3366cc"), overview.colour)
+        assertEquals(group.settlement(TODAY).getValue(ANNA), overview.own)
+        assertEquals(
+            listOf(
+                ListedEntry(
+                    entryId(2),
+                    Kind.INCOME,
+                    "Entry 2",
+                    TODAY,
+                    euros(90),
+                    payers = listOf("Benedikt"),
+                    own = euros(60),
+                    repeats = false,
+                    edited = false,
+                ),
+                ListedEntry(
+                    entryId(1),
+                    Kind.EXPENSE,
+                    "Groceries",
+                    TODAY,
+                    euros(10),
+                    payers = listOf("Anna"),
+                    own = groceries.beneficiaries.parts(groceries.amount).getValue(ANNA),
+                    repeats = false,
+                    edited = true,
+                ),
+            ),
+            overview.entries.take(2),
+        )
+        // The amended August rent on the day it was moved to, then June's; July's was refused.
+        assertEquals(
+            listOf(date("2026-08-03") to euros(950), date("2026-06-01") to euros(900)),
+            overview.entries.drop(2).map { it.date to it.amount },
+        )
+        assertTrue(
+            overview.entries.drop(2).all {
+                it.repeats && it.own == Amount.ofUnits(it.amount.units / 2)
+            }
+        )
+        assertEquals(euros(10 + 950 + 900), overview.total)
+    }
+
+    @Test
+    fun `the overview names every payer, follows every write and ends with its group (GR-11)`() {
+        groups.create(weekend, TODAY)
+        val paidByTwo =
+            Log(BEN, trip)
+                .create("Wochenende")
+                .add(BEN, "Ben")
+                .add(ANNA, "Anna")
+                .record(entry(1, euros(120), equal(listOf(BEN)), equal(listOf(ANNA, BEN))))
+                .record(entry(2, euros(30), equal(listOf(ANNA, BEN)), equal(listOf(BEN))))
+                .events()
+                .last()
+        val seen = mutableListOf<Overview?>()
+        runBlocking {
+            groups.overview(trip, TODAY, Dispatchers.Unconfined).take(3).collect { overview ->
+                seen += overview
+                when (seen.size) {
+                    1 -> groups.append(trip, listOf(paidByTwo), TODAY)
+                    2 -> groups.delete(trip)
+                }
+            }
+        }
+        assertEquals(
+            listOf(listOf(listOf("Ben")), listOf(listOf("Anna", "Ben"), listOf("Ben"))),
+            seen.take(2).map { overview -> overview!!.entries.map { it.payers } },
+        )
+        assertEquals(listOf(euros(120), euros(150)), seen.take(2).map { it!!.total })
+        assertNull(seen[2])
     }
 
     @Test

@@ -3,6 +3,7 @@ package eu.teele.neugesplitter.storage.projection
 import app.cash.sqldelight.db.SqlDriver
 import eu.teele.neugesplitter.domain.entry.Entry as DomainEntry
 import eu.teele.neugesplitter.domain.entry.Side
+import eu.teele.neugesplitter.domain.group.Authorship
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.storage.Database
@@ -46,12 +47,17 @@ internal class Projection(private val driver: SqlDriver, private val queries: Pr
             }
         }
 
+        val positions by lazy { after.authors.keys.withIndex().associate { it.value to it.index } }
         for ((id, entry) in after.entries + after.deleted) {
             val deleted = id in after.deleted
             val was = before?.let { it.entries[id] ?: it.deleted[id] }
-            if (was != entry || (before != null && id in before.deleted) != deleted) {
+            if (
+                was != entry ||
+                    (before != null && id in before.deleted) != deleted ||
+                    before?.authors?.get(id) != after.authors[id]
+            ) {
                 queries.dropEntry(group, id.hex)
-                put(group, entry, deleted)
+                put(group, entry, deleted, after.authors[id], positions[id])
             }
         }
 
@@ -59,7 +65,7 @@ internal class Projection(private val driver: SqlDriver, private val queries: Pr
             if (moved || before?.series?.get(id) != series) {
                 queries.dropOccurrences(group, id.hex)
                 for (occurrence in series.occurrences(today)) {
-                    put(group, occurrence.entry, deleted = false)
+                    put(group, occurrence.entry, deleted = false, author = null, position = null)
                     queries.putOccurrence(
                         group,
                         id.hex,
@@ -85,7 +91,13 @@ internal class Projection(private val driver: SqlDriver, private val queries: Pr
         Database.Schema.create(driver)
     }
 
-    private fun put(group: String, entry: DomainEntry, deleted: Boolean) {
+    private fun put(
+        group: String,
+        entry: DomainEntry,
+        deleted: Boolean,
+        author: Authorship?,
+        position: Int?,
+    ) {
         with(entry) {
             queries.putEntry(
                 group,
@@ -96,6 +108,9 @@ internal class Projection(private val driver: SqlDriver, private val queries: Pr
                 amount.units,
                 note,
                 deleted.flag,
+                author?.by?.hex,
+                position?.toLong(),
+                (author?.edited == true).flag,
             )
         }
         put(group, entry, "payers", entry.payers)
@@ -131,7 +146,7 @@ internal class Projection(private val driver: SqlDriver, private val queries: Pr
          * reaches an installed database: the next start discards the projection and rebuilds it
          * before anything is read (TR-18b).
          */
-        const val VERSION: Long = 1
+        const val VERSION: Long = 2
 
         /** The derived tables of architecture.md 5; every other table is a source of truth. */
         val TABLES = listOf("group_row", "member", "entry", "side", "occurrence", "balance")

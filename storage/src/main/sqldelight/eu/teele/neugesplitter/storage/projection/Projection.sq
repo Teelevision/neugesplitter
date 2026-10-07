@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS member (
     PRIMARY KEY (group_id, id)
 );
 
--- Every entry, deleted ones and occurrences included. Amounts are integers at 10⁻⁸.
+-- Every entry, deleted ones and occurrences included. Amounts are integers at 10⁻⁸. `author` and
+-- `position`, its place in the order entries were created, are null for an occurrence (HI-4).
 CREATE TABLE IF NOT EXISTS entry (
     group_id TEXT NOT NULL,
     id TEXT NOT NULL,
@@ -37,6 +38,9 @@ CREATE TABLE IF NOT EXISTS entry (
     amount INTEGER NOT NULL,
     note TEXT,
     deleted INTEGER NOT NULL,
+    author TEXT,
+    position INTEGER,
+    edited INTEGER NOT NULL,
     PRIMARY KEY (group_id, id)
 );
 
@@ -101,8 +105,8 @@ INSERT OR REPLACE INTO member (group_id, id, name, removed)
 VALUES (?, ?, ?, ?);
 
 putEntry:
-INSERT OR REPLACE INTO entry (group_id, id, kind, description, date, amount, note, deleted)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT OR REPLACE INTO entry (group_id, id, kind, description, date, amount, note, deleted, author, position, edited)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 putSide:
 INSERT INTO side (group_id, entry, role, position, member, scheme, input, part)
@@ -140,6 +144,43 @@ dropOccurrences {
 dropBalances:
 DELETE FROM balance
 WHERE group_id = ?;
+
+-- The overview's header (ui-design 4): the group, and the settled balance of the member this
+-- installation acts as in it (BA-7).
+heading:
+SELECT
+    g.name,
+    g.emoji,
+    g.colour,
+    g.scale,
+    b.settled AS own
+FROM group_row g
+LEFT JOIN acting_as a ON a.group_id = g.id
+LEFT JOIN balance b ON b.group_id = g.id AND b.member = a.member
+WHERE g.id = ?;
+
+-- The overview's entries, newest first, one row per payer in the order they were entered: every
+-- entry that counts, with the part of it that falls to the member this installation acts as.
+entries:
+SELECT
+    e.id,
+    e.kind,
+    e.description,
+    e.date,
+    e.amount,
+    e.edited,
+    o.series IS NOT NULL AS repeats,
+    (SELECT s.part FROM side s
+     WHERE s.group_id = e.group_id AND s.entry = e.id
+       AND s.role = 'beneficiaries' AND s.member = a.member) AS own,
+    m.name AS payer
+FROM entry e
+JOIN side p ON p.group_id = e.group_id AND p.entry = e.id AND p.role = 'payers'
+JOIN member m ON m.group_id = p.group_id AND m.id = p.member
+LEFT JOIN occurrence o ON o.group_id = e.group_id AND o.entry = e.id
+LEFT JOIN acting_as a ON a.group_id = e.group_id
+WHERE e.group_id = ? AND e.deleted = 0 AND coalesce(o.pending, 0) = 0
+ORDER BY e.date DESC, e.position DESC, e.id DESC, p.position;
 
 -- The group list (ui-design 3): each group, how many entries it holds that count, and the settled
 -- balance of the member this installation acts as in it (BA-7).

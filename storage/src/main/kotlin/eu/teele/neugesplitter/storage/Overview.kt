@@ -1,0 +1,52 @@
+package eu.teele.neugesplitter.storage
+
+import eu.teele.neugesplitter.domain.entry.Kind
+import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.Colour
+import eu.teele.neugesplitter.domain.value.EntryDate
+import eu.teele.neugesplitter.domain.value.EntryId
+import eu.teele.neugesplitter.domain.value.Scale
+
+/**
+ * A group as its overview shows it (ui-design 4).
+ *
+ * @property own the settled balance of the member this installation acts as (BA-7), or null if it
+ *   acts as none.
+ * @property entries every entry that counts, newest first.
+ */
+data class Overview(
+    val name: String,
+    val emoji: String?,
+    val colour: Colour?,
+    val scale: Scale,
+    val own: Amount?,
+    val entries: List<ListedEntry>,
+) {
+    /** What the group has spent: its expenses, and neither income nor transfers (EN-7). */
+    val total: Amount
+        get() =
+            entries
+                .filter { it.kind == Kind.EXPENSE }
+                .fold(Amount.ZERO) { sum, it -> sum + it.amount }
+}
+
+/**
+ * An entry as the overview lists it (ui-design 4).
+ *
+ * @property payers the names of whoever paid, in the order they were entered.
+ * @property own the part of it that falls to the member this installation acts as, or null if none
+ *   does.
+ * @property repeats whether it is an occurrence of a series (RE-9).
+ * @property edited whether it was changed after it was created (HI-4).
+ */
+data class ListedEntry(
+    val id: EntryId,
+    val kind: Kind,
+    val description: String,
+    val date: EntryDate,
+    val amount: Amount,
+    val payers: List<String>,
+    val own: Amount?,
+    val repeats: Boolean,
+    val edited: Boolean,
+)
