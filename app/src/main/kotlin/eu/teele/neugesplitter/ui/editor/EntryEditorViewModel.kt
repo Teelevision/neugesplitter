@@ -3,6 +3,7 @@ package eu.teele.neugesplitter.ui.editor
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.teele.neugesplitter.domain.Malformed
+import eu.teele.neugesplitter.domain.balance.Transfer
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Scheme
@@ -134,13 +135,16 @@ data class EntryEditorState(
 
 /**
  * Writes a new entry, or a change to [entry] — or, with [duplicate], a new entry starting out as a
- * copy of it, dated today (EN-1 to EN-9).
+ * copy of it, dated today (EN-1 to EN-9). A new entry starts out as [settling], described as
+ * [settlement], when one is given (BA-6).
  */
 class EntryEditorViewModel(
     private val repository: GroupRepository,
     private val group: GroupId,
     entry: EntryId?,
     duplicate: Boolean,
+    settling: Transfer?,
+    settlement: String,
     private val separator: Char,
     private val identifier: () -> String,
     private val today: () -> EntryDate,
@@ -152,7 +156,7 @@ class EntryEditorViewModel(
 
     private val id: EntryId = entry?.takeUnless { duplicate } ?: EntryId.parse(identifier())
     private var defaults: Set<MemberId> = emptySet()
-    private var beneficiariesChosen = entry != null
+    private var beneficiariesChosen = entry != null || settling != null
 
     init {
         viewModelScope.launch {
@@ -163,7 +167,9 @@ class EntryEditorViewModel(
                 return@launch
             }
             val source = entry?.let { loaded.entries[it] ?: loaded.deleted[it] }
-            val involved = source?.let { it.payers.members + it.beneficiaries.members }.orEmpty()
+            val involved =
+                source?.let { it.payers.members + it.beneficiaries.members }.orEmpty() +
+                    listOfNotNull(settling?.from, settling?.to)
             defaults = loaded.participants().toSet()
             mutable.update { state ->
                 val base =
@@ -177,8 +183,17 @@ class EntryEditorViewModel(
                         payers = setOfNotNull(me),
                         beneficiaries = defaults,
                     )
-                if (source == null) base
-                else
+                if (source == null) {
+                    if (settling == null) base
+                    else
+                        base.copy(
+                            kind = Kind.TRANSFER,
+                            description = settlement,
+                            amount = settling.amount,
+                            payers = setOf(settling.from),
+                            beneficiaries = setOf(settling.to),
+                        )
+                } else
                     base.copy(
                         editing = !duplicate,
                         source = source,

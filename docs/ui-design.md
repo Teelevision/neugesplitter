@@ -146,11 +146,9 @@ screen may state it (BA-2). Removed members stay listed while they still have a
 balance or appear in an entry, visibly greyed (GR-9).
 
 **Settling.** Under the balances, the transfers that settle the group, phrased
-as sentences: "Anna pays Ben 12.30" (BA-3). A segmented control switches between
-**simplified** — fewest transfers (BA-4) — and **direct**, which preserves who
-actually owes whom (BA-5). Each suggested transfer has a **Record** button that
-opens the entry editor pre-filled as a transfer, so confirming is one further
-tap (BA-6).
+as sentences: "Anna pays Ben 12.30" (BA-3), as few of them as possible (BA-4).
+Each suggested transfer has a **Record** button that opens the entry editor
+pre-filled as a transfer, so confirming is one further tap (BA-6).
 
 **Managing members.** A member row is tapped to open the member sheet:
 

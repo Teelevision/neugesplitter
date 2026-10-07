@@ -1,6 +1,7 @@
 package eu.teele.neugesplitter.ui.overview
 
 import android.icu.text.ListFormatter
+import androidx.activity.compose.LocalActivity
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
@@ -20,8 +21,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FabPosition
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -40,6 +39,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -84,10 +84,10 @@ fun OverviewScreen(
     deleteRequested: EntryId?,
     onDeleteTaken: () -> Unit,
     onBack: () -> Unit,
-    onNew: () -> Unit,
     onOpen: (EntryId) -> Unit,
     onEdit: (EntryId) -> Unit,
     onDuplicate: (EntryId) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val overview = state.overview
@@ -109,8 +109,14 @@ fun OverviewScreen(
         val result = snackbar.showSnackbar(deleted, undo, duration = SnackbarDuration.Long)
         if (result == SnackbarResult.ActionPerformed) viewModel.undo() else viewModel.undoGone()
     }
+    // Leaving the overview takes the undo with it, so that the balances elsewhere are current.
+    val activity = LocalActivity.current
+    DisposableEffect(viewModel) {
+        onDispose { if (activity?.isChangingConfigurations != true) viewModel.undoGone() }
+    }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = {
@@ -132,12 +138,6 @@ fun OverviewScreen(
                 },
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(onClick = onNew) {
-                Icon(painterResource(R.drawable.ic_add), stringResource(R.string.new_entry))
-            }
-        },
-        floatingActionButtonPosition = FabPosition.Center,
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         if (overview != null) {
@@ -197,8 +197,7 @@ private fun Entries(
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val days = overview.entries.groupBy { it.date }
-    // Room under the last entry for the FAB.
-    LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 96.dp)) {
+    LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 16.dp)) {
         item(key = "header") { Header(overview, locale) }
         if (days.isEmpty()) {
             item(key = "empty") {

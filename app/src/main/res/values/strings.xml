@@ -121,4 +121,17 @@
     <string name="problem_split_left">%2$s left to divide under “%1$s”</string>
     <string name="problem_split_over">%2$s too much under “%1$s”</string>
     <string name="problem_split_adjustments">Adjustments under “%1$s” add up to more than the amount</string>
+
+    <!-- People and balances -->
+    <string name="destination_overview">Overview</string>
+    <string name="destination_people">People</string>
+    <string name="balances_header">Balances</string>
+    <string name="balance_owed">is owed %1$s</string>
+    <string name="balance_owes">owes %1$s</string>
+    <string name="balance_settled">settled</string>
+    <string name="member_removed">Removed</string>
+    <string name="settling_header">Settling up</string>
+    <string name="settle_transfer">%1$s pays %2$s %3$s</string>
+    <string name="settle_record">Record</string>
+    <string name="settle_description">Settlement</string>
 </resources>

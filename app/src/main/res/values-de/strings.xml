@@ -119,4 +119,17 @@
     <string name="problem_split_left">Unter „%1$s“ sind noch %2$s zu verteilen</string>
     <string name="problem_split_over">Unter „%1$s“ ist %2$s zu viel verteilt</string>
     <string name="problem_split_adjustments">Anpassungen unter „%1$s“ ergeben mehr als den Betrag</string>
+
+    <!-- People and balances -->
+    <string name="destination_overview">Übersicht</string>
+    <string name="destination_people">Personen</string>
+    <string name="balances_header">Salden</string>
+    <string name="balance_owed">bekommt %1$s</string>
+    <string name="balance_owes">schuldet %1$s</string>
+    <string name="balance_settled">ausgeglichen</string>
+    <string name="member_removed">Entfernt</string>
+    <string name="settling_header">Ausgleichen</string>
+    <string name="settle_transfer">%1$s zahlt %2$s %3$s</string>
+    <string name="settle_record">Erfassen</string>
+    <string name="settle_description">Ausgleich</string>
 </resources>

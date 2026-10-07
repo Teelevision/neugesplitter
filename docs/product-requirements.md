@@ -333,10 +333,8 @@ of everyone entering the same backend settings.
 - **BA-2** (Core): The sum of all balances in a group MUST always be zero.
 - **BA-3** (Core): The app MUST show a concrete list of transfers that settle
   the group ("A pays B 12.30").
-- **BA-4** (Core): The app MUST offer a **simplified settlement** that minimises
-  the number of transfers needed.
-- **BA-5** (Core): The user MUST be able to switch between simplified and direct
-  (debt-preserving) settlement views.
+- **BA-4** (Core): The transfers MUST be computed from the balances alone and
+  SHOULD be as few as possible.
 - **BA-6** (Core): A suggested transfer MUST be convertible into a recorded
   transfer entry with one action.
 - **BA-7** (Core): The app MUST show a personal summary ("you owe / you are

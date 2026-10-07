@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
@@ -14,8 +15,12 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import eu.teele.neugesplitter.AppGraph
+import eu.teele.neugesplitter.R
+import eu.teele.neugesplitter.domain.balance.Transfer
+import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.GroupId
+import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.ui.detail.EntryDetailScreen
 import eu.teele.neugesplitter.ui.detail.EntryDetailViewModel
 import eu.teele.neugesplitter.ui.editor.EntryEditorScreen
@@ -26,6 +31,8 @@ import eu.teele.neugesplitter.ui.newgroup.NewGroupScreen
 import eu.teele.neugesplitter.ui.newgroup.NewGroupViewModel
 import eu.teele.neugesplitter.ui.overview.OverviewScreen
 import eu.teele.neugesplitter.ui.overview.OverviewViewModel
+import eu.teele.neugesplitter.ui.people.PeopleScreen
+import eu.teele.neugesplitter.ui.people.PeopleViewModel
 import java.text.DecimalFormatSymbols
 import kotlinx.serialization.Serializable
 
@@ -37,14 +44,23 @@ import kotlinx.serialization.Serializable
 @Serializable data class GroupOverview(val group: String) : NavKey
 
 /**
- * A new entry, or a change to [entry]; with [duplicate], a new entry copied from it. Ids are hex.
+ * A new entry, or a change to [entry]; with [duplicate], a new entry copied from it. With [from],
+ * [to] and [amount] (in 10⁻⁸ units), a new entry recording that transfer. Ids are hex.
  */
 @Serializable
 data class EntryEditor(
     val group: String,
     val entry: String? = null,
     val duplicate: Boolean = false,
-) : NavKey
+    val from: String? = null,
+    val to: String? = null,
+    val amount: Long? = null,
+) : NavKey {
+    val settling: Transfer?
+        get() =
+            if (from == null || to == null || amount == null) null
+            else Transfer(MemberId.parse(from), MemberId.parse(to), Amount.ofUnits(amount))
+}
 
 @Serializable data class EntryDetail(val group: String, val entry: String) : NavKey
 
@@ -90,32 +106,59 @@ fun App(graph: AppGraph) {
                     )
                 }
                 entry<GroupOverview> { key ->
-                    OverviewScreen(
-                        viewModel {
-                            OverviewViewModel(
-                                graph.groups,
-                                GroupId.parse(key.group),
-                                graph::identifier,
-                                graph::today,
-                                graph::now,
-                                graph.scope,
-                            )
-                        },
-                        deleteRequested = deleting?.let(EntryId::parse),
-                        onDeleteTaken = { deleting = null },
-                        onBack = { pop() },
-                        onNew = { stack.add(EntryEditor(key.group)) },
-                        onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
-                        onEdit = { stack.add(EntryEditor(key.group, it.hex)) },
-                        onDuplicate = {
-                            stack.add(EntryEditor(key.group, it.hex, duplicate = true))
-                        },
-                    )
+                    val group = GroupId.parse(key.group)
+                    GroupScreen(onNew = { stack.add(EntryEditor(key.group)) }) {
+                        destination,
+                        modifier ->
+                        when (destination) {
+                            Destination.OVERVIEW ->
+                                OverviewScreen(
+                                    viewModel {
+                                        OverviewViewModel(
+                                            graph.groups,
+                                            group,
+                                            graph::identifier,
+                                            graph::today,
+                                            graph::now,
+                                            graph.scope,
+                                        )
+                                    },
+                                    deleteRequested = deleting?.let(EntryId::parse),
+                                    onDeleteTaken = { deleting = null },
+                                    onBack = { pop() },
+                                    onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
+                                    onEdit = { stack.add(EntryEditor(key.group, it.hex)) },
+                                    onDuplicate = {
+                                        stack.add(EntryEditor(key.group, it.hex, duplicate = true))
+                                    },
+                                    modifier = modifier,
+                                )
+                            Destination.PEOPLE ->
+                                PeopleScreen(
+                                    viewModel {
+                                        PeopleViewModel(graph.groups, group, graph::today)
+                                    },
+                                    onBack = { pop() },
+                                    onRecord = {
+                                        stack.add(
+                                            EntryEditor(
+                                                key.group,
+                                                from = it.from.hex,
+                                                to = it.to.hex,
+                                                amount = it.amount.units,
+                                            )
+                                        )
+                                    },
+                                    modifier = modifier,
+                                )
+                        }
+                    }
                 }
                 entry<EntryEditor> { key ->
                     val separator =
                         DecimalFormatSymbols.getInstance(LocalConfiguration.current.locales[0])
                             .decimalSeparator
+                    val settlement = stringResource(R.string.settle_description)
                     EntryEditorScreen(
                         viewModel {
                             EntryEditorViewModel(
@@ -123,6 +166,8 @@ fun App(graph: AppGraph) {
                                 GroupId.parse(key.group),
                                 key.entry?.let(EntryId::parse),
                                 key.duplicate,
+                                key.settling,
+                                settlement,
                                 separator,
                                 graph::identifier,
                                 graph::today,

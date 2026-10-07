@@ -254,6 +254,14 @@ are described in [sync-design.md](sync-design.md).
   and defers even that for hours when the device is dozing (TR-9, TR-10). The
   illustration in sync-design section 8 uses fifteen minutes for the same
   reason: five was never achievable.
+- **Should settling preserve who owes whom?** No. Balances are what the group
+  owes (format-spec 7.1), and the app proposes the fewest transfers that settle
+  them (BA-4); a second, debt-preserving view would need its own rounding to
+  agree with the balances shown and was dropped along with BA-5. The fewest
+  transfers come from splitting the members with a balance into as many groups
+  summing to zero as possible, which is exponential in their number, so above
+  sixteen of them the app settles them as one group instead — still never more
+  than one transfer fewer than members.
 
 ## Open Questions
 
