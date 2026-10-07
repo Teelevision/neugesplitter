@@ -225,6 +225,16 @@ class GroupRepository(private val driver: SqlDriver) {
         }
     }
 
+    /** Removes every group from this installation, as [delete] does for one (TR-20, PR-9). */
+    fun deleteAll() {
+        database.transaction {
+            database.eventRowQueries.forgetAll()
+            database.logObjectQueries.forgetAll()
+            database.actingAsQueries.forgetAll()
+            database.projectionQueries.forgetAll()
+        }
+    }
+
     private fun rebuilt(today: EntryDate) {
         projection.discard()
         for (hex in database.eventRowQueries.groups().executeAsList()) {

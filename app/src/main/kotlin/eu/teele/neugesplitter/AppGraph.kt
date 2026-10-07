@@ -18,6 +18,10 @@ class AppGraph(context: Context) {
 
     val groups = GroupRepository(AndroidSqliteDriver(Database.Schema, context, "neugesplitter.db"))
 
+    val preferences = Preferences(context)
+
+    val languages: Languages = SystemLanguages(context)
+
     /** Work that outlives any screen. */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

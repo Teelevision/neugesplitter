@@ -81,9 +81,15 @@ class GroupListScreenTest {
         }
     }
 
-    private fun show(onNewGroup: () -> Unit = {}, onOpen: (GroupId) -> Unit = {}) {
+    private fun show(
+        onNewGroup: () -> Unit = {},
+        onOpen: (GroupId) -> Unit = {},
+        onSettings: () -> Unit = {},
+    ) {
         val viewModel = GroupListViewModel(groups) { today }
-        compose.setContent { NeugesplitterTheme { GroupListScreen(viewModel, onNewGroup, onOpen) } }
+        compose.setContent {
+            NeugesplitterTheme { GroupListScreen(viewModel, onNewGroup, onOpen, onSettings) }
+        }
     }
 
     private fun waitForText(text: String) {
@@ -110,6 +116,15 @@ class GroupListScreenTest {
         waitForText("A group stays on this device or is shared.")
         compose.onNodeWithText("New group").performClick()
         assertEquals(1, created)
+    }
+
+    @Test
+    fun `the overflow menu opens the app settings (UX-3)`() {
+        var opened = 0
+        show(onSettings = { opened++ })
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Settings").performClick()
+        assertEquals(1, opened)
     }
 
     @Test

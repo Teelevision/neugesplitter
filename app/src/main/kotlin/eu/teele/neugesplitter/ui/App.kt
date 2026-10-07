@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -21,6 +22,8 @@ import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.ui.appsettings.AppSettingsScreen
+import eu.teele.neugesplitter.ui.appsettings.AppSettingsViewModel
 import eu.teele.neugesplitter.ui.detail.EntryDetailScreen
 import eu.teele.neugesplitter.ui.detail.EntryDetailViewModel
 import eu.teele.neugesplitter.ui.editor.EntryEditorScreen
@@ -43,6 +46,8 @@ import kotlinx.serialization.Serializable
 @Serializable data object GroupList : NavKey
 
 @Serializable data object NewGroup : NavKey
+
+@Serializable data object AppSettings : NavKey
 
 /** @property group the group's id, as hex. */
 @Serializable data class GroupOverview(val group: String) : NavKey
@@ -92,6 +97,25 @@ fun App(graph: AppGraph) {
                         viewModel { GroupListViewModel(graph.groups, graph::today) },
                         onNewGroup = { stack.add(NewGroup) },
                         onOpen = { stack.add(GroupOverview(it.hex)) },
+                        onSettings = { stack.add(AppSettings) },
+                    )
+                }
+                entry<AppSettings> {
+                    val context = LocalContext.current
+                    val version =
+                        remember(context) {
+                            context.packageManager
+                                .getPackageInfo(context.packageName, 0)
+                                .versionName
+                                .orEmpty()
+                        }
+                    AppSettingsScreen(
+                        viewModel {
+                            AppSettingsViewModel(graph.groups, graph.preferences, graph.languages)
+                        },
+                        version = version,
+                        onBack = { pop() },
+                        onDeleted = { if (stack.size > 1) pop() },
                     )
                 }
                 entry<NewGroup> {

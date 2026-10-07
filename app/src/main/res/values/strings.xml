@@ -162,4 +162,24 @@
     <string name="everyone">Everyone</string>
     <string name="settings_danger">Danger zone</string>
     <string name="delete_group_device">Delete group from this device</string>
+
+    <!-- App settings -->
+    <string name="settings_appearance">Appearance</string>
+    <string name="theme">Theme</string>
+    <string name="system_default">System default</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="language">Language</string>
+    <string name="language_english" translatable="false">English</string>
+    <string name="language_german" translatable="false">Deutsch</string>
+    <string name="settings_about">About</string>
+    <string name="version">Version</string>
+    <string name="licence">Licence</string>
+    <string name="licence_notice" translatable="false">MIT · © 2026 Marius Neugebauer</string>
+    <string name="settings_data">Data</string>
+    <string name="delete_all">Delete all local data</string>
+    <string name="delete_all_warning">Every group on this device, with all its entries, and your settings will be removed. Groups that exist only on this device cannot be recovered.</string>
+    <string name="delete_all_prompt">Type %1$s to confirm</string>
+    <string name="delete_all_word">DELETE</string>
+    <string name="delete_all_confirm">Delete everything</string>
 </resources>

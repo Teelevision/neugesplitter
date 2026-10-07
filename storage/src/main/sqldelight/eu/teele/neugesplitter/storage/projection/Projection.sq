@@ -213,3 +213,12 @@ forget {
     DELETE FROM member WHERE group_id = :group_id;
     DELETE FROM group_row WHERE id = :group_id;
 }
+
+forgetAll {
+    DELETE FROM balance;
+    DELETE FROM occurrence;
+    DELETE FROM side;
+    DELETE FROM entry;
+    DELETE FROM member;
+    DELETE FROM group_row;
+}

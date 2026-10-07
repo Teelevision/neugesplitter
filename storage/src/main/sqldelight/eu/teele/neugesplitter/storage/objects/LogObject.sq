@@ -21,3 +21,6 @@ ORDER BY number;
 forget:
 DELETE FROM log_object
 WHERE group_id = ?;
+
+forgetAll:
+DELETE FROM log_object;

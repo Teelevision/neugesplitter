@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -60,10 +62,12 @@ fun GroupListScreen(
     viewModel: GroupListViewModel,
     onNewGroup: () -> Unit,
     onOpen: (GroupId) -> Unit,
+    onSettings: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val selecting = state.selected.isNotEmpty()
     var confirming by rememberSaveable { mutableStateOf(false) }
+    var menu by rememberSaveable { mutableStateOf(false) }
 
     BackHandler(enabled = selecting) { viewModel.clearSelection() }
 
@@ -91,7 +95,28 @@ fun GroupListScreen(
                     },
                 )
             } else {
-                TopAppBar(title = { Text(stringResource(R.string.app_name)) })
+                TopAppBar(
+                    title = { Text(stringResource(R.string.app_name)) },
+                    actions = {
+                        Box {
+                            IconButton(onClick = { menu = true }) {
+                                Icon(
+                                    painterResource(R.drawable.ic_more_vert),
+                                    stringResource(R.string.more_options),
+                                )
+                            }
+                            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.destination_settings)) },
+                                    onClick = {
+                                        menu = false
+                                        onSettings()
+                                    },
+                                )
+                            }
+                        }
+                    },
+                )
             }
         },
         floatingActionButton = {

@@ -17,3 +17,6 @@ WHERE group_id = ?;
 forget:
 DELETE FROM acting_as
 WHERE group_id = ?;
+
+forgetAll:
+DELETE FROM acting_as;

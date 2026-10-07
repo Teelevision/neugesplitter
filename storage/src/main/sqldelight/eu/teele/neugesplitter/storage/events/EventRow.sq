@@ -35,3 +35,6 @@ WHERE group_id = ?;
 forget:
 DELETE FROM event_row
 WHERE group_id = ?;
+
+forgetAll:
+DELETE FROM event_row;

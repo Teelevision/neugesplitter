@@ -1,0 +1,62 @@
+package eu.teele.neugesplitter
+
+import android.app.LocaleManager
+import android.content.Context
+import android.os.LocaleList
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+
+/** Which colour scheme the app uses (UX-3). */
+enum class Theme {
+    SYSTEM,
+    LIGHT,
+    DARK,
+}
+
+/** The app's own language, apart from the system's (UX-5). */
+interface Languages {
+    /** A BCP-47 tag such as "en" or "de"; null follows the system. */
+    var current: String?
+}
+
+/** [Languages] kept by the system, which also applies the choice to every activity. */
+class SystemLanguages(context: Context) : Languages {
+
+    private val manager = context.getSystemService(LocaleManager::class.java)
+
+    override var current: String?
+        get() = manager.applicationLocales.takeIf { !it.isEmpty }?.get(0)?.language
+        set(value) {
+            manager.applicationLocales =
+                if (value == null) LocaleList.getEmptyLocaleList()
+                else LocaleList.forLanguageTags(value)
+        }
+}
+
+/** Settings of this installation that no group depends on. */
+class Preferences(context: Context) {
+
+    private val store = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
+
+    private val _theme =
+        MutableStateFlow(
+            Theme.entries.firstOrNull { it.name == store.getString(THEME, null) } ?: Theme.SYSTEM
+        )
+
+    val theme: StateFlow<Theme> = _theme
+
+    fun theme(theme: Theme) {
+        store.edit().putString(THEME, theme.name).apply()
+        _theme.value = theme
+    }
+
+    /** Forgets every setting. */
+    fun clear() {
+        store.edit().clear().apply()
+        _theme.value = Theme.SYSTEM
+    }
+
+    private companion object {
+        const val THEME = "theme"
+    }
+}

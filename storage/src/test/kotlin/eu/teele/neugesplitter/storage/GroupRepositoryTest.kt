@@ -499,4 +499,31 @@ class GroupRepositoryTest {
         assertEquals(BEN, groups.actingAs(trip))
         assertEquals(others, projection())
     }
+
+    @Test
+    fun `deleting everything leaves no group in any table and the list empty (TR-20, PR-9)`() {
+        appendedOneByOne(GROUP, household)
+        groups.append(trip, weekend, TODAY)
+        for (group in listOf(GROUP, trip)) {
+            database.logObjectQueries.retain(group.hex, 1, "ba7c".repeat(8), byteArrayOf(1, 2, 3))
+        }
+        groups.actAs(GROUP, ANNA)
+        groups.actAs(trip, BEN)
+        val listed = mutableListOf<Int>()
+        runBlocking {
+            groups.list(TODAY, Dispatchers.Unconfined).take(2).collect { list ->
+                listed += list.size
+                if (listed.size == 1) groups.deleteAll()
+            }
+        }
+        assertEquals(listOf(2, 0), listed)
+        for (group in listOf(GROUP, trip)) {
+            assertNull(groups.load(group))
+            assertEquals(emptyList(), groups.events(group))
+        }
+        // projection_state holds only the schema version, no group.
+        for (table in tables().filter { it != "projection_state" && !it.startsWith("sqlite_") }) {
+            assertEquals(listOf("0"), rows("SELECT count(*) FROM $table"), table)
+        }
+    }
 }
