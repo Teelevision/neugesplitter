@@ -80,6 +80,7 @@ fun OverviewScreen(
     onOpen: (EntryId) -> Unit,
     onEdit: (EntryId) -> Unit,
     onDuplicate: (EntryId) -> Unit,
+    onHistory: (EntryId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -160,6 +161,10 @@ fun OverviewScreen(
             SheetAction(R.drawable.ic_content_copy, R.string.duplicate) {
                 menu = null
                 onDuplicate(entry.id)
+            }
+            SheetAction(R.drawable.ic_history, R.string.history) {
+                menu = null
+                onHistory(entry.id)
             }
             SheetAction(R.drawable.ic_delete, R.string.delete) {
                 menu = null

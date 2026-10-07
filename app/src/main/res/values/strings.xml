@@ -93,6 +93,16 @@
     <string name="save_failed">The entry could not be saved.</string>
     <string name="created_by">Created by %1$s</string>
 
+    <!-- Entry history -->
+    <string name="history">History</string>
+    <string name="history_edited">Edited by %1$s</string>
+    <string name="history_deleted">Deleted by %1$s</string>
+    <string name="history_restored">Restored by %1$s</string>
+    <string name="history_change">%1$s: %2$s → %3$s</string>
+    <string name="history_attachments">Attachments changed</string>
+    <string name="field_kind">Type</string>
+    <string name="field_note">Note</string>
+
     <!-- Amount calculator -->
     <string name="calculator_back">Delete last input</string>
     <string name="calculator_clear">Clear</string>

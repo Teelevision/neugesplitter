@@ -91,6 +91,16 @@
     <string name="save_failed">Der Eintrag konnte nicht gespeichert werden.</string>
     <string name="created_by">Erstellt von %1$s</string>
 
+    <!-- Entry history -->
+    <string name="history">Verlauf</string>
+    <string name="history_edited">Geändert von %1$s</string>
+    <string name="history_deleted">Gelöscht von %1$s</string>
+    <string name="history_restored">Wiederhergestellt von %1$s</string>
+    <string name="history_change">%1$s: %2$s → %3$s</string>
+    <string name="history_attachments">Anhänge geändert</string>
+    <string name="field_kind">Art</string>
+    <string name="field_note">Notiz</string>
+
     <!-- Amount calculator -->
     <string name="calculator_back">Letzte Eingabe löschen</string>
     <string name="calculator_clear">Alles löschen</string>

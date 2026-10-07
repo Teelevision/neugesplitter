@@ -60,6 +60,7 @@ fun EntryDetailScreen(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
+    onHistory: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -101,6 +102,13 @@ fun EntryDetailScreen(
                                 onClick = {
                                     menu = false
                                     onDuplicate()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.history)) },
+                                onClick = {
+                                    menu = false
+                                    onHistory()
                                 },
                             )
                         }

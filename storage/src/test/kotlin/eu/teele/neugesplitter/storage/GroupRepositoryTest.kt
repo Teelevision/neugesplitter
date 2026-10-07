@@ -443,6 +443,31 @@ class GroupRepositoryTest {
     }
 
     @Test
+    fun `a group's log is read in order and again after every write (HI-3)`() {
+        groups.create(weekend, TODAY)
+        val dinner = entry(2, euros(40), equal(listOf(BEN)), equal(listOf(BEN)))
+        val written =
+            Log(BEN, trip)
+                .create("Wochenende")
+                .add(BEN, "Ben")
+                .add(ANNA, "Anna")
+                .record(entry(1, euros(120), equal(listOf(BEN)), equal(listOf(ANNA, BEN))))
+                .record(dinner)
+                .events()
+                .last()
+        val seen = mutableListOf<List<Event>>()
+        runBlocking {
+            groups.log(trip, Dispatchers.Unconfined).take(2).collect { log ->
+                seen += log
+                if (seen.size == 1) groups.append(trip, listOf(written), TODAY)
+            }
+        }
+        assertEquals(weekend, seen[0])
+        assertEquals(weekend + written, seen[1])
+        assertEquals(emptyList(), groups.events(GroupId.parse("%032x".format(0xdead))))
+    }
+
+    @Test
     fun `deleting a group removes its log, retained objects and projection (TR-20, GR-11)`() {
         appendedOneByOne(GROUP, household)
         groups.append(trip, weekend, TODAY)

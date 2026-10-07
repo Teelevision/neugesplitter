@@ -48,6 +48,14 @@ class GroupRepository(private val driver: SqlDriver) {
             .distinctUntilChanged()
             .flowOn(context)
 
+    /** Group [id]'s log in order, empty if this installation holds no such group (HI-3). */
+    fun events(id: GroupId): List<Event> =
+        database.eventRowQueries.inGroup(id.hex).executeAsList().map(EventJson::read)
+
+    /** [events], again whenever group [id]'s log changes. */
+    fun log(id: GroupId, context: CoroutineContext = Dispatchers.IO): Flow<List<Event>> =
+        database.eventRowQueries.length(id.hex).asFlow().map { events(id) }.flowOn(context)
+
     /**
      * Every group this installation holds, again whenever a write changes the list. The projection
      * is brought to [today] first.
@@ -226,10 +234,5 @@ class GroupRepository(private val driver: SqlDriver) {
     }
 
     private fun replayed(id: GroupId): Group? =
-        database.eventRowQueries
-            .inGroup(id.hex)
-            .executeAsList()
-            .map(EventJson::read)
-            .takeIf { it.isNotEmpty() }
-            ?.let(Group::replay)
+        events(id).takeIf { it.isNotEmpty() }?.let(Group::replay)
 }

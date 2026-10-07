@@ -27,6 +27,8 @@ import eu.teele.neugesplitter.ui.editor.EntryEditorScreen
 import eu.teele.neugesplitter.ui.editor.EntryEditorViewModel
 import eu.teele.neugesplitter.ui.grouplist.GroupListScreen
 import eu.teele.neugesplitter.ui.grouplist.GroupListViewModel
+import eu.teele.neugesplitter.ui.history.EntryHistoryScreen
+import eu.teele.neugesplitter.ui.history.EntryHistoryViewModel
 import eu.teele.neugesplitter.ui.newgroup.NewGroupScreen
 import eu.teele.neugesplitter.ui.newgroup.NewGroupViewModel
 import eu.teele.neugesplitter.ui.overview.OverviewScreen
@@ -63,6 +65,8 @@ data class EntryEditor(
 }
 
 @Serializable data class EntryDetail(val group: String, val entry: String) : NavKey
+
+@Serializable data class EntryHistory(val group: String, val entry: String) : NavKey
 
 /** Every screen, and how one leads to the next (ui-design 2). */
 @Composable
@@ -131,6 +135,7 @@ fun App(graph: AppGraph) {
                                     onDuplicate = {
                                         stack.add(EntryEditor(key.group, it.hex, duplicate = true))
                                     },
+                                    onHistory = { stack.add(EntryHistory(key.group, it.hex)) },
                                     modifier = modifier,
                                 )
                             Destination.PEOPLE ->
@@ -198,10 +203,23 @@ fun App(graph: AppGraph) {
                         onDuplicate = {
                             stack.add(EntryEditor(key.group, key.entry, duplicate = true))
                         },
+                        onHistory = { stack.add(EntryHistory(key.group, key.entry)) },
                         onDelete = {
                             pop()
                             deleting = key.entry
                         },
+                    )
+                }
+                entry<EntryHistory> { key ->
+                    EntryHistoryScreen(
+                        viewModel {
+                            EntryHistoryViewModel(
+                                graph.groups,
+                                GroupId.parse(key.group),
+                                EntryId.parse(key.entry),
+                            )
+                        },
+                        onBack = { pop() },
                     )
                 }
             },

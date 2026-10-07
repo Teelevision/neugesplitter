@@ -62,6 +62,7 @@ class OverviewScreenTest {
     private var opened: EntryId? = null
     private var edited: EntryId? = null
     private var duplicated: EntryId? = null
+    private var history: EntryId? = null
     private var back = 0
     private var taken = 0
 
@@ -120,6 +121,7 @@ class OverviewScreenTest {
                     { opened = it },
                     { edited = it },
                     { duplicated = it },
+                    { history = it },
                 )
             }
         }
@@ -190,6 +192,14 @@ class OverviewScreenTest {
         openMenu("Taxi")
         compose.onNodeWithText("Duplicate").performClick()
         assertEquals(taxi, duplicated)
+    }
+
+    @Test
+    fun `the long press menu offers the history of that entry (HI-3)`() {
+        show()
+        openMenu("Taxi")
+        compose.onNodeWithText("History").performClick()
+        assertEquals(taxi, history)
     }
 
     @Test

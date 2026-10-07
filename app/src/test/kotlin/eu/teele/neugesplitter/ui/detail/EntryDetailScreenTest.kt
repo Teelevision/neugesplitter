@@ -101,6 +101,7 @@ class EntryDetailScreenTest {
                     onBack = { calls += "back" },
                     onEdit = { calls += "edit" },
                     onDuplicate = { calls += "duplicate" },
+                    onHistory = { calls += "history" },
                     onDelete = { calls += "delete" },
                 )
             }
@@ -157,6 +158,16 @@ class EntryDetailScreenTest {
         compose.onNodeWithText("Duplicate").performClick()
         compose.onNodeWithContentDescription("Back").performClick()
         assertEquals(listOf("edit", "delete", "duplicate", "back"), calls)
+    }
+
+    @Test
+    fun `history is offered in the overflow menu (HI-3)`() {
+        seed(dinner())
+        show()
+        waitForText("Dinner")
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("History").performClick()
+        assertEquals(listOf("history"), calls)
     }
 
     @Test
