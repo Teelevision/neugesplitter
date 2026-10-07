@@ -1,3 +1,59 @@
 <resources>
-    <string name="app_name">Neugesplitter</string>
+    <string name="app_name" translatable="false">Neugesplitter</string>
+
+    <!-- Group list -->
+    <string name="group_list_empty">A group stays on this device or is shared.</string>
+    <string name="new_group">New group</string>
+    <string name="group_no_entries">No entries yet</string>
+    <string name="group_settled">All settled</string>
+    <string name="group_owed">You are owed %1$s</string>
+    <string name="group_owe">You owe %1$s</string>
+    <plurals name="groups_selected">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="clear_selection">Clear selection</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <plurals name="delete_groups_title">
+        <item quantity="one">Delete group?</item>
+        <item quantity="other">Delete %d groups?</item>
+    </plurals>
+    <plurals name="delete_groups_text">
+        <item quantity="one">It is removed from this device. A group kept only on this device cannot be brought back.</item>
+        <item quantity="other">They are removed from this device. A group kept only on this device cannot be brought back.</item>
+    </plurals>
+
+    <!-- New group -->
+    <string name="close">Close</string>
+    <string name="back">Back</string>
+    <string name="next">Next</string>
+    <string name="group_name">Name</string>
+    <string name="group_description">Description</string>
+    <string name="group_description_hint">Description (optional)</string>
+    <string name="group_emoji">Emoji</string>
+    <string name="group_colour">Colour</string>
+    <string name="group_preview">Preview</string>
+    <string name="colour_green">Green</string>
+    <string name="colour_teal">Teal</string>
+    <string name="colour_blue">Blue</string>
+    <string name="colour_violet">Violet</string>
+    <string name="colour_berry">Berry</string>
+    <string name="colour_ochre">Ochre</string>
+    <string name="members_title">Who\'s in?</string>
+    <string name="members_header">Members</string>
+    <string name="members_later">You can add members later too.</string>
+    <string name="your_name">Your name</string>
+    <string name="member_you">%1$s (you)</string>
+    <string name="member_not_removable">Can\'t be removed</string>
+    <string name="member_name">Name</string>
+    <string name="add_member">Add member</string>
+    <string name="remove_member">Remove %1$s</string>
+    <string name="storage_title">Where is the data kept?</string>
+    <string name="storage_header">Storage</string>
+    <string name="storage_hint">Choose where the new group keeps its data.</string>
+    <string name="storage_local">Only on this device</string>
+    <string name="storage_local_warning">Quick to set up. This group is lost if the device is lost.</string>
+    <string name="create_group">Create group</string>
+    <string name="create_failed">The group could not be saved.</string>
 </resources>

@@ -3,49 +3,104 @@ package eu.teele.neugesplitter.ui.theme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
+import eu.teele.neugesplitter.domain.value.Colour
 
-private val DarkColorScheme =
-    darkColorScheme(primary = Purple80, secondary = PurpleGrey80, tertiary = Pink80)
-
-private val LightColorScheme =
+/** The brand palette of ui-design 8 and docs/ui/tokens; never the wallpaper's. */
+private val Light =
     lightColorScheme(
-        primary = Purple40,
-        secondary = PurpleGrey40,
-        tertiary = Pink40,
-
-        /* Other default colors to override
-        background = Color(0xFFFFFBFE),
-        surface = Color(0xFFFFFBFE),
-        onPrimary = Color.White,
-        onSecondary = Color.White,
-        onTertiary = Color.White,
-        onBackground = Color(0xFF1C1B1F),
-        onSurface = Color(0xFF1C1B1F),
-        */
+        primary = Color(0xFF496F2E),
+        onPrimary = Color(0xFFFBFDFE),
+        primaryContainer = Color(0xFFC7D2BE),
+        onPrimaryContainer = Color(0xFF1F2F13),
+        inversePrimary = Color(0xFFABBD9F),
+        secondary = Color(0xFF4B716F),
+        onSecondary = Color(0xFFFBFDFE),
+        secondaryContainer = Color(0xFFC7D3D2),
+        onSecondaryContainer = Color(0xFF202F2F),
+        tertiary = Color(0xFF84AC29),
+        onTertiary = Color(0xFF141613),
+        tertiaryContainer = Color(0xFFD9E5BD),
+        onTertiaryContainer = Color(0xFF374811),
+        error = Color(0xFFBA1A1A),
+        onError = Color(0xFFFFFFFF),
+        errorContainer = Color(0xFFFFDAD6),
+        onErrorContainer = Color(0xFF410002),
+        background = Color(0xFFFBFDFE),
+        onBackground = Color(0xFF141613),
+        surface = Color(0xFFFBFDFE),
+        onSurface = Color(0xFF141613),
+        surfaceVariant = Color(0xFFDBE3E7),
+        onSurfaceVariant = Color(0xFF4A5155),
+        surfaceDim = Color(0xFFDBE8F0),
+        surfaceBright = Color(0xFFFBFDFE),
+        surfaceContainerLowest = Color(0xFFFFFFFF),
+        surfaceContainerLow = Color(0xFFF4F8FA),
+        surfaceContainer = Color(0xFFEEF4F8),
+        surfaceContainerHigh = Color(0xFFE7F0F5),
+        surfaceContainerHighest = Color(0xFFE2EDF3),
+        surfaceTint = Color(0xFF496F2E),
+        outline = Color(0xFF7E8A8F),
+        outlineVariant = Color(0xFFCBD6DB),
+        inverseSurface = Color(0xFF141613),
+        inverseOnSurface = Color(0xFFE8E8E7),
+        scrim = Color(0xFF000000),
     )
 
+private val Dark =
+    darkColorScheme(
+        primary = Color(0xFFABBD9F),
+        onPrimary = Color(0xFF141613),
+        primaryContainer = Color(0xFF344F21),
+        onPrimaryContainer = Color(0xFFC7D2BE),
+        inversePrimary = Color(0xFF496F2E),
+        secondary = Color(0xFFACBEBD),
+        onSecondary = Color(0xFF141613),
+        secondaryContainer = Color(0xFF35504F),
+        onSecondaryContainer = Color(0xFFC7D3D2),
+        tertiary = Color(0xFFADC770),
+        onTertiary = Color(0xFF141613),
+        tertiaryContainer = Color(0xFF495F17),
+        onTertiaryContainer = Color(0xFFD9E5BD),
+        error = Color(0xFFFFB4AB),
+        onError = Color(0xFF690005),
+        errorContainer = Color(0xFF93000A),
+        onErrorContainer = Color(0xFFFFDAD6),
+        background = Color(0xFF141613),
+        onBackground = Color(0xFFE8E8E7),
+        surface = Color(0xFF141613),
+        onSurface = Color(0xFFE8E8E7),
+        surfaceVariant = Color(0xFF434542),
+        onSurfaceVariant = Color(0xFFC1CED5),
+        surfaceDim = Color(0xFF0E100D),
+        surfaceBright = Color(0xFF2B2D29),
+        surfaceContainerLowest = Color(0xFF0B0C0A),
+        surfaceContainerLow = Color(0xFF1B1D1A),
+        surfaceContainer = Color(0xFF1E201D),
+        surfaceContainerHigh = Color(0xFF242623),
+        surfaceContainerHighest = Color(0xFF2B2D29),
+        surfaceTint = Color(0xFFABBD9F),
+        outline = Color(0xFFA1B1B8),
+        outlineVariant = Color(0xFF4A5155),
+        inverseSurface = Color(0xFFE8E8E7),
+        inverseOnSurface = Color(0xFF141613),
+        scrim = Color(0xFF000000),
+    )
+
+/**
+ * The six colours a group may choose, in the order they are offered: Grün, Petrol, Blau, Violett,
+ * Beere, Ocker. They carry identity and nothing else, and always take white text (ui-design 8).
+ */
+val GROUP_COLOURS: List<Colour> =
+    listOf("#4C7A3F", "#2A6E6B", "#3A6EA5", "#6A55A0", "#9C4270", "#9A5F1E").map(Colour::parse)
+
+/** [colour] for drawing; one another installation chose outside the six is drawn as it is. */
+fun groupColour(colour: Colour?): Color =
+    Color(0xFF000000 or (colour ?: GROUP_COLOURS.first()).text.drop(1).toLong(16))
+
 @Composable
-fun NeugesplitterTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit,
-) {
-    val colorScheme =
-        when {
-            dynamicColor -> {
-                val context = LocalContext.current
-                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            }
-
-            darkTheme -> DarkColorScheme
-            else -> LightColorScheme
-        }
-
-    MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
+fun NeugesplitterTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = if (dark) Dark else Light, content = content)
 }

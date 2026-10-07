@@ -1,0 +1,57 @@
+<resources>
+    <!-- Group list -->
+    <string name="group_list_empty">Eine Gruppe bleibt lokal oder wird geteilt.</string>
+    <string name="new_group">Neue Gruppe</string>
+    <string name="group_no_entries">Noch keine Einträge</string>
+    <string name="group_settled">Ausgeglichen</string>
+    <string name="group_owed">Du bekommst %1$s</string>
+    <string name="group_owe">Du schuldest %1$s</string>
+    <plurals name="groups_selected">
+        <item quantity="one">%d ausgewählt</item>
+        <item quantity="other">%d ausgewählt</item>
+    </plurals>
+    <string name="clear_selection">Auswahl aufheben</string>
+    <string name="delete">Löschen</string>
+    <string name="cancel">Abbrechen</string>
+    <plurals name="delete_groups_title">
+        <item quantity="one">Gruppe löschen?</item>
+        <item quantity="other">%d Gruppen löschen?</item>
+    </plurals>
+    <plurals name="delete_groups_text">
+        <item quantity="one">Sie wird von diesem Gerät entfernt. Eine Gruppe, die nur auf diesem Gerät liegt, lässt sich nicht zurückholen.</item>
+        <item quantity="other">Sie werden von diesem Gerät entfernt. Eine Gruppe, die nur auf diesem Gerät liegt, lässt sich nicht zurückholen.</item>
+    </plurals>
+
+    <!-- New group -->
+    <string name="close">Schließen</string>
+    <string name="back">Zurück</string>
+    <string name="next">Weiter</string>
+    <string name="group_name">Name</string>
+    <string name="group_description">Beschreibung</string>
+    <string name="group_description_hint">Beschreibung (optional)</string>
+    <string name="group_emoji">Emoji</string>
+    <string name="group_colour">Farbe</string>
+    <string name="group_preview">Vorschau</string>
+    <string name="colour_green">Grün</string>
+    <string name="colour_teal">Petrol</string>
+    <string name="colour_blue">Blau</string>
+    <string name="colour_violet">Violett</string>
+    <string name="colour_berry">Beere</string>
+    <string name="colour_ochre">Ocker</string>
+    <string name="members_title">Wer ist dabei?</string>
+    <string name="members_header">Mitglieder</string>
+    <string name="members_later">Du kannst Mitglieder auch später hinzufügen.</string>
+    <string name="your_name">Dein Name</string>
+    <string name="member_you">%1$s (du)</string>
+    <string name="member_not_removable">Nicht entfernbar</string>
+    <string name="member_name">Name</string>
+    <string name="add_member">Mitglied hinzufügen</string>
+    <string name="remove_member">%1$s entfernen</string>
+    <string name="storage_title">Wo werden die Daten gespeichert?</string>
+    <string name="storage_header">Speicherort</string>
+    <string name="storage_hint">Wähle, wo die neue Gruppe ihre Daten ablegt.</string>
+    <string name="storage_local">Nur auf diesem Gerät</string>
+    <string name="storage_local_warning">Schnell eingerichtet. Diese Gruppe geht verloren, wenn das Gerät verloren geht.</string>
+    <string name="create_group">Gruppe erstellen</string>
+    <string name="create_failed">Die Gruppe konnte nicht gespeichert werden.</string>
+</resources>

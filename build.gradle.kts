@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.compose.compiler) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.sqldelight) apply false
     id("com.diffplug.spotless") version "8.10.2"
 }
@@ -31,7 +32,7 @@ spotless {
     }
     format("markdown") {
         target("**/*.md")
-        targetExclude("**/build/**")
+        targetExclude("**/build/**", ".artifacts/**")
         trimTrailingWhitespace()
         endWithNewline()
         if (npmLocation != null) {
