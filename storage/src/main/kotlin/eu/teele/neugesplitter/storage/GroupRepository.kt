@@ -39,6 +39,15 @@ class GroupRepository(private val driver: SqlDriver) {
     /** Group [id] as its log produces it, or null if this installation holds no such group. */
     fun load(id: GroupId): Group? = database.transactionWithResult { replayed(id) }
 
+    /** [load], again whenever group [id]'s log changes. */
+    fun group(id: GroupId, context: CoroutineContext = Dispatchers.IO): Flow<Group?> =
+        database.eventRowQueries
+            .length(id.hex)
+            .asFlow()
+            .map { load(id) }
+            .distinctUntilChanged()
+            .flowOn(context)
+
     /**
      * Every group this installation holds, again whenever a write changes the list. The projection
      * is brought to [today] first.

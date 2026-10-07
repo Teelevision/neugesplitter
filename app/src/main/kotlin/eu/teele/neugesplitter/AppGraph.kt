@@ -9,11 +9,17 @@ import eu.teele.neugesplitter.storage.GroupRepository
 import java.security.SecureRandom
 import java.time.Instant
 import java.time.LocalDate
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /** The composition root: everything is constructed here, once (architecture.md 2). */
 class AppGraph(context: Context) {
 
     val groups = GroupRepository(AndroidSqliteDriver(Database.Schema, context, "neugesplitter.db"))
+
+    /** Work that outlives any screen. */
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val random = SecureRandom()
 

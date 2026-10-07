@@ -27,6 +27,11 @@ groups:
 SELECT DISTINCT group_id
 FROM event_row;
 
+length:
+SELECT count(*)
+FROM event_row
+WHERE group_id = ?;
+
 forget:
 DELETE FROM event_row
 WHERE group_id = ?;

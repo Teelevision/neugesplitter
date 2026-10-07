@@ -52,7 +52,30 @@ data class EntryChanges(
     val beneficiaries: Change<Side> = Change.Unchanged,
     val note: Change<String?> = Change.Unchanged,
     val attachments: Change<List<AttachmentName>?> = Change.Unchanged,
-)
+) {
+    /** True if this names no field, and so would change nothing. */
+    val isEmpty: Boolean
+        get() = this == EntryChanges()
+
+    companion object {
+        /** The fields in which [after] differs from [before], which must be the same entry. */
+        fun between(before: Entry, after: Entry): EntryChanges {
+            require(before.id == after.id) { "${before.id} and ${after.id} are different entries" }
+            fun <T> change(old: T, new: T): Change<T> =
+                if (old == new) Change.Unchanged else Change.To(new)
+            return EntryChanges(
+                kind = change(before.kind, after.kind),
+                description = change(before.description, after.description),
+                date = change(before.date, after.date),
+                amount = change(before.amount, after.amount),
+                payers = change(before.payers, after.payers),
+                beneficiaries = change(before.beneficiaries, after.beneficiaries),
+                note = change(before.note, after.note),
+                attachments = change(before.attachments, after.attachments),
+            )
+        }
+    }
+}
 
 /**
  * An event of format-spec 4.2, without its encoding.

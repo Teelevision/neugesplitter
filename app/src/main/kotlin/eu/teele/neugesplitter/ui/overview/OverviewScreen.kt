@@ -1,7 +1,11 @@
 package eu.teele.neugesplitter.ui.overview
 
 import android.icu.text.ListFormatter
+import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,15 +20,31 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FabPosition
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,14 +62,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.value.EntryDate
+import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.storage.ListedEntry
 import eu.teele.neugesplitter.storage.Overview
 import eu.teele.neugesplitter.ui.formatted
+import eu.teele.neugesplitter.ui.kindIcon
+import eu.teele.neugesplitter.ui.kindLabel
+import eu.teele.neugesplitter.ui.longDate
 import eu.teele.neugesplitter.ui.position
 import eu.teele.neugesplitter.ui.theme.groupColour
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import java.util.Locale
 
 private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
@@ -57,12 +79,36 @@ private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
 /** A group's total spending and its entries, newest first (ui-design 4). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OverviewScreen(viewModel: OverviewViewModel, onBack: () -> Unit) {
+fun OverviewScreen(
+    viewModel: OverviewViewModel,
+    deleteRequested: EntryId?,
+    onDeleteTaken: () -> Unit,
+    onBack: () -> Unit,
+    onNew: () -> Unit,
+    onOpen: (EntryId) -> Unit,
+    onEdit: (EntryId) -> Unit,
+    onDuplicate: (EntryId) -> Unit,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val overview = state.overview
+    val snackbar = remember { SnackbarHostState() }
+    var menu by remember { mutableStateOf<ListedEntry?>(null) }
+    val deleted = stringResource(R.string.entry_deleted)
+    val undo = stringResource(R.string.undo)
 
     // Deleted while open, which only another screen can do.
     LaunchedEffect(state) { if (state.loaded && overview == null) onBack() }
+    LaunchedEffect(deleteRequested) {
+        if (deleteRequested != null) {
+            viewModel.delete(deleteRequested)
+            onDeleteTaken()
+        }
+    }
+    LaunchedEffect(state.deleting) {
+        if (state.deleting == null) return@LaunchedEffect
+        val result = snackbar.showSnackbar(deleted, undo, duration = SnackbarDuration.Long)
+        if (result == SnackbarResult.ActionPerformed) viewModel.undo() else viewModel.undoGone()
+    }
 
     Scaffold(
         topBar = {
@@ -85,19 +131,74 @@ fun OverviewScreen(viewModel: OverviewViewModel, onBack: () -> Unit) {
                     }
                 },
             )
-        }
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onNew) {
+                Icon(painterResource(R.drawable.ic_add), stringResource(R.string.new_entry))
+            }
+        },
+        floatingActionButtonPosition = FabPosition.Center,
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         if (overview != null) {
-            Entries(overview, Modifier.fillMaxSize().padding(padding))
+            Entries(
+                overview,
+                onOpen = onOpen,
+                onMenu = { menu = it },
+                onDelete = viewModel::delete,
+                modifier = Modifier.fillMaxSize().padding(padding),
+            )
+        }
+    }
+
+    menu?.let { entry ->
+        ModalBottomSheet(onDismissRequest = { menu = null }) {
+            Text(
+                entry.description,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+            SheetAction(R.drawable.ic_edit, R.string.edit) {
+                menu = null
+                onEdit(entry.id)
+            }
+            SheetAction(R.drawable.ic_content_copy, R.string.duplicate) {
+                menu = null
+                onDuplicate(entry.id)
+            }
+            SheetAction(R.drawable.ic_delete, R.string.delete) {
+                menu = null
+                viewModel.delete(entry.id)
+            }
         }
     }
 }
 
 @Composable
-private fun Entries(overview: Overview, modifier: Modifier = Modifier) {
+private fun SheetAction(@DrawableRes icon: Int, @StringRes label: Int, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(label)) },
+        leadingContent = { Icon(painterResource(icon), contentDescription = null) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.clickable(onClick = onClick),
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun Entries(
+    overview: Overview,
+    onOpen: (EntryId) -> Unit,
+    onMenu: (ListedEntry) -> Unit,
+    onDelete: (EntryId) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val locale = LocalConfiguration.current.locales[0]
     val days = overview.entries.groupBy { it.date }
-    LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 24.dp)) {
+    // Room under the last entry for the FAB.
+    LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 96.dp)) {
         item(key = "header") { Header(overview, locale) }
         if (days.isEmpty()) {
             item(key = "empty") {
@@ -112,8 +213,49 @@ private fun Entries(overview: Overview, modifier: Modifier = Modifier) {
         }
         for ((date, entries) in days) {
             item(key = date.toString()) { Day(date, locale) }
-            items(entries, key = { it.id.hex }) { EntryRow(it, overview.scale, locale) }
+            items(entries, key = { it.id.hex }) { entry ->
+                // Swiping left deletes, with undo; swiping right does nothing (ui-design 4).
+                val threshold = SwipeToDismissBoxDefaults.positionalThreshold
+                // Not saveable: a row brought back by undo must not come back swiped away.
+                val swipe = remember {
+                    SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled, threshold)
+                }
+                SwipeToDismissBox(
+                    state = swipe,
+                    backgroundContent = { DeleteBackground() },
+                    enableDismissFromStartToEnd = false,
+                    onDismiss = { onDelete(entry.id) },
+                ) {
+                    EntryRow(
+                        entry,
+                        overview.scale,
+                        locale,
+                        Modifier.background(MaterialTheme.colorScheme.surface)
+                            .combinedClickable(
+                                onClick = { onOpen(entry.id) },
+                                onLongClick = { onMenu(entry) },
+                            ),
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun DeleteBackground() {
+    Box(
+        modifier =
+            Modifier.fillMaxSize()
+                .background(MaterialTheme.colorScheme.errorContainer)
+                .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.CenterEnd,
+    ) {
+        Icon(
+            painterResource(R.drawable.ic_delete),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onErrorContainer,
+        )
     }
 }
 
@@ -155,7 +297,7 @@ private fun Header(overview: Overview, locale: Locale) {
 @Composable
 private fun Day(date: EntryDate, locale: Locale) {
     Text(
-        DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale).format(date.value),
+        longDate(date, locale),
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier =
@@ -170,16 +312,18 @@ private fun Day(date: EntryDate, locale: Locale) {
  * alone (UX-6). Names truncate before the amount does (ui-design 9).
  */
 @Composable
-private fun EntryRow(entry: ListedEntry, scale: Scale, locale: Locale) {
+private fun EntryRow(
+    entry: ListedEntry,
+    scale: Scale,
+    locale: Locale,
+    modifier: Modifier = Modifier,
+) {
     val colours = MaterialTheme.colorScheme
-    val (icon, label, by) =
+    val by =
         when (entry.kind) {
-            Kind.EXPENSE ->
-                Triple(R.drawable.ic_expense, R.string.kind_expense, R.string.entry_paid_by)
-            Kind.INCOME ->
-                Triple(R.drawable.ic_income, R.string.kind_income, R.string.entry_received_by)
-            Kind.TRANSFER ->
-                Triple(R.drawable.ic_transfer, R.string.kind_transfer, R.string.entry_transfer_from)
+            Kind.EXPENSE -> R.string.entry_paid_by
+            Kind.INCOME -> R.string.entry_received_by
+            Kind.TRANSFER -> R.string.entry_transfer_from
         }
     val payers = ListFormatter.getInstance(locale).format(entry.payers)
     val meta =
@@ -190,7 +334,7 @@ private fun EntryRow(entry: ListedEntry, scale: Scale, locale: Locale) {
             .joinToString(" · ")
 
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -199,8 +343,8 @@ private fun EntryRow(entry: ListedEntry, scale: Scale, locale: Locale) {
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                painterResource(icon),
-                stringResource(label),
+                painterResource(kindIcon(entry.kind)),
+                stringResource(kindLabel(entry.kind)),
                 tint = colours.onSurfaceVariant,
                 modifier = Modifier.size(20.dp),
             )

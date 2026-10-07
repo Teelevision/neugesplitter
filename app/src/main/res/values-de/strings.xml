@@ -66,4 +66,28 @@
     <string name="kind_expense">Ausgabe</string>
     <string name="kind_income">Einnahme</string>
     <string name="kind_transfer">Übertrag</string>
+    <string name="entry_deleted">Eintrag gelöscht</string>
+    <string name="undo">Rückgängig</string>
+    <string name="edit">Bearbeiten</string>
+    <string name="duplicate">Duplizieren</string>
+    <string name="more_options">Weitere Optionen</string>
+
+    <!-- Entry editor and detail -->
+    <string name="new_entry">Neuer Eintrag</string>
+    <string name="edit_entry">Eintrag bearbeiten</string>
+    <string name="save">Speichern</string>
+    <string name="ok">OK</string>
+    <string name="entry_description">Beschreibung</string>
+    <string name="entry_amount">Betrag</string>
+    <string name="entry_date">Datum</string>
+    <string name="side_paid_by">Bezahlt von</string>
+    <string name="side_received_by">Erhalten von</string>
+    <string name="side_from">Von</string>
+    <string name="side_for">Für</string>
+    <string name="side_to">An</string>
+    <string name="problem_description">Beschreibung fehlt</string>
+    <string name="problem_amount">Betrag fehlt</string>
+    <string name="problem_side">Wähle jemanden unter „%1$s“</string>
+    <string name="save_failed">Der Eintrag konnte nicht gespeichert werden.</string>
+    <string name="created_by">Erstellt von %1$s</string>
 </resources>
