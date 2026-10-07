@@ -141,6 +141,29 @@ dropBalances:
 DELETE FROM balance
 WHERE group_id = ?;
 
+-- The group list (ui-design 3): each group, how many entries it holds that count, and the settled
+-- balance of the member this installation acts as in it (BA-7).
+listed:
+SELECT
+    g.id,
+    g.name,
+    g.emoji,
+    g.colour,
+    g.scale,
+    (SELECT count(*)
+     FROM entry e
+     WHERE e.group_id = g.id
+       AND e.deleted = 0
+       AND NOT EXISTS (
+           SELECT 1 FROM occurrence o
+           WHERE o.group_id = e.group_id AND o.entry = e.id AND o.pending = 1
+       )) AS entries,
+    b.settled AS own
+FROM group_row g
+LEFT JOIN acting_as a ON a.group_id = g.id
+LEFT JOIN balance b ON b.group_id = g.id AND b.member = a.member
+ORDER BY g.name, g.id;
+
 forget {
     DELETE FROM balance WHERE group_id = :group_id;
     DELETE FROM occurrence WHERE group_id = :group_id;

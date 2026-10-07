@@ -19,6 +19,7 @@ import eu.teele.neugesplitter.domain.event.Change
 import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.event.GroupChanges
+import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.recurrence.Interval
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.segment
@@ -27,6 +28,7 @@ import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.format.json.EventJson
 import eu.teele.neugesplitter.storage.projection.Projection
@@ -35,6 +37,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.runBlocking
 
 class GroupRepositoryTest {
 
@@ -259,6 +265,65 @@ class GroupRepositoryTest {
         val moved = projection()
         groups.rebuild(later)
         assertEquals(moved, projection())
+    }
+
+    @Test
+    fun `a new group acts as the member who created it, and is created once (ID-2, ID-3)`() {
+        groups.create(weekend, TODAY)
+        assertEquals(BEN, groups.actingAs(trip))
+        val events = rows("SELECT json FROM event_row")
+
+        assertFailsWith<Malformed> { groups.create(weekend.take(3), TODAY) }
+        assertFailsWith<IllegalArgumentException> { groups.create(household.drop(1), TODAY) }
+
+        assertEquals(events, rows("SELECT json FROM event_row"))
+    }
+
+    @Test
+    fun `the group list shows each group with the balance of the member acted as (GR-1, BA-7)`() {
+        groups.append(GROUP, household, TODAY)
+        groups.actAs(GROUP, ANNA)
+        groups.append(trip, weekend.take(3), TODAY)
+        val group = Group.replay(household)
+        val counted = group.entries.size + group.occurrences(TODAY).count { !it.pending }
+
+        assertEquals(
+            listOf(
+                ListedGroup(
+                    id = GROUP,
+                    name = "WG",
+                    emoji = null,
+                    colour = Colour.parse("#3366cc"),
+                    scale = Scale.DEFAULT,
+                    entries = counted.toLong(),
+                    own = group.settlement(TODAY).getValue(ANNA),
+                ),
+                ListedGroup(trip, "Wochenende", null, null, Scale.DEFAULT, 0, own = null),
+            ),
+            runBlocking { groups.list().first() },
+        )
+
+        groups.actAs(GROUP, BEN)
+
+        assertEquals(
+            group.settlement(TODAY).getValue(BEN),
+            runBlocking { groups.list().first() }.first().own,
+        )
+    }
+
+    @Test
+    fun `the group list follows every write (GR-1, GR-11)`() {
+        val seen = mutableListOf<List<String>>()
+        runBlocking {
+            groups.list(Dispatchers.Unconfined).take(3).collect { listed ->
+                seen += listed.map { it.name }
+                when (seen.size) {
+                    1 -> groups.create(weekend, TODAY)
+                    2 -> groups.delete(trip)
+                }
+            }
+        }
+        assertEquals(listOf(emptyList(), listOf("Wochenende"), emptyList()), seen)
     }
 
     @Test

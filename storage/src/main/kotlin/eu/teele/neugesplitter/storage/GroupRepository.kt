@@ -1,14 +1,22 @@
 package eu.teele.neugesplitter.storage
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.db.SqlDriver
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
+import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.format.json.EventJson
 import eu.teele.neugesplitter.storage.projection.Projection
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 
 /**
  * The groups this installation holds: each one's local event log, which is the source of truth, and
@@ -23,6 +31,38 @@ class GroupRepository(private val driver: SqlDriver) {
 
     /** Group [id] as its log produces it, or null if this installation holds no such group. */
     fun load(id: GroupId): Group? = database.transactionWithResult { replayed(id) }
+
+    /** Every group this installation holds, again whenever a write changes the list. */
+    fun list(context: CoroutineContext = Dispatchers.IO): Flow<List<ListedGroup>> =
+        database.projectionQueries
+            .listed { id, name, emoji, colour, scale, entries, own ->
+                ListedGroup(
+                    id = GroupId.parse(id),
+                    name = name,
+                    emoji = emoji,
+                    colour = colour?.let(Colour::parse),
+                    scale = Scale.of(scale.toInt()),
+                    entries = entries,
+                    own = own?.let(Amount::ofUnits),
+                )
+            }
+            .asFlow()
+            .mapToList(context)
+
+    /**
+     * Stores a new group from the events [Group.create] returned for it, and acts from then on as
+     * the member who wrote them, its creator (ID-2, ID-3).
+     *
+     * @throws Malformed as [append] does, which includes the group existing already.
+     */
+    fun create(events: List<Event>, today: EntryDate): Group =
+        database.transactionWithResult {
+            val created = events.firstOrNull()
+            require(created is Event.GroupCreated) { "a group's first event is its group.created" }
+            val group = append(created.group.id, events, today)
+            actAs(group.id, created.by)
+            group
+        }
 
     /**
      * Appends [events] to group [id]'s log and brings the projection up to date, all or nothing
