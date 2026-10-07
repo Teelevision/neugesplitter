@@ -63,6 +63,14 @@ are described in [sync-design.md](sync-design.md).
   emulator or Robolectric. Room was the alternative; it is the platform's
   default, but it would have brought KSP and shaped the tables around entity
   classes the domain does not have.
+- **How does the app move between screens?** With Navigation 3. Its back stack
+  is a list the app owns and changes like any other state, its destinations are
+  Kotlin types rather than route strings, and each entry on the stack gets a
+  ViewModel of its own that is cleared when the entry leaves. Keeping the stack
+  across process death and scoping a ViewModel to a destination are the two
+  parts a hand-written stack would have had to grow, so writing one would only
+  have postponed the dependency. Navigation 2 was the alternative; it keeps the
+  stack inside a controller the app can only send commands to.
 - **Passphrase or key pair?** A key pair. age can encrypt to a passphrase
   directly, but it derives a key with scrypt for every file, deliberately and
   expensively — which would make decrypting a whole history, in the app or at a

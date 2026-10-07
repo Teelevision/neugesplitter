@@ -88,6 +88,7 @@ milliseconds, with no emulator anywhere near it.
 | Gradle with the Kotlin DSL     | build, one version catalog in `gradle/libs.versions.toml`   |
 | AGP + Kotlin, JVM toolchain 17 | `minSdk` 33, `targetSdk` current (TR-2, TR-3)               |
 | Jetpack Compose + Material 3   | UI (TR-5)                                                   |
+| Navigation 3                   | the back stack and per-screen ViewModels, decisions.md      |
 | SQLDelight                     | SQLite schema and queries as SQL (TR-16), decisions.md      |
 | Spotless                       | ktfmt for Kotlin, prettier for Markdown at 80 columns       |
 | Android Lint                   | the platform checks, run as part of `check`                 |
