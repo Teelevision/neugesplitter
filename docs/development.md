@@ -83,19 +83,20 @@ milliseconds, with no emulator anywhere near it.
 
 ## 2. Tooling
 
-| Tool                           | For                                                         |
-| ------------------------------ | ----------------------------------------------------------- |
-| Gradle with the Kotlin DSL     | build, one version catalog in `gradle/libs.versions.toml`   |
-| AGP + Kotlin, JVM toolchain 17 | `minSdk` 33, `targetSdk` current (TR-2, TR-3)               |
-| Jetpack Compose + Material 3   | UI (TR-5)                                                   |
-| Navigation 3                   | the back stack and per-screen ViewModels, decisions.md      |
-| SQLDelight                     | SQLite schema and queries as SQL (TR-16), decisions.md      |
-| Spotless                       | ktfmt for Kotlin, prettier for Markdown at 80 columns       |
-| Android Lint                   | the platform checks, run as part of `check`                 |
-| JUnit 4 + kotlin.test          | unit tests; JUnit 4 because instrumentation needs it anyway |
-| kotest-property                | the property tests TR-46 asks for                           |
-| Testcontainers + MinIO         | the integration suite TR-48 and TR-49 ask for               |
-| GitHub Actions                 | one workflow: `./gradlew check assembleDebug`               |
+| Tool                           | For                                                        |
+| ------------------------------ | ---------------------------------------------------------- |
+| Gradle with the Kotlin DSL     | build, one version catalog in `gradle/libs.versions.toml`  |
+| AGP + Kotlin, JVM toolchain 17 | `minSdk` 33, `targetSdk` current (TR-2, TR-3)              |
+| Jetpack Compose + Material 3   | UI (TR-5)                                                  |
+| Navigation 3                   | the back stack and per-screen ViewModels, decisions.md     |
+| SQLDelight                     | SQLite schema and queries as SQL (TR-16), decisions.md     |
+| Spotless                       | ktfmt for Kotlin, prettier for Markdown at 80 columns      |
+| Android Lint                   | the platform checks, run as part of `check`                |
+| JUnit 4 + kotlin.test          | unit tests; JUnit 4 because the Compose test rule needs it |
+| Robolectric + Compose UI test  | screen tests on the JVM, no emulator; run on Java 21       |
+| kotest-property                | the property tests TR-46 asks for                          |
+| Testcontainers + MinIO         | the integration suite TR-48 and TR-49 ask for              |
+| GitHub Actions                 | one workflow: `./gradlew check assembleDebug`              |
 
 Everything is free and open source, and nothing needs credentials to build
 (TR-31, TR-51). Dependencies stay few enough to read: each new one is a thing
@@ -110,7 +111,7 @@ that can be abandoned, and this app is meant to still build in five years.
 | Format conformance  | `:format` JVM tests     | the specification's test vectors (TR-45), update merge semantics (TR-47)                            |
 | Storage             | `:storage` JVM tests    | event text kept as written (TR-17c), the projection rebuilt from the log (TR-18), group deletion    |
 | Backend integration | `:backend-s3` JVM tests | conditional write, losing write, interrupted write, refusing a backend without `If-None-Match`      |
-| UI smoke            | `:app` instrumentation  | a handful of screens; not a test strategy, a canary                                                 |
+| Screen              | `:app` JVM tests        | what a screen shows and what its buttons do, on Robolectric; screenshots (Roborazzi) may follow     |
 
 Tests name the requirement they exist for, in the test name:
 `balances sum to zero (BA-2)`. It costs nothing and makes a failing test say

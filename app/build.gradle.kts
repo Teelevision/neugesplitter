@@ -6,6 +6,12 @@ plugins {
 
 kotlin { jvmToolchain(17) }
 
+// Robolectric runs SDK 35 and later only on Java 21; the code itself still targets 17.
+tasks.withType<Test>().configureEach {
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+    jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+}
+
 android {
     namespace = "eu.teele.neugesplitter"
     compileSdk = 37
@@ -39,6 +45,7 @@ android {
         resValues = true
     }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
+    testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
 dependencies {
@@ -60,6 +67,11 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.ui.test.junit4)
+    // ui-test-junit4 brings Espresso 3.5, which fails on SDK 37 (InputManager.getInstance).
+    testImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

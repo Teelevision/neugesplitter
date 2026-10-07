@@ -14,12 +14,14 @@ serialization = "1.11.0"
 kage = "0.8.0"
 sqldelight = "2.4.1"
 navigation3 = "1.2.0"
+robolectric = "4.17"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlin-test-junit = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit", version.ref = "kotlin" }
 kotest-property = { group = "io.kotest", name = "kotest-property", version.ref = "kotest" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 kage = { group = "com.github.android-password-store", name = "kage", version.ref = "kage" }
