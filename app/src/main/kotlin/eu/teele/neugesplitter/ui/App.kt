@@ -35,6 +35,8 @@ import eu.teele.neugesplitter.ui.overview.OverviewScreen
 import eu.teele.neugesplitter.ui.overview.OverviewViewModel
 import eu.teele.neugesplitter.ui.people.PeopleScreen
 import eu.teele.neugesplitter.ui.people.PeopleViewModel
+import eu.teele.neugesplitter.ui.settings.GroupSettingsScreen
+import eu.teele.neugesplitter.ui.settings.GroupSettingsViewModel
 import java.text.DecimalFormatSymbols
 import kotlinx.serialization.Serializable
 
@@ -161,6 +163,21 @@ fun App(graph: AppGraph) {
                                         )
                                     },
                                     onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
+                                    modifier = modifier,
+                                )
+                            Destination.SETTINGS ->
+                                GroupSettingsScreen(
+                                    viewModel {
+                                        GroupSettingsViewModel(
+                                            graph.groups,
+                                            group,
+                                            graph::identifier,
+                                            graph::today,
+                                            graph::now,
+                                        )
+                                    },
+                                    onBack = { pop() },
+                                    onDeleted = { while (stack.size > 1) pop() },
                                     modifier = modifier,
                                 )
                         }

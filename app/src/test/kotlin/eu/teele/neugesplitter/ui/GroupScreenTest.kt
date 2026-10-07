@@ -4,11 +4,13 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.espresso.Espresso
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -48,6 +50,28 @@ class GroupScreenTest {
     }
 
     @Test
+    fun `the navigation bar switches to settings and back (ui-design 1)`() {
+        show()
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("showing SETTINGS").assertExists()
+        compose.onNodeWithText("Overview").performClick()
+        compose.onNodeWithText("showing OVERVIEW").assertExists()
+    }
+
+    @Test
+    fun `the centre action stays in the centre with settings on its right (ui-design 1)`() {
+        show()
+        val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        val action =
+            compose.onNodeWithContentDescription("New entry").fetchSemanticsNode().boundsInRoot
+        val settings = compose.onNodeWithText("Settings").fetchSemanticsNode().boundsInRoot
+        val people = compose.onNodeWithText("People").fetchSemanticsNode().boundsInRoot
+        assertEquals(root.center.x, action.center.x, 1f)
+        assertTrue(people.right < action.left)
+        assertTrue(action.right < settings.left)
+    }
+
+    @Test
     fun `the centre action starts a new entry (ui-design 1)`() {
         show()
         compose.onNodeWithContentDescription("New entry").performClick()
@@ -59,6 +83,16 @@ class GroupScreenTest {
         show()
         compose.onNodeWithText("People").performClick()
         compose.onNodeWithText("showing PEOPLE").assertExists()
+        Espresso.pressBack()
+        compose.waitForIdle()
+        compose.onNodeWithText("showing OVERVIEW").assertExists()
+    }
+
+    @Test
+    fun `back from settings returns to the overview (ui-design 1)`() {
+        show()
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("showing SETTINGS").assertExists()
         Espresso.pressBack()
         compose.waitForIdle()
         compose.onNodeWithText("showing OVERVIEW").assertExists()

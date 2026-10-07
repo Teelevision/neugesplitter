@@ -1,0 +1,323 @@
+package eu.teele.neugesplitter.ui.settings
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.teele.neugesplitter.R
+import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.ui.ColourPicker
+import eu.teele.neugesplitter.ui.EmojiPicker
+import eu.teele.neugesplitter.ui.InlineEditor
+
+private enum class Dialog {
+    PARTICIPANTS,
+    DELETE,
+}
+
+/** A row edited in place of itself. */
+private enum class Field {
+    NAME,
+    DESCRIPTION,
+}
+
+/**
+ * A group's name, look and default participants, where it is kept, and how it is removed from this
+ * device (ui-design 4, GR-2, SP-8, GR-11). Name and description are edited in place; the look takes
+ * effect as soon as it is tapped.
+ *
+ * @param onDeleted called once the group is gone from this device.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GroupSettingsScreen(
+    viewModel: GroupSettingsViewModel,
+    onBack: () -> Unit,
+    onDeleted: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    var dialog by rememberSaveable { mutableStateOf<Dialog?>(null) }
+    var editing by rememberSaveable { mutableStateOf<Field?>(null) }
+
+    // Deleted while open, which this screen or another can do.
+    LaunchedEffect(state) { if (state.loaded && state.title == null) onBack() }
+
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(state.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            painterResource(R.drawable.ic_arrow_back),
+                            stringResource(R.string.back),
+                        )
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        if (state.title == null) return@Scaffold
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(bottom = 16.dp),
+        ) {
+            item(key = "group") { Heading(R.string.settings_group) }
+            item(key = "name") {
+                if (editing == Field.NAME) {
+                    InlineEditor(
+                        state.name,
+                        stringResource(R.string.group_name),
+                        onSave = {
+                            viewModel.rename(it)
+                            editing = null
+                        },
+                        onCancel = { editing = null },
+                    )
+                } else {
+                    SettingRow(
+                        stringResource(R.string.group_name),
+                        state.name,
+                        onClick = { editing = Field.NAME },
+                    )
+                }
+            }
+            item(key = "description") {
+                if (editing == Field.DESCRIPTION) {
+                    InlineEditor(
+                        state.description.orEmpty(),
+                        stringResource(R.string.group_description),
+                        onSave = {
+                            viewModel.describe(it)
+                            editing = null
+                        },
+                        onCancel = { editing = null },
+                        // A blank description is none, so it can always be saved.
+                        allowBlank = true,
+                        singleLine = false,
+                        capitalization = KeyboardCapitalization.Sentences,
+                    )
+                } else {
+                    SettingRow(
+                        stringResource(R.string.group_description),
+                        state.description ?: stringResource(R.string.none),
+                        onClick = { editing = Field.DESCRIPTION },
+                    )
+                }
+            }
+            item(key = "emoji") {
+                Looks(R.string.group_emoji) { EmojiPicker(state.emoji, viewModel::emoji) }
+            }
+            item(key = "colour") {
+                Looks(R.string.group_colour) { ColourPicker(state.colour, viewModel::colour) }
+            }
+
+            item(key = "entries") { Heading(R.string.settings_entries) }
+            item(key = "participants") {
+                SettingRow(
+                    stringResource(R.string.default_participants),
+                    participants(state),
+                    onClick = { dialog = Dialog.PARTICIPANTS },
+                )
+            }
+
+            item(key = "storage") { Heading(R.string.storage_header) }
+            item(key = "local") {
+                SettingRow(
+                    stringResource(R.string.storage_local),
+                    stringResource(R.string.storage_local_warning),
+                )
+            }
+
+            item(key = "danger") { Heading(R.string.settings_danger) }
+            item(key = "delete") {
+                SettingRow(
+                    stringResource(R.string.delete_group_device),
+                    supporting = null,
+                    onClick = { dialog = Dialog.DELETE },
+                    headlineColour = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    }
+
+    val close = { dialog = null }
+    when (dialog) {
+        Dialog.PARTICIPANTS ->
+            ParticipantsDialog(
+                state.members,
+                state.defaultParticipants,
+                onSave = {
+                    viewModel.defaultParticipants(it)
+                    close()
+                },
+                onCancel = close,
+            )
+        Dialog.DELETE ->
+            AlertDialog(
+                onDismissRequest = close,
+                title = { Text(pluralStringResource(R.plurals.delete_groups_title, 1, 1)) },
+                text = { Text(pluralStringResource(R.plurals.delete_groups_text, 1)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            close()
+                            viewModel.delete(onDeleted)
+                        }
+                    ) {
+                        Text(
+                            stringResource(R.string.delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = close) { Text(stringResource(R.string.cancel)) }
+                },
+            )
+        null -> Unit
+    }
+}
+
+/** Everyone, or the names of those new entries start with. */
+@Composable
+private fun participants(state: GroupSettingsState): String {
+    val chosen = state.defaultParticipants ?: return stringResource(R.string.everyone)
+    val names = state.members.filter { it.id in chosen }.joinToString(", ") { it.name }
+    return names.ifEmpty { stringResource(R.string.none) }
+}
+
+@Composable
+private fun Heading(label: Int) {
+    Text(
+        stringResource(label),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier =
+            Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp).semantics {
+                heading()
+            },
+    )
+}
+
+/** A label and its value; a row with no [onClick] only informs. */
+@Composable
+private fun SettingRow(
+    headline: String,
+    supporting: String?,
+    onClick: (() -> Unit)? = null,
+    headlineColour: Color = Color.Unspecified,
+) {
+    ListItem(
+        headlineContent = { Text(headline, color = headlineColour) },
+        supportingContent = supporting?.let { { Text(it) } },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick),
+    )
+}
+
+@Composable
+private fun Looks(label: Int, picker: @Composable () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(stringResource(label), style = MaterialTheme.typography.bodyLarge)
+        picker()
+    }
+}
+
+/** A checkbox per member; at least one must stay checked (SP-8). */
+@Composable
+private fun ParticipantsDialog(
+    members: List<Member>,
+    current: List<MemberId>?,
+    onSave: (Set<MemberId>) -> Unit,
+    onCancel: () -> Unit,
+) {
+    var checked by rememberSaveable {
+        mutableStateOf(members.filter { current == null || it.id in current }.map { it.id.hex })
+    }
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(stringResource(R.string.default_participants)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                for (member in members) {
+                    val on = member.id.hex in checked
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth()
+                                .toggleable(
+                                    value = on,
+                                    onValueChange = {
+                                        checked =
+                                            if (it) checked + member.id.hex
+                                            else checked - member.id.hex
+                                    },
+                                    role = Role.Checkbox,
+                                )
+                                .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(checked = on, onCheckedChange = null)
+                        Text(member.name, modifier = Modifier.padding(start = 16.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(members.filter { it.id.hex in checked }.map { it.id }.toSet()) },
+                enabled = checked.isNotEmpty(),
+            ) {
+                Text(stringResource(R.string.save))
+            }
+        },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } },
+    )
+}

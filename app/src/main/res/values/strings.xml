@@ -152,4 +152,14 @@
     <string name="settle_transfer">%1$s pays %2$s %3$s</string>
     <string name="settle_record">Record</string>
     <string name="settle_description">Settlement</string>
+
+    <!-- Group settings -->
+    <string name="destination_settings">Settings</string>
+    <string name="settings_group">Group</string>
+    <string name="none">None</string>
+    <string name="settings_entries">Entries</string>
+    <string name="default_participants">Default participants</string>
+    <string name="everyone">Everyone</string>
+    <string name="settings_danger">Danger zone</string>
+    <string name="delete_group_device">Delete group from this device</string>
 </resources>

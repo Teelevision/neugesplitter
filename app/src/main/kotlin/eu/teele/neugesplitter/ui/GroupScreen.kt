@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -14,6 +15,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemColors
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -28,10 +30,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import eu.teele.neugesplitter.R
 
-/** The destinations inside a group (ui-design 1). Activity and Settings are still to come. */
+/** The destinations inside a group (ui-design 1). Activity is still to come. */
 enum class Destination(@param:DrawableRes val icon: Int, @param:StringRes val label: Int) {
     OVERVIEW(R.drawable.ic_list, R.string.destination_overview),
     PEOPLE(R.drawable.ic_people, R.string.destination_people),
+    SETTINGS(R.drawable.ic_settings, R.string.destination_settings),
 }
 
 /**
@@ -66,15 +69,8 @@ private fun GroupBar(selected: Destination, onSelect: (Destination) -> Unit, onN
             unselectedTextColor = colours.onSurfaceVariant,
         )
     NavigationBar {
-        for (destination in Destination.entries) {
-            NavigationBarItem(
-                selected = destination == selected,
-                onClick = { onSelect(destination) },
-                icon = { Icon(painterResource(destination.icon), contentDescription = null) },
-                label = { Text(stringResource(destination.label)) },
-                colors = itemColours,
-            )
-        }
+        DestinationItem(Destination.OVERVIEW, selected, onSelect, itemColours)
+        DestinationItem(Destination.PEOPLE, selected, onSelect, itemColours)
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
             FloatingActionButton(
                 onClick = onNew,
@@ -83,7 +79,24 @@ private fun GroupBar(selected: Destination, onSelect: (Destination) -> Unit, onN
                 Icon(painterResource(R.drawable.ic_add), stringResource(R.string.new_entry))
             }
         }
-        // Where Activity and Settings will go, so that the new-entry action stays in the centre.
-        repeat(2) { Spacer(Modifier.weight(1f)) }
+        // Where Activity will go, so that the new-entry action stays in the centre.
+        Spacer(Modifier.weight(1f))
+        DestinationItem(Destination.SETTINGS, selected, onSelect, itemColours)
     }
+}
+
+@Composable
+private fun RowScope.DestinationItem(
+    destination: Destination,
+    selected: Destination,
+    onSelect: (Destination) -> Unit,
+    colours: NavigationBarItemColors,
+) {
+    NavigationBarItem(
+        selected = destination == selected,
+        onClick = { onSelect(destination) },
+        icon = { Icon(painterResource(destination.icon), contentDescription = null) },
+        label = { Text(stringResource(destination.label)) },
+        colors = colours,
+    )
 }
