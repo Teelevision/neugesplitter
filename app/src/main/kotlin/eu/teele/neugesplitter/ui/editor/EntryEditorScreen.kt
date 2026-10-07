@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -57,17 +58,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.entry.Kind
-import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.MemberId
-import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.ui.calculator.CalculatorSheet
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.kindLabel
 import eu.teele.neugesplitter.ui.longDate
 import eu.teele.neugesplitter.ui.sideLabels
+import eu.teele.neugesplitter.ui.split.Mismatch
+import eu.teele.neugesplitter.ui.split.SplitSheet
+import eu.teele.neugesplitter.ui.split.part
+import eu.teele.neugesplitter.ui.split.schemeLabel
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Locale
@@ -81,6 +84,8 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
     val (payersLabel, beneficiariesLabel) = sideLabels(state.kind)
     var picking by rememberSaveable { mutableStateOf(false) }
     var calculating by rememberSaveable { mutableStateOf(false) }
+    var splitting by rememberSaveable { mutableStateOf<Party?>(null) }
+    val label = { party: Party -> if (party == Party.PAYERS) payersLabel else beneficiariesLabel }
     val focus = LocalFocusManager.current
     val description = remember { FocusRequester() }
     val amountTaps = remember { MutableInteractionSource() }
@@ -139,6 +144,20 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                                         stringResource(
                                             R.string.problem_side,
                                             stringResource(beneficiariesLabel),
+                                        )
+                                    Problem.PAYER_SPLIT ->
+                                        splitProblem(
+                                            state,
+                                            Party.PAYERS,
+                                            label(Party.PAYERS),
+                                            locale,
+                                        )
+                                    Problem.BENEFICIARY_SPLIT ->
+                                        splitProblem(
+                                            state,
+                                            Party.BENEFICIARIES,
+                                            label(Party.BENEFICIARIES),
+                                            locale,
                                         )
                                     null -> null
                                 }
@@ -204,13 +223,15 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
             Section(stringResource(R.string.entry_date)) {
                 OutlinedButton(onClick = { picking = true }) { Text(longDate(state.date, locale)) }
             }
-            Section(stringResource(payersLabel)) {
-                Chooser(state.members, state.payers, viewModel::payer)
-                Parts(state.members, state.payerSide, state.amount, state.scale, locale)
-            }
-            Section(stringResource(beneficiariesLabel)) {
-                Chooser(state.members, state.beneficiaries, viewModel::beneficiary)
-                Parts(state.members, state.beneficiarySide, state.amount, state.scale, locale)
+            for (party in Party.entries) {
+                Section(stringResource(label(party))) {
+                    Chooser(
+                        state.members,
+                        state.selected(party),
+                        if (party == Party.PAYERS) viewModel::payer else viewModel::beneficiary,
+                    )
+                    SplitSummary(state, party, locale) { splitting = party }
+                }
             }
         }
     }
@@ -234,6 +255,26 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                 calculating = false
             },
             onDismiss = { calculating = false },
+        )
+    }
+    splitting?.let { party ->
+        val order = state.ordered(party)
+        // Down to one member, there is nothing left to split (SP-1).
+        if (order.size < 2) {
+            LaunchedEffect(Unit) { splitting = null }
+            return@let
+        }
+        val names = state.members.associateBy { it.id }
+        SplitSheet(
+            title = stringResource(label(party)),
+            members = order.mapNotNull { names[it] },
+            split = state.split(party),
+            amount = state.amount,
+            scale = state.scale,
+            locale = locale,
+            onScheme = { viewModel.scheme(party, it) },
+            onTyped = { member, text -> viewModel.typed(party, member, text) },
+            onDismiss = { splitting = null },
         )
     }
 }
@@ -281,25 +322,63 @@ private fun Chooser(members: List<Member>, selected: Set<MemberId>, onToggle: (M
     }
 }
 
-/** What each member's part comes to, while there is more than one of them (SP-6). */
+/**
+ * With more than one member on [party]'s side: how it is split, which opens the split sheet, and
+ * what each part comes to (SP-1, SP-6).
+ */
 @Composable
-private fun Parts(
-    members: List<Member>,
-    side: Side?,
-    amount: Amount?,
-    scale: Scale,
+private fun SplitSummary(
+    state: EntryEditorState,
+    party: Party,
     locale: Locale,
+    onOpen: () -> Unit,
 ) {
-    if (side == null || amount == null || side.members.size < 2) return
-    val parts = runCatching { side.parts(amount) }.getOrNull() ?: return
-    val names = members.associate { it.id to it.name }
+    val order = state.ordered(party)
+    if (order.size < 2) return
+    val split = state.split(party)
+    AssistChip(
+        onClick = onOpen,
+        label = {
+            Text(stringResource(R.string.split_scheme, stringResource(schemeLabel(split.scheme))))
+        },
+    )
+    val amount = state.amount ?: return
+    val parts = split.parts(order, amount) ?: return
+    val names = state.members.associate { it.id to it.name }
     Text(
         parts.entries.joinToString("   ") { (member, part) ->
-            "${names[member]} ${formatted(part.roundedTo(scale), scale, locale)}"
+            "${names[member]} ${part(part, state.scale, locale)}"
         },
         style = MaterialTheme.typography.bodyMedium.merge(TextStyle(fontFeatureSettings = "tnum")),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+}
+
+/** Why [party]'s split keeps the entry from being saved (SP-6). */
+@Composable
+private fun splitProblem(
+    state: EntryEditorState,
+    party: Party,
+    label: Int,
+    locale: Locale,
+): String? {
+    val side = stringResource(label)
+    val off = state.amount?.let { state.split(party).off(state.ordered(party), it) }
+    val shown = { amount: Amount -> formatted(amount.roundedTo(state.scale), state.scale, locale) }
+    return when (state.mismatch(party)) {
+        Mismatch.UNREADABLE -> stringResource(R.string.problem_split_unreadable, side)
+        Mismatch.NO_SHARES -> stringResource(R.string.problem_split_no_shares, side)
+        Mismatch.ADJUSTMENTS_OVER -> stringResource(R.string.problem_split_adjustments, side)
+        Mismatch.ABSOLUTE_OFF ->
+            off?.let {
+                stringResource(
+                    if (it.isPositive) R.string.problem_split_left else R.string.problem_split_over,
+                    side,
+                    shown(it),
+                )
+            }
+        null -> null
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

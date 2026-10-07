@@ -17,3 +17,17 @@ fun formatted(amount: Amount, scale: Scale, locale: Locale): String {
     format.maximumFractionDigits = scale.digits
     return format.format(BigDecimal.valueOf(amount.units, Amount.UNIT_DIGITS).abs())
 }
+
+/**
+ * [amount] rounded to [scale], as [formatted], but with its sign where there are no words for it.
+ */
+fun signed(amount: Amount, scale: Scale, locale: Locale): String {
+    val rounded = amount.roundedTo(scale)
+    val sign =
+        when {
+            rounded.isNegative -> "−"
+            rounded.isPositive -> "+"
+            else -> ""
+        }
+    return sign + formatted(rounded, scale, locale)
+}

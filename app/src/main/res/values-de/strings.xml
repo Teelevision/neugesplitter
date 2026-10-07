@@ -100,4 +100,23 @@
     <string name="calculator_divide">Geteilt durch</string>
     <string name="calculator_division_by_zero">Division durch null nicht möglich</string>
     <string name="calculator_too_large">Zu groß</string>
+
+    <!-- Split editor -->
+    <string name="scheme_equal">Gleich</string>
+    <string name="scheme_shares">Anteile</string>
+    <string name="scheme_adjustments">Angepasst</string>
+    <string name="scheme_absolute">Exakt</string>
+    <string name="split_scheme">Aufteilung: %1$s</string>
+    <string name="split_title">Aufteilung „%1$s“</string>
+    <string name="split_shares_total">%1$s Anteile insgesamt</string>
+    <string name="split_left">Noch %1$s zu verteilen</string>
+    <string name="split_over">%1$s mehr als der Betrag</string>
+    <string name="split_adds_up">Ergibt den Betrag</string>
+    <string name="split_adjustments_sum">Anpassungen ergeben %1$s</string>
+    <string name="split_unreadable">Nicht jeder Wert ist eine Zahl</string>
+    <string name="problem_split_unreadable">Ein Wert unter „%1$s“ ist keine Zahl</string>
+    <string name="problem_split_no_shares">Die Anteile unter „%1$s“ ergeben null</string>
+    <string name="problem_split_left">Unter „%1$s“ sind noch %2$s zu verteilen</string>
+    <string name="problem_split_over">Unter „%1$s“ ist %2$s zu viel verteilt</string>
+    <string name="problem_split_adjustments">Anpassungen unter „%1$s“ ergeben mehr als den Betrag</string>
 </resources>

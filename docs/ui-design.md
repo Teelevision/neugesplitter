@@ -223,8 +223,8 @@ and a save action. Top to bottom:
 When more than one member is on a side, the per-member result is shown under
 that side as the user types, both sides at once (SP-6). Save is disabled, with
 the reason stated inline, when absolute values do not sum to the total or
-adjustments do not sum to zero (SP-6), or when the amount is unfinished or
-meaningless (AM-6).
+adjustments add up to more than the total (SP-6), or when the amount is
+unfinished or meaningless (AM-6).
 
 A transfer relabels the two sides as "from" and "to" and hides the split schemes
 unless more than one member is selected (EN-7).

@@ -247,8 +247,8 @@ of everyone entering the same backend settings.
   member.
 - **SP-6** (Core): The app MUST show, before saving, the resulting amount per
   member on both sides. Where the user enters the parts directly, saving MUST be
-  prevented unless they add up: absolute values to the total, adjustments to
-  zero.
+  prevented unless they add up: absolute values to the total, adjustments to no
+  more than it.
 - **SP-7** (Core): Amounts MUST be held internally at a precision far finer than
   anything a user enters, so that dividing them loses nothing anybody can act
   on. Rounding MUST occur only where a figure is displayed, MUST be

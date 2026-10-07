@@ -102,4 +102,23 @@
     <string name="calculator_divide">Divided by</string>
     <string name="calculator_division_by_zero">Cannot divide by zero</string>
     <string name="calculator_too_large">Too large</string>
+
+    <!-- Split editor -->
+    <string name="scheme_equal">Equal</string>
+    <string name="scheme_shares">Shares</string>
+    <string name="scheme_adjustments">Adjusted</string>
+    <string name="scheme_absolute">Exact</string>
+    <string name="split_scheme">Split: %1$s</string>
+    <string name="split_title">Split “%1$s”</string>
+    <string name="split_shares_total">%1$s shares in all</string>
+    <string name="split_left">%1$s left to divide</string>
+    <string name="split_over">%1$s more than the amount</string>
+    <string name="split_adds_up">Adds up to the amount</string>
+    <string name="split_adjustments_sum">Adjustments add up to %1$s</string>
+    <string name="split_unreadable">Not every value is a number</string>
+    <string name="problem_split_unreadable">A value under “%1$s” is not a number</string>
+    <string name="problem_split_no_shares">The shares under “%1$s” add up to nothing</string>
+    <string name="problem_split_left">%2$s left to divide under “%1$s”</string>
+    <string name="problem_split_over">%2$s too much under “%1$s”</string>
+    <string name="problem_split_adjustments">Adjustments under “%1$s” add up to more than the amount</string>
 </resources>

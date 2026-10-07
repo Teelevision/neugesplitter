@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
+import eu.teele.neugesplitter.domain.entry.Scheme
 import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
@@ -17,6 +18,8 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.ui.split.Mismatch
+import eu.teele.neugesplitter.ui.split.Split
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +35,14 @@ enum class Problem {
     AMOUNT,
     PAYERS,
     BENEFICIARIES,
+    PAYER_SPLIT,
+    BENEFICIARY_SPLIT,
+}
+
+/** The two sides of an entry. */
+enum class Party {
+    PAYERS,
+    BENEFICIARIES,
 }
 
 /**
@@ -39,8 +50,8 @@ enum class Problem {
  *
  * @property members everyone who can be chosen, in the group's order: the current members, and
  *   removed ones still on the entry.
- * @property source the entry being edited or duplicated. A side whose members are unchanged keeps
- *   its scheme from there.
+ * @property source the entry being edited or duplicated. A side that comes out the same as there
+ *   stays as it was saved.
  * @property done once the editor should close.
  */
 data class EntryEditorState(
@@ -55,6 +66,8 @@ data class EntryEditorState(
     val amount: Amount? = null,
     val payers: Set<MemberId> = emptySet(),
     val beneficiaries: Set<MemberId> = emptySet(),
+    val payerSplit: Split = Split(),
+    val beneficiarySplit: Split = Split(),
     val saving: Boolean = false,
     val failed: Boolean = false,
     val done: Boolean = false,
@@ -66,6 +79,8 @@ data class EntryEditorState(
                 amount?.isPositive != true -> Problem.AMOUNT
                 payers.isEmpty() -> Problem.PAYERS
                 beneficiaries.isEmpty() -> Problem.BENEFICIARIES
+                mismatch(Party.PAYERS) != null -> Problem.PAYER_SPLIT
+                mismatch(Party.BENEFICIARIES) != null -> Problem.BENEFICIARY_SPLIT
                 else -> null
             }
 
@@ -73,17 +88,47 @@ data class EntryEditorState(
         get() = loaded && !saving && problem == null
 
     val payerSide: Side?
-        get() = side(payers, source?.payers)
+        get() = side(Party.PAYERS)
 
     val beneficiarySide: Side?
-        get() = side(beneficiaries, source?.beneficiaries)
+        get() = side(Party.BENEFICIARIES)
 
-    private fun side(selected: Set<MemberId>, previous: Side?): Side? =
-        when {
-            selected.isEmpty() -> null
-            previous != null && previous.members.toSet() == selected -> previous
-            else -> Side.Equal(members.map { it.id }.filter { it in selected })
-        }
+    fun selected(party: Party): Set<MemberId> = if (party == Party.PAYERS) payers else beneficiaries
+
+    fun split(party: Party): Split = if (party == Party.PAYERS) payerSplit else beneficiarySplit
+
+    /** The members on [party]'s side, in the group's order. */
+    fun ordered(party: Party): List<MemberId> =
+        selected(party).let { s -> members.map { it.id }.filter { it in s } }
+
+    /** Why [party]'s split cannot be saved, if it cannot. */
+    fun mismatch(party: Party): Mismatch? {
+        val order = ordered(party)
+        if (order.size < 2 || amount == null) return null
+        return split(party).mismatch(order, amount)
+    }
+
+    private fun previous(party: Party): Side? =
+        if (party == Party.PAYERS) source?.payers else source?.beneficiaries
+
+    /**
+     * The side as typed. A lone member has nothing to split (SP-1); the split typed for more stays
+     * aside for when there are more again.
+     */
+    private fun side(party: Party): Side? {
+        val order = ordered(party)
+        if (order.isEmpty()) return null
+        val built =
+            (if (order.size == 1) Side.Equal(order) else split(party).side(order)) ?: return null
+        val previous = previous(party)
+        val same =
+            previous != null &&
+                previous.members.toSet() == order.toSet() &&
+                (previous == built ||
+                    previous.scheme == built.scheme && built is Side.Equal ||
+                    order.size == 1)
+        return if (same) previous else built
+    }
 }
 
 /**
@@ -95,6 +140,7 @@ class EntryEditorViewModel(
     private val group: GroupId,
     entry: EntryId?,
     duplicate: Boolean,
+    private val separator: Char,
     private val identifier: () -> String,
     private val today: () -> EntryDate,
     private val now: () -> Instant,
@@ -141,6 +187,8 @@ class EntryEditorViewModel(
                         date = if (duplicate) state.date else source.date,
                         payers = source.payers.members.toSet(),
                         beneficiaries = source.beneficiaries.members.toSet(),
+                        payerSplit = Split.of(source.payers, loaded.scale, separator),
+                        beneficiarySplit = Split.of(source.beneficiaries, loaded.scale, separator),
                     )
             }
         }
@@ -174,6 +222,23 @@ class EntryEditorViewModel(
         beneficiariesChosen = true
         mutable.update { it.copy(beneficiaries = it.beneficiaries.toggled(member)) }
     }
+
+    /** Chooses how [party]'s side is split (SP-1). */
+    fun scheme(party: Party, scheme: Scheme) = split(party) { it.copy(scheme = scheme) }
+
+    /** Types [text] as [member]'s input to [party]'s split, if it fits there. */
+    fun typed(party: Party, member: MemberId, text: String) {
+        val state = mutable.value
+        if (state.split(party).accepts(member, text, state.scale)) {
+            split(party) { it.typed(member, text) }
+        }
+    }
+
+    private fun split(party: Party, change: (Split) -> Split) =
+        mutable.update {
+            if (party == Party.PAYERS) it.copy(payerSplit = change(it.payerSplit))
+            else it.copy(beneficiarySplit = change(it.beneficiarySplit))
+        }
 
     fun save() {
         val state = mutable.value

@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
@@ -25,6 +26,7 @@ import eu.teele.neugesplitter.ui.newgroup.NewGroupScreen
 import eu.teele.neugesplitter.ui.newgroup.NewGroupViewModel
 import eu.teele.neugesplitter.ui.overview.OverviewScreen
 import eu.teele.neugesplitter.ui.overview.OverviewViewModel
+import java.text.DecimalFormatSymbols
 import kotlinx.serialization.Serializable
 
 @Serializable data object GroupList : NavKey
@@ -111,6 +113,9 @@ fun App(graph: AppGraph) {
                     )
                 }
                 entry<EntryEditor> { key ->
+                    val separator =
+                        DecimalFormatSymbols.getInstance(LocalConfiguration.current.locales[0])
+                            .decimalSeparator
                     EntryEditorScreen(
                         viewModel {
                             EntryEditorViewModel(
@@ -118,6 +123,7 @@ fun App(graph: AppGraph) {
                                 GroupId.parse(key.group),
                                 key.entry?.let(EntryId::parse),
                                 key.duplicate,
+                                separator,
                                 graph::identifier,
                                 graph::today,
                                 graph::now,

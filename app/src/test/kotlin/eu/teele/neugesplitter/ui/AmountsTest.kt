@@ -23,4 +23,11 @@ class AmountsTest {
     fun `an amount owed is written without its sign, which the words beside it carry (UX-6)`() {
         assertEquals("22,45", formatted(units("-2245000000"), Scale.DEFAULT, Locale.GERMANY))
     }
+
+    @Test
+    fun `an adjustment's sum keeps its sign, rounded to the group's decimals (SP-4)`() {
+        assertEquals("−2.50", signed(units("-249999999"), Scale.DEFAULT, Locale.UK))
+        assertEquals("+0.50", signed(units("50000000"), Scale.DEFAULT, Locale.UK))
+        assertEquals("0.00", signed(units("-400000"), Scale.DEFAULT, Locale.UK))
+    }
 }
