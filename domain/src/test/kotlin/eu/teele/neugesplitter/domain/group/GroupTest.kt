@@ -1,6 +1,7 @@
 package eu.teele.neugesplitter.domain.group
 
 import eu.teele.neugesplitter.domain.ANNA
+import eu.teele.neugesplitter.domain.AT
 import eu.teele.neugesplitter.domain.BEN
 import eu.teele.neugesplitter.domain.CLARA
 import eu.teele.neugesplitter.domain.GROUP
@@ -14,9 +15,12 @@ import eu.teele.neugesplitter.domain.entryId
 import eu.teele.neugesplitter.domain.event.Change
 import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.GroupChanges
+import eu.teele.neugesplitter.domain.member
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
+import eu.teele.neugesplitter.domain.value.EventId
+import eu.teele.neugesplitter.domain.value.Scale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -264,5 +268,42 @@ class GroupTest {
         val group = threePeople().replay()
         assertEquals(setOf(ANNA, BEN, CLARA), group.balances(TODAY).keys)
         assertEquals(setOf(ANNA, BEN, CLARA), group.settlement(TODAY).keys)
+    }
+
+    private var drawn = 0
+
+    private fun created(name: String = "Flat", names: List<String> = listOf("Anna", "Ben")) =
+        Group.create(
+            id = GROUP,
+            name = name,
+            description = null,
+            emoji = "🏠",
+            colour = null,
+            members = names.mapIndexed { i, it -> Member(member(i + 1), it) },
+            at = AT,
+            ids = { EventId.parse("%032x".format(++drawn)) },
+        )
+
+    @Test
+    fun `a group is created with its members, all written by its creator (GR-2, ID-2)`() {
+        val events = created()
+        assertEquals(
+            listOf("group.created", "member.added", "member.added"),
+            events.map { it.type },
+        )
+        assertTrue(events.all { it.by == ANNA })
+        assertEquals(events.size, events.map { it.id }.toSet().size)
+        val group = Group.replay(events)
+        assertEquals("Flat", group.name)
+        assertEquals("🏠", group.emoji)
+        assertEquals(Scale.DEFAULT, group.scale)
+        assertEquals(listOf("Anna", "Ben"), group.members.values.map { it.name })
+    }
+
+    @Test
+    fun `a group is not created without a name or with a nameless member (GR-2, ID-2)`() {
+        assertFailsWith<IllegalArgumentException> { created(name = " ") }
+        assertFailsWith<IllegalArgumentException> { created(names = listOf("Anna", "")) }
+        assertFailsWith<IllegalArgumentException> { created(names = emptyList()) }
     }
 }

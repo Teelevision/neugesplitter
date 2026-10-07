@@ -7,6 +7,7 @@ import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.event.GroupChanges
+import eu.teele.neugesplitter.domain.event.GroupDetails
 import eu.teele.neugesplitter.domain.event.or
 import eu.teele.neugesplitter.domain.recurrence.Decision
 import eu.teele.neugesplitter.domain.recurrence.Occurrence
@@ -16,10 +17,12 @@ import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
+import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
+import java.time.Instant
 
 /**
  * A group, which is the only aggregate: one group is one consistency boundary and nothing refers
@@ -229,6 +232,35 @@ data class Group(
                     )
                 }
             return events.drop(1).fold(group) { state, event -> state + event }
+        }
+
+        /**
+         * The events that create a group: its `group.created`, then a `member.added` for each of
+         * [members] in order. The first member is the person creating it, who writes all of them
+         * (GR-1, GR-2, ID-2). Decimal places start at two and are not asked for (AM-7).
+         *
+         * @param ids draws a fresh event identifier each time it is called.
+         * @throws IllegalArgumentException if there are no members, two share an identifier, or the
+         *   group or a member has a blank name.
+         */
+        fun create(
+            id: GroupId,
+            name: String,
+            description: String?,
+            emoji: String?,
+            colour: Colour?,
+            members: List<Member>,
+            at: Instant,
+            ids: () -> EventId,
+        ): List<Event> {
+            require(name.isNotBlank()) { "a group has a name (GR-2)" }
+            require(members.isNotEmpty()) { "a group is created by one of its members (ID-2)" }
+            require(members.all { it.name.isNotBlank() }) { "a member has a name (ID-2)" }
+            require(members.distinctBy { it.id }.size == members.size) { "a member is added twice" }
+            val by = members.first().id
+            val details = GroupDetails(id, Scale.DEFAULT, name, description, emoji, colour)
+            return listOf(Event.GroupCreated(ids(), by, at, details)) +
+                members.map { Event.MemberAdded(ids(), by, at, it) }
         }
     }
 }
