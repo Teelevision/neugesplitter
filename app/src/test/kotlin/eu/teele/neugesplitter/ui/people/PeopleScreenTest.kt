@@ -1,9 +1,18 @@
 package eu.teele.neugesplitter.ui.people
 
+import android.os.Looper
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTouchInput
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.balance.Transfer
 import eu.teele.neugesplitter.domain.entry.Entry
@@ -29,6 +38,7 @@ import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -58,7 +68,11 @@ class PeopleScreenTest {
     private fun eventId() = EventId.parse(id(0x100 + events++))
 
     /** Anna's group, acted in as Anna, after Anna paid [paid] for all three of them. */
-    private fun show(paid: Amount?, onRecord: (Transfer) -> Unit = {}) {
+    private fun show(
+        paid: Amount?,
+        onRecord: (Transfer) -> Unit = {},
+        onOpen: (EntryId) -> Unit = {},
+    ) {
         val created =
             Group.create(trip, "Trip", null, "⛺", null, listOf(anna, ben, clara), at, ::eventId)
         groups.create(created, today)
@@ -75,12 +89,25 @@ class PeopleScreenTest {
                 )
             groups.append(trip, listOf(Event.EntryCreated(eventId(), anna.id, at, dinner)), today)
         }
-        val viewModel = PeopleViewModel(groups, trip) { today }
-        compose.setContent { NeugesplitterTheme { PeopleScreen(viewModel, {}, onRecord) } }
+        val viewModel = PeopleViewModel(groups, trip, { id(0x100 + events++) }, { today }, { at })
+        compose.setContent { NeugesplitterTheme { PeopleScreen(viewModel, {}, onRecord, onOpen) } }
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("⛺ Trip").fetchSemanticsNodes().isNotEmpty()
         }
     }
+
+    /** Waits for something the view model wrote on IO. */
+    private fun await(condition: () -> Boolean) =
+        compose.waitUntil(5_000) {
+            shadowOf(Looper.getMainLooper()).idle()
+            condition()
+        }
+
+    private fun editName(text: String) =
+        compose.onNode(hasSetTextAction()).performTextReplacement(text)
+
+    private fun longPress(name: String) =
+        compose.onNodeWithText(name).performTouchInput { longClick() }
 
     private fun top(text: String) =
         compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
@@ -97,7 +124,7 @@ class PeopleScreenTest {
     @Test
     fun `recording a transfer hands it to the entry editor (BA-3, BA-6)`() {
         var recorded: Transfer? = null
-        show(paid = cents(3000)) { recorded = it }
+        show(paid = cents(3000), onRecord = { recorded = it })
         compose.onNodeWithText("Ben pays Anna 10.00").assertExists()
         compose.onNodeWithText("Clara pays Anna 10.00").assertExists()
         compose.onAllNodesWithText("Record")[0].performClick()
@@ -109,5 +136,110 @@ class PeopleScreenTest {
         show(paid = null)
         compose.onNodeWithText("All settled").assertExists()
         assertEquals(0, compose.onAllNodesWithText("Record").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `a member can be added and starts out settled (GR-5)`() {
+        show(paid = null)
+        compose.onNodeWithText("Add member").performClick()
+        compose.onNode(hasSetTextAction()).performTextInput(" Dora ")
+        compose.onNodeWithContentDescription("Save").performClick()
+        await { groups.load(trip)!!.members.values.any { it.name == "Dora" } }
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Dora").fetchSemanticsNodes().isNotEmpty()
+        }
+        assertEquals(4, compose.onAllNodesWithText("settled").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `a long press renames a member in place, and the same name writes nothing (ID-2)`() {
+        show(paid = null)
+        longPress("Ben")
+        editName("Benjamin")
+        compose.onNode(hasSetTextAction()).performImeAction()
+        await { groups.load(trip)!!.members.getValue(ben.id).name == "Benjamin" }
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Benjamin").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        val written = events
+        longPress("Benjamin")
+        editName("  Benjamin ")
+        compose.onNodeWithContentDescription("Save").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isEmpty()
+        }
+        assertEquals(written, events)
+    }
+
+    @Test
+    fun `a blank name cannot be saved (ID-2)`() {
+        show(paid = null)
+        longPress("Ben")
+        editName("   ")
+        compose.onNodeWithContentDescription("Save").assertIsNotEnabled()
+        val written = events
+        compose.onNode(hasSetTextAction()).performImeAction()
+        assertEquals(written, events)
+        assertEquals("Ben", groups.load(trip)!!.members.getValue(ben.id).name)
+    }
+
+    @Test
+    fun `the member sheet lists their entries and opens one (GR-5)`() {
+        var opened: EntryId? = null
+        show(paid = cents(3000), onOpen = { opened = it })
+        compose.onNodeWithText("Ben").performClick()
+        compose.onNodeWithText("Entries").assertExists()
+        compose.onNodeWithText("Paid by Anna").assertExists()
+        compose.onNodeWithText("Dinner").performClick()
+        assertEquals(EntryId.parse(id(10)), opened)
+    }
+
+    @Test
+    fun `a member in no entry shows none (GR-5)`() {
+        show(paid = null)
+        compose.onNodeWithText("Ben").performClick()
+        compose.onNodeWithText("No entries").assertExists()
+    }
+
+    @Test
+    fun `removing a member asks first, keeps their balance and offers them no more (GR-6, GR-7, BE-13)`() {
+        show(paid = cents(3000))
+        val settled = groups.load(trip)!!.settlement(today)
+        compose.onNodeWithText("Clara").performClick()
+        compose.onNodeWithText("Remove from group").performClick()
+        compose.onNodeWithText("Remove Clara?").assertExists()
+        compose
+            .onNodeWithText(
+                "Clara will no longer be offered for new entries. Their past entries and their " +
+                    "balance stay exactly as they are.",
+                substring = true,
+            )
+            .assertExists()
+        compose
+            .onNodeWithText("whoever has the storage credentials", substring = true)
+            .assertExists()
+        assertTrue(clara.id !in groups.load(trip)!!.removed)
+
+        compose.onNodeWithText("Remove").performClick()
+        await { clara.id in groups.load(trip)!!.removed }
+        assertEquals(settled, groups.load(trip)!!.settlement(today))
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Removed").fetchSemanticsNodes().isNotEmpty()
+        }
+        assertEquals(2, compose.onAllNodesWithText("owes 10.00").fetchSemanticsNodes().size)
+
+        compose.onNodeWithText("Clara").performClick()
+        compose.onNodeWithText("Rename").assertExists()
+        compose.onNodeWithText("Dinner").assertExists()
+        assertEquals(0, compose.onAllNodesWithText("Remove from group").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `the member this device acts as cannot be removed (GR-6)`() {
+        show(paid = null)
+        compose.onNodeWithText("Anna (you)").performClick()
+        compose.onNodeWithText("Rename").assertExists()
+        assertEquals(0, compose.onAllNodesWithText("Remove from group").fetchSemanticsNodes().size)
     }
 }

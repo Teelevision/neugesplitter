@@ -136,7 +136,13 @@ fun App(graph: AppGraph) {
                             Destination.PEOPLE ->
                                 PeopleScreen(
                                     viewModel {
-                                        PeopleViewModel(graph.groups, group, graph::today)
+                                        PeopleViewModel(
+                                            graph.groups,
+                                            group,
+                                            graph::identifier,
+                                            graph::today,
+                                            graph::now,
+                                        )
                                     },
                                     onBack = { pop() },
                                     onRecord = {
@@ -149,6 +155,7 @@ fun App(graph: AppGraph) {
                                             )
                                         )
                                     },
+                                    onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
                                     modifier = modifier,
                                 )
                         }

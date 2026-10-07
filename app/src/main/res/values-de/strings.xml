@@ -128,6 +128,14 @@
     <string name="balance_owes">schuldet %1$s</string>
     <string name="balance_settled">ausgeglichen</string>
     <string name="member_removed">Entfernt</string>
+    <string name="member_rename">Umbenennen</string>
+    <string name="member_entries">Einträge</string>
+    <string name="member_no_entries">Keine Einträge</string>
+    <string name="member_remove">Aus der Gruppe entfernen</string>
+    <string name="member_remove_title">%1$s entfernen?</string>
+    <string name="member_remove_text">%1$s wird für neue Einträge nicht mehr angeboten. Bisherige Einträge und der Saldo bleiben genau, wie sie sind.\n\nDer Zugriff auf die Gruppe bleibt davon unberührt: Wer die Zugangsdaten des Speichers hat, kann sie weiterhin lesen und ändern.</string>
+    <string name="member_remove_confirm">Entfernen</string>
+    <string name="member_add">Person hinzufügen</string>
     <string name="settling_header">Ausgleichen</string>
     <string name="settle_transfer">%1$s zahlt %2$s %3$s</string>
     <string name="settle_record">Erfassen</string>
