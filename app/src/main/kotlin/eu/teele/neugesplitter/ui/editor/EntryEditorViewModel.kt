@@ -119,7 +119,8 @@ data class EntryEditorState(
         val order = ordered(party)
         if (order.isEmpty()) return null
         val built =
-            (if (order.size == 1) Side.Equal(order) else split(party).side(order)) ?: return null
+            (if (order.size == 1) Side.Equal(order)
+            else split(party).side(order, amount ?: return null)) ?: return null
         val previous = previous(party)
         val same =
             previous != null &&

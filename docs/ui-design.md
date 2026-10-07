@@ -245,6 +245,8 @@ tabs: **equal** (the default, SP-2), **shares** (SP-3), **adjustments** (SP-4),
 **absolute** (SP-5). Below the tabs, one row per selected member with the input
 that scheme needs and the resulting amount, plus a running total that shows how
 far off the inputs are. Percentages are not offered; they are shares (SP-3).
+Under absolute, members left blank share equally what the values typed for the
+others leave of the total.
 
 ### Recurrence editor
 

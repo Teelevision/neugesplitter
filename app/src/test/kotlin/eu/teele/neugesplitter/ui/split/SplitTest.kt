@@ -23,7 +23,7 @@ class SplitTest {
     @Test
     fun `a side starts out split equally (SP-2)`() {
         val split = Split()
-        assertEquals(Side.Equal(both), split.side(both))
+        assertEquals(Side.Equal(both), split.side(both, total))
         assertEquals(mapOf(anna to money("15"), ben to money("15")), split.parts(both, total))
         assertNull(split.mismatch(both, total))
     }
@@ -31,7 +31,7 @@ class SplitTest {
     @Test
     fun `shares divide the amount in proportion, one each until typed (SP-3)`() {
         val split = Split(Scheme.SHARES).typed(anna, "2")
-        assertEquals(Side.Shares(mapOf(anna to 2L, ben to 1L)), split.side(both))
+        assertEquals(Side.Shares(mapOf(anna to 2L, ben to 1L)), split.side(both, total))
         assertEquals(mapOf(anna to money("20"), ben to money("10")), split.parts(both, total))
         assertNull(split.mismatch(both, total))
     }
@@ -39,7 +39,7 @@ class SplitTest {
     @Test
     fun `shares that add up to nothing cannot be saved (SP-3, SP-6)`() {
         val split = Split(Scheme.SHARES).typed(anna, "0").typed(ben, "")
-        assertNull(split.side(both))
+        assertNull(split.side(both, total))
         assertEquals(Mismatch.NO_SHARES, split.mismatch(both, total))
     }
 
@@ -66,9 +66,9 @@ class SplitTest {
 
     @Test
     fun `absolute values stand as typed and must add up to the total (SP-5, SP-6)`() {
-        val split = Split(Scheme.ABSOLUTE).typed(anna, "12.5")
-        assertEquals(mapOf(anna to money("12.5"), ben to Amount.ZERO), split.parts(both, total))
-        assertEquals(money("17.5"), split.off(both, total))
+        val split = Split(Scheme.ABSOLUTE).typed(anna, "12.5").typed(ben, "10")
+        assertEquals(mapOf(anna to money("12.5"), ben to money("10")), split.parts(both, total))
+        assertEquals(money("7.5"), split.off(both, total))
         assertEquals(Mismatch.ABSOLUTE_OFF, split.mismatch(both, total))
 
         val over = split.typed(ben, "20")
@@ -78,14 +78,36 @@ class SplitTest {
         assertNull(exact.mismatch(both, total))
         assertEquals(
             Side.Absolute(mapOf(anna to money("12.5"), ben to money("17.5"))),
-            exact.side(both),
+            exact.side(both, total),
         )
+    }
+
+    @Test
+    fun `members left blank share what the absolute values leave, adding up exactly (SP-5)`() {
+        val carl = MemberId.parse("c3".repeat(16))
+        val all = listOf(anna, ben, carl)
+        val split = Split(Scheme.ABSOLUTE).typed(anna, "20")
+        assertEquals(
+            mapOf(anna to money("20"), ben to money("5"), carl to money("5")),
+            split.parts(all, total),
+        )
+        assertNull(split.mismatch(all, total))
+
+        val thirds = Split(Scheme.ABSOLUTE).parts(all, money("10"))
+        assertEquals(
+            listOf(333_333_334L, 333_333_333L, 333_333_333L),
+            all.map { thirds!!.getValue(it).units },
+        )
+
+        val over = split.typed(anna, "40")
+        assertEquals(Amount.ZERO, over.parts(all, total)!!.getValue(ben))
+        assertEquals(Mismatch.ABSOLUTE_OFF, over.mismatch(all, total))
     }
 
     @Test
     fun `an input that is not a number yet cannot be saved (SP-6)`() {
         val split = Split(Scheme.ADJUSTMENTS).typed(anna, "-")
-        assertNull(split.side(both))
+        assertNull(split.side(both, total))
         assertEquals(Mismatch.UNREADABLE, split.mismatch(both, total))
     }
 
@@ -116,7 +138,7 @@ class SplitTest {
         assertEquals(Scheme.ABSOLUTE, split.scheme)
         assertEquals("12,50", split.input(anna))
         assertEquals("17,123", split.input(ben))
-        assertEquals(side, split.side(both))
+        assertEquals(side, split.side(both, money("29.623")))
         assertTrue(split.accepts(ben, "17,12", Scale.DEFAULT))
     }
 }

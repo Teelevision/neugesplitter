@@ -19,7 +19,8 @@ enum class Mismatch {
  * One side's split as typed: the chosen scheme, and what was typed for each member under every
  * scheme, so that switching schemes or members loses nothing (SP-1).
  *
- * A member with nothing typed holds one share, no adjustment and no absolute value.
+ * A member with nothing typed holds one share, no adjustment, and an equal part of what the
+ * absolute values typed for others leave of the amount.
  */
 data class Split(
     val scheme: Scheme = Scheme.EQUAL,
@@ -62,8 +63,8 @@ data class Split(
             Scheme.ABSOLUTE -> copy(absolute = absolute + (member to text))
         }
 
-    /** The side these inputs make for [members], or null if they make none. */
-    fun side(members: List<MemberId>): Side? =
+    /** The side these inputs make of [amount] for [members], or null if they make none. */
+    fun side(members: List<MemberId>, amount: Amount): Side? =
         when (scheme) {
             Scheme.EQUAL -> Side.Equal(members)
             Scheme.SHARES -> {
@@ -71,7 +72,7 @@ data class Split(
                 if (input.values.sum() > 0) Side.Shares(input) else null
             }
             Scheme.ADJUSTMENTS -> Side.Adjustments(amounts(members) ?: return null)
-            Scheme.ABSOLUTE -> Side.Absolute(amounts(members) ?: return null)
+            Scheme.ABSOLUTE -> Side.Absolute(absolutes(members, amount) ?: return null)
         }
 
     /**
@@ -79,8 +80,8 @@ data class Split(
      * absolute values stand as typed (SP-6). Null where nothing can be shown.
      */
     fun parts(members: List<MemberId>, amount: Amount): Map<MemberId, Amount>? =
-        if (scheme == Scheme.ABSOLUTE) amounts(members)
-        else side(members)?.let { runCatching { it.parts(amount) }.getOrNull() }
+        if (scheme == Scheme.ABSOLUTE) absolutes(members, amount)
+        else side(members, amount)?.let { runCatching { it.parts(amount) }.getOrNull() }
 
     /**
      * How far the inputs are from adding up: for absolute values what is left of [amount] to hand
@@ -92,7 +93,7 @@ data class Split(
             Scheme.EQUAL,
             Scheme.SHARES -> null
             Scheme.ADJUSTMENTS -> amounts(members)?.let { Amount.sum(it.values) }
-            Scheme.ABSOLUTE -> amounts(members)?.let { amount - Amount.sum(it.values) }
+            Scheme.ABSOLUTE -> absolutes(members, amount)?.let { amount - Amount.sum(it.values) }
         }
 
     /** Why [members]' inputs cannot be saved with [amount], or null if they can (SP-6). */
@@ -125,6 +126,23 @@ data class Split(
 
     private fun amounts(members: List<MemberId>): Map<MemberId, Amount>? =
         members.associateWith { amount(input(it)) ?: return null }
+
+    /**
+     * Absolute values as typed, and what they leave of [total] shared out among the members left
+     * blank. The units that do not divide go one each to the first of them, so that the values add
+     * up exactly (format-spec 7). Typed values past [total] leave the blank ones nothing.
+     */
+    private fun absolutes(members: List<MemberId>, total: Amount): Map<MemberId, Amount>? {
+        val blank = members.filter { input(it).isEmpty() }
+        val typed = (members - blank.toSet()).associateWith { amount(input(it)) ?: return null }
+        val left = (total - Amount.sum(typed.values)).units
+        if (blank.isEmpty() || left < 0) return members.associateWith { typed[it] ?: Amount.ZERO }
+        val each = left / blank.size
+        val extra = left % blank.size
+        return members.associateWith { member ->
+            typed[member] ?: Amount.ofUnits(each + if (blank.indexOf(member) < extra) 1 else 0)
+        }
+    }
 
     companion object {
         private val SHARE = Regex("""\d{0,6}""")
