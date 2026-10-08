@@ -1,15 +1,25 @@
 package eu.teele.neugesplitter.backend.s3
 
+import eu.teele.neugesplitter.domain.BEN
+import eu.teele.neugesplitter.domain.CLARA
+import eu.teele.neugesplitter.domain.Log
+import eu.teele.neugesplitter.sync.LogStore
+import eu.teele.neugesplitter.sync.MemoryLog
 import eu.teele.neugesplitter.sync.ObjectNumber
+import eu.teele.neugesplitter.sync.Sealing
 import eu.teele.neugesplitter.sync.StoreException
 import eu.teele.neugesplitter.sync.Write
 import eu.teele.neugesplitter.sync.probe.Verdict
 import eu.teele.neugesplitter.sync.probe.probe
+import eu.teele.neugesplitter.sync.writer.Upload
+import eu.teele.neugesplitter.sync.writer.Writer
+import java.io.IOException
 import java.time.Clock
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -69,6 +79,48 @@ class SeaweedFsTest {
         assertEquals(1, winners.size, "$writes")
         assertContentEquals("${winners.single().first}".toByteArray(), store.get(ObjectNumber(7)))
     }
+
+    private val log = Log().create().add(BEN, "Ben").add(CLARA, "Clara").events()
+
+    /** Loses the response to the next create, after the server has acted on it. */
+    private class Lossy(private val inner: LogStore) : LogStore by inner {
+        private var lost = 1
+
+        override suspend fun createIfAbsent(number: ObjectNumber, bytes: ByteArray): Write {
+            val write = inner.createIfAbsent(number, bytes)
+            if (lost-- > 0) throw StoreException.Unreachable(IOException("connection reset"))
+            return write
+        }
+    }
+
+    @Test
+    fun `an interrupted write is resolved by its batch id (TR-48, sync-design 4)`() = runBlocking {
+        val store = store()
+        val local = MemoryLog().apply { record(log[0]) }
+        val writer = Writer(Lossy(store), local, Sealing.Plain)
+        assertFailsWith<StoreException.Unreachable> { writer.write() }
+        assertEquals(Upload.Written(ObjectNumber.ROOT), writer.write())
+        assertEquals(listOf(ObjectNumber.ROOT), store.listFrom(ObjectNumber.ROOT))
+        assertEquals(listOf(log[0]), local.events())
+    }
+
+    @Test
+    fun `a writer that loses its number applies the winner and writes after it (TR-48)`() =
+        runBlocking {
+            val store = store()
+            val anna = MemoryLog().apply { record(log[0]) }
+            Writer(store, anna, Sealing.Plain).write()
+            val other = MemoryLog(mapOf(ObjectNumber.ROOT to store.get(ObjectNumber.ROOT)!!))
+            other.record(log[1])
+            Writer(store, other, Sealing.Plain).write()
+
+            anna.record(log[2])
+            assertEquals(
+                Upload.Written(ObjectNumber(2)),
+                Writer(store, anna, Sealing.Plain).write(),
+            )
+            assertEquals(log, anna.events())
+        }
 
     @Test
     fun `an absent object is null, and the log lists from a number across pages`() = runBlocking {

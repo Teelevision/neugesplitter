@@ -73,8 +73,9 @@ neugesplitter/
 │   └── derived/      occurrence ids
 ├── sync/src/main/kotlin/eu/teele/neugesplitter/sync/
 │   ├── LogStore.kt   the backend port: createIfAbsent, get, listFrom, createProbe
-│   ├── LocalLog.kt   the retention port: retained bytes in, retained bytes out
-│   ├── writer/       batching, conditional write, batch-id recovery
+│   ├── LocalLog.kt   the local port: retained objects in and out, the batch waiting
+│   ├── Sealing.kt    plain or encrypted: what is stored, the chain link, verification
+│   ├── writer/       batching, the bounded debounce, conditional write, batch-id recovery
 │   ├── reader/       listing, truncation detection, verify-then-apply
 │   ├── restore/      explicit restore from retained bytes
 │   └── probe/        backend acceptance check
@@ -106,7 +107,8 @@ module _is_ the layer.
 | Picking the next number, conditional write    | `:sync`                     | sync-design 4        |
 | Detecting truncation, halting                 | `:sync`                     | TR-40                |
 | SigV4, addressing style, mapping `412`        | `:backend-s3`               | TR-28, TR-30         |
-| Polling schedule, debounce                    | `:app/work`                 | TR-9, TR-14          |
+| Polling schedule                              | `:app/work`                 | TR-9                 |
+| Batching delay, a bounded debounce            | `:sync`                     | TR-14                |
 | Locale formatting, the calculator's UI        | `:app/ui`                   | TR-34, TR-35         |
 
 The calculator is a split: evaluation is `:domain` arithmetic in 10⁻⁸ units, the

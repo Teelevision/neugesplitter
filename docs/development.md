@@ -112,6 +112,7 @@ that can be abandoned, and this app is meant to still build in five years.
 | Property            | `:domain` JVM tests     | split truncation bounds of format-spec 7 (SP-7), balances sum to zero after residue handling (BA-2)         |
 | Format conformance  | `:format` JVM tests     | the specification's test vectors (TR-45), update merge semantics (TR-47)                                    |
 | Storage             | `:storage` JVM tests    | event text kept as written (TR-17c), the projection rebuilt from the log (TR-18), group deletion            |
+| Sync                | `:sync` JVM tests       | the backend check, the writer's lost numbers and interrupted writes (TR-26c), the bounded debounce (TR-14)  |
 | Backend             | `:backend-s3` JVM tests | SigV4 against the AWS test suite (TR-28), the requests sent, refusing an S3 without `If-None-Match` (TR-49) |
 | Backend integration | `make integration`      | against SeaweedFS: conditional write, losing write, interrupted write (TR-48)                               |
 | Screen              | `:app` JVM tests        | what a screen shows and what its buttons do, on Robolectric; screenshots (Roborazzi) may follow             |

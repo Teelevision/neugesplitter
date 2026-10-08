@@ -25,6 +25,8 @@ testing {
             useJUnit(libs.versions.junit)
             dependencies {
                 implementation(project())
+                implementation(testFixtures(project(":sync")))
+                implementation(testFixtures(project(":domain")))
                 implementation(libs.kotlin.test.junit)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.testcontainers)
