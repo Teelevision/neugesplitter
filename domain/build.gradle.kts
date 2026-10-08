@@ -6,6 +6,8 @@ plugins {
 kotlin { jvmToolchain(17) }
 
 dependencies {
+    implementation(libs.kotlinx.collections.immutable)
+
     // The generators and the log builder, shared with the modules that encode what they build.
     testFixturesApi(libs.kotest.property)
 

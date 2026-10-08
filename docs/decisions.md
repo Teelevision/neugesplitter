@@ -71,6 +71,15 @@ are described in [sync-design.md](sync-design.md).
   parts a hand-written stack would have had to grow, so writing one would only
   have postponed the dependency. Navigation 2 was the alternative; it keeps the
   stack inside a controller the app can only send commands to.
+- **How does replay stay fast on a long history?** The group's entry, author and
+  series maps are persistent maps from `kotlinx.collections.immutable`. Every
+  event yields a new immutable `Group`, and with ordinary maps that copied each
+  map whole, so a replay grew with the square of the history: 2.7 s for ten
+  thousand entries on a laptop, every time a group was saved. A persistent map
+  shares everything but the path it changes, and the same replay takes 16 ms. It
+  is JetBrains' own, Apache 2.0, and pure Kotlin, so `:domain` stays free of
+  Android; it is an implementation detail behind `Map`, not part of the domain's
+  types.
 - **Which HTTP client does `:backend-s3` use?** OkHttp. TR-27 wants exact
   control over each request, and OkHttp sends the headers it is given —
   `If-None-Match: *` included — and adds nothing that changes what a `PUT`

@@ -23,6 +23,7 @@ import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
 import java.time.Instant
+import kotlinx.collections.immutable.toPersistentMap
 
 /**
  * A group, which is the only aggregate: one group is one consistency boundary and nothing refers
@@ -86,23 +87,23 @@ data class Group(
                     throw Malformed("entry ${event.entry.id} is created twice")
                 }
                 copy(
-                    entries = entries + (event.entry.id to checked(event.entry)),
-                    authors = authors + (event.entry.id to Authorship(event.by)),
+                    entries = entries.with(event.entry.id, checked(event.entry)),
+                    authors = authors.with(event.entry.id, Authorship(event.by)),
                 )
             }
 
             is Event.EntryUpdated -> {
                 val entry = checked(known(event.target).merged(event.entry))
                 copy(
-                    entries = entries + (entry.id to entry),
-                    deleted = deleted - entry.id,
-                    authors = authors + (entry.id to authors.getValue(entry.id).copy(edited = true)),
+                    entries = entries.with(entry.id, entry),
+                    deleted = deleted.without(entry.id),
+                    authors = authors.with(entry.id, authors.getValue(entry.id).copy(edited = true)),
                 )
             }
 
             is Event.EntryDeleted -> {
                 val entry = known(event.target)
-                copy(entries = entries - entry.id, deleted = deleted + (entry.id to entry))
+                copy(entries = entries.without(entry.id), deleted = deleted.with(entry.id, entry))
             }
 
             is Event.SeriesCreated -> {
@@ -111,7 +112,7 @@ data class Group(
                 }
                 checked(event.segment.template, "series ${event.series}")
                 val created = Series(event.series, listOf(event.from to event.segment))
-                copy(series = series + (event.series to created))
+                copy(series = series.with(event.series, created))
             }
 
             is Event.SeriesAmended -> {
@@ -195,7 +196,7 @@ data class Group(
 
     private fun revised(target: SeriesId, change: (Series) -> Series): Group {
         val known = series[target] ?: throw Malformed("no series $target in group $id")
-        return copy(series = series + (target to change(known)))
+        return copy(series = series.with(target, change(known)))
     }
 
     /** An entry is checked when it enters the state, so that a stored one can always be split. */
@@ -310,3 +311,9 @@ data class Group(
         }
     }
 }
+
+// Persistent and ordered, so that an event shares the map before it rather than copying it.
+private fun <K, V> Map<K, V>.with(key: K, value: V): Map<K, V> =
+    toPersistentMap().putting(key, value)
+
+private fun <K, V> Map<K, V>.without(key: K): Map<K, V> = toPersistentMap().removing(key)

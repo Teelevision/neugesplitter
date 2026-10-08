@@ -41,6 +41,22 @@ class GroupTest {
     }
 
     @Test
+    fun `a long log replays in time proportional to its length, not its square`() {
+        val log = threePeople()
+        val everyone = Side.Equal(listOf(ANNA, BEN, CLARA))
+        for (n in 1..20_000) log.record(entry(n, thirty, Side.Equal(listOf(ANNA)), everyone))
+        val events = log.events()
+
+        val started = System.nanoTime()
+        val group = Group.replay(events)
+        val took = (System.nanoTime() - started) / 1_000_000
+
+        assertEquals(20_000, group.entries.size)
+        // Copying every map per event took seconds at this size.
+        assertTrue(took < 2_000, "replay took $took ms")
+    }
+
+    @Test
     fun `a log that does not begin with group_created cannot be read (format-spec 4_2)`() {
         val events = threePeople().events()
         assertFailsWith<Malformed> { Group.replay(events.drop(1)) }

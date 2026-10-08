@@ -62,6 +62,12 @@ internal val NOTICES =
             listOf("org.jetbrains.kotlinx:kotlinx-coroutines-"),
         ),
         Notice(
+            "kotlinx.collections.immutable",
+            "Apache-2.0",
+            listOf("kotlinx-collections-immutable.txt"),
+            listOf("org.jetbrains.kotlinx:kotlinx-collections-immutable"),
+        ),
+        Notice(
             "kotlinx.serialization",
             "Apache-2.0",
             listOf("kotlinx-serialization.txt"),
