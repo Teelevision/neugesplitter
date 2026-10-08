@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Secrets stay on the device; their key could not leave it anyway (TR-36, TR-37). -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="database" path="secrets.db" />
+        <exclude domain="database" path="secrets.db-journal" />
+        <exclude domain="database" path="secrets.db-wal" />
+        <exclude domain="database" path="secrets.db-shm" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="database" path="secrets.db" />
+        <exclude domain="database" path="secrets.db-journal" />
+        <exclude domain="database" path="secrets.db-wal" />
+        <exclude domain="database" path="secrets.db-shm" />
+    </device-transfer>
+</data-extraction-rules>

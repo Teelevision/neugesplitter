@@ -49,6 +49,8 @@ class GroupSettingsViewModel(
     private val identifier: () -> String,
     private val today: () -> EntryDate,
     private val now: () -> Instant,
+    /** Stops syncing a deleted group and forgets its secrets. */
+    private val forget: (GroupId) -> Unit = {},
 ) : ViewModel() {
 
     val state: StateFlow<GroupSettingsState> =
@@ -107,7 +109,10 @@ class GroupSettingsViewModel(
     /** Removes the group from this device (GR-11), then runs [then]. The screen has asked first. */
     fun delete(then: () -> Unit) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { repository.delete(group) }
+            withContext(Dispatchers.IO) {
+                forget(group)
+                repository.delete(group)
+            }
             then()
         }
     }

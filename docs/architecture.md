@@ -35,7 +35,7 @@ graph TD
 | `:format`     | Kotlin JVM          | the wire format: JSON codec, the parser limits, age encryption, the hash chain, derived ids         |
 | `:sync`       | Kotlin JVM          | the sync algorithm, and the ports it needs: `LogStore`, `LocalLog`                                  |
 | `:backend-s3` | Kotlin JVM          | HTTP, SigV4, `ListObjectsV2`, `If-None-Match`, the backend probe                                    |
-| `:storage`    | Android library     | SQLite: local event log, retained object bytes, projections, settings, credentials                  |
+| `:storage`    | Android library     | SQLite: local event log, retained object bytes, projections, settings, sealed credentials           |
 | `:app`        | Android application | Compose UI, ViewModels, WorkManager scheduling, the composition root                                |
 
 Dependencies point inward. `:sync` declares what it needs as interfaces and
@@ -76,6 +76,7 @@ neugesplitter/
 │   ├── LocalLog.kt   the local port: retained objects in and out, the batch waiting
 │   ├── Sealing.kt    plain or encrypted: what is stored, the chain link, verification
 │   ├── Keyring.kt    the group keys unlocked this session, each unlocked once
+│   ├── GroupSync.kt  one group's passes, one at a time, and publishing its root object
 │   ├── writer/       batching, the bounded debounce, conditional write, batch-id recovery
 │   ├── reader/       listing, truncation detection, verify-then-apply
 │   ├── restore/      explicit restore from retained bytes
@@ -85,11 +86,11 @@ neugesplitter/
 │   ├── events/       the canonical local event log and sync-state tracking
 │   ├── objects/      the retained bytes table
 │   ├── projection/   the derived tables and their DAOs
-│   └── settings/     backend settings, keystore-backed credentials
+│   └── settings/     backend settings, sync state, keystore-sealed secrets
 └── app/src/main/kotlin/eu/teele/neugesplitter/
     ├── MainActivity.kt
     ├── AppGraph.kt   the composition root: everything is constructed here, once
-    ├── work/         WorkManager scheduling
+    ├── work/         sync scheduling: per-group debounced passes, WorkManager
     └── ui/           one package per screen, each a Composable plus a ViewModel
 ```
 
@@ -157,11 +158,11 @@ will eventually fire while a manual sync is running (TR-15).
 | Table              | Derived? | Notes                                                                   |
 | ------------------ | -------- | ----------------------------------------------------------------------- |
 | `event_row`        | no       | group, local order, canonical event JSON text, sync state, object link  |
-| `log_object`       | no       | group, number, batch id, exact bytes as the backend holds them          |
+| `log_object`       | no       | group, number, batch id (none for a root object), exact bytes           |
 | `event_item_ref`   | no       | event-to-projection references used to find partial rebuild candidates  |
 | `acting_as`        | no       | which member this installation writes into `by` (ID-3, format-spec 4.2) |
-| `backend_settings` | no       | endpoint and prefix; credentials encrypted with a keystore key (TR-36)  |
-| `sync_state`       | no       | last successful sync, halt state and its reason                         |
+| `backend_settings` | no       | endpoint, bucket, prefix, region, addressing style, access key          |
+| `sync_state`       | no       | last successful sync, halt state and its reason, the last failure       |
 | `projection_state` | no       | the projection version the derived tables were built by (TR-18b)        |
 | everything else    | yes      | `group_row`, `member`, `entry`, `side`, `occurrence`, `balance`         |
 
@@ -185,6 +186,11 @@ the next start turns into a rebuild before anything is read (TR-18b).
 Occurrences and balances depend on the installation's local date (RE-14), so a
 group's row records the date it was projected for, and the projection is brought
 forward when that date has passed.
+
+Secrets are in a second database, `secrets.db`, whose one table `secret` holds
+each group's backend secret key and passphrase sealed with an AES key from the
+Android keystore (TR-25, TR-36). Being a file of its own is what lets backups
+leave it out (TR-37).
 
 ## 6. Lifecycle and threading
 

@@ -16,6 +16,8 @@ import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.format.json.EventJson
 import eu.teele.neugesplitter.storage.projection.Projection
+import eu.teele.neugesplitter.storage.settings.Backends
+import eu.teele.neugesplitter.storage.settings.Secrets
 import eu.teele.neugesplitter.sync.LocalLog
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +38,8 @@ class GroupRepository(private val driver: SqlDriver) {
 
     private val database = Database(driver)
     private val projection = Projection(driver, database.projectionQueries)
+
+    val backends = Backends(database)
 
     /** Group [id] as its log produces it, or null if this installation holds no such group. */
     fun load(id: GroupId): Group? = database.transactionWithResult { replayed(id) }
@@ -224,14 +228,16 @@ class GroupRepository(private val driver: SqlDriver) {
     }
 
     /**
-     * Removes group [id] from this installation: its log, its retained objects, its projection and
-     * the member it acts as (TR-20, GR-11).
+     * Removes group [id] from this installation: its log, its retained objects, its projection, the
+     * member it acts as and its backend (TR-20, GR-11). Its secrets are [Secrets.forget]'s.
      */
     fun delete(id: GroupId) {
         database.transaction {
             database.eventRowQueries.forget(id.hex)
             database.logObjectQueries.forget(id.hex)
             database.actingAsQueries.forget(id.hex)
+            database.backendSettingsQueries.forget(id.hex)
+            database.syncStateQueries.forget(id.hex)
             database.projectionQueries.forget(id.hex)
         }
     }
@@ -242,6 +248,8 @@ class GroupRepository(private val driver: SqlDriver) {
             database.eventRowQueries.forgetAll()
             database.logObjectQueries.forgetAll()
             database.actingAsQueries.forgetAll()
+            database.backendSettingsQueries.forgetAll()
+            database.syncStateQueries.forgetAll()
             database.projectionQueries.forgetAll()
         }
     }

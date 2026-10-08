@@ -1,0 +1,33 @@
+-- Where each shared group's backend is and how to reach it (BE-2, BE-4): an S3-compatible location.
+-- Its secret key is kept apart, in the secrets database (TR-36, TR-37).
+CREATE TABLE IF NOT EXISTS backend_settings (
+    group_id TEXT NOT NULL PRIMARY KEY,
+    endpoint TEXT NOT NULL,
+    bucket TEXT NOT NULL,
+    prefix TEXT NOT NULL,
+    region TEXT NOT NULL,
+    path_style INTEGER NOT NULL,
+    access_key TEXT NOT NULL
+);
+
+connect:
+INSERT OR REPLACE INTO backend_settings (
+    group_id, endpoint, bucket, prefix, region, path_style, access_key
+)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+settings:
+SELECT endpoint, bucket, prefix, region, path_style, access_key
+FROM backend_settings
+WHERE group_id = ?;
+
+connected:
+SELECT group_id
+FROM backend_settings;
+
+forget:
+DELETE FROM backend_settings
+WHERE group_id = ?;
+
+forgetAll:
+DELETE FROM backend_settings;

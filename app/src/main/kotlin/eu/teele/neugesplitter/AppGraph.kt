@@ -3,9 +3,18 @@ package eu.teele.neugesplitter
 import android.app.Application
 import android.content.Context
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import eu.teele.neugesplitter.backend.s3.Credentials
+import eu.teele.neugesplitter.backend.s3.S3Location
+import eu.teele.neugesplitter.backend.s3.S3LogStore
 import eu.teele.neugesplitter.domain.value.EntryDate
+import eu.teele.neugesplitter.format.crypto.KageCodec
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.storage.settings.KeystoreVault
+import eu.teele.neugesplitter.storage.settings.Secrets
+import eu.teele.neugesplitter.storage.settings.SecretsDatabase
+import eu.teele.neugesplitter.sync.Keyring
+import eu.teele.neugesplitter.work.Syncing
 import java.security.SecureRandom
 import java.time.Instant
 import java.time.LocalDate
@@ -25,6 +34,37 @@ class AppGraph(context: Context) {
     /** Work that outlives any screen. */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    private val codec = KageCodec()
+
+    val keyring = Keyring(codec)
+
+    val syncing =
+        Syncing(
+            groups = groups,
+            secrets =
+                Secrets(
+                    AndroidSqliteDriver(SecretsDatabase.Schema, context, "secrets.db"),
+                    KeystoreVault(),
+                ),
+            keyring = keyring,
+            codec = codec,
+            scope = scope,
+            today = ::today,
+            now = ::now,
+            stores = { at, secretKey ->
+                S3LogStore(
+                    S3Location(
+                        at.endpoint,
+                        at.bucket,
+                        at.prefix,
+                        at.region,
+                        at.pathStyle,
+                        Credentials(at.accessKey, secretKey),
+                    )
+                )
+            },
+        )
+
     private val random = SecureRandom()
 
     /** A fresh random identifier, as 32 hex characters (TR-24). */
@@ -42,4 +82,9 @@ class AppGraph(context: Context) {
 class Neugesplitter : Application() {
 
     val graph by lazy { AppGraph(this) }
+
+    override fun onCreate() {
+        super.onCreate()
+        graph.syncing.start()
+    }
 }

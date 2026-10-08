@@ -50,6 +50,8 @@ android {
 
 dependencies {
     implementation(project(":storage"))
+    implementation(project(":format"))
+    implementation(project(":backend-s3"))
     implementation(libs.sqldelight.android.driver)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -65,6 +67,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
+    testImplementation(testFixtures(project(":sync")))
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.robolectric)

@@ -243,6 +243,7 @@ private val LIBRARIES =
         "AndroidX, Jetpack Compose" to "Apache-2.0",
         "Kotlin, kotlinx.coroutines, kotlinx.serialization" to "Apache-2.0",
         "SQLDelight" to "Apache-2.0",
+        "OkHttp, Okio" to "Apache-2.0",
         "kage" to "MIT, Apache-2.0",
         "Bouncy Castle" to "MIT",
         "HKDF" to "Apache-2.0",

@@ -119,7 +119,12 @@ fun App(graph: AppGraph) {
                         }
                     AppSettingsScreen(
                         viewModel {
-                            AppSettingsViewModel(graph.groups, graph.preferences, graph.languages)
+                            AppSettingsViewModel(
+                                graph.groups,
+                                graph.preferences,
+                                graph.languages,
+                                graph.syncing::forgetAll,
+                            )
                         },
                         version = version,
                         onBack = { pop() },
@@ -205,6 +210,7 @@ fun App(graph: AppGraph) {
                                             graph::identifier,
                                             graph::today,
                                             graph::now,
+                                            graph.syncing::forget,
                                         )
                                     },
                                     onBack = { pop() },

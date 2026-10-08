@@ -19,10 +19,18 @@ android {
 
 sqldelight {
     databases {
+        // Android 13 ships SQLite 3.32, and nothing newer may be assumed (TR-2, TR-16).
+        val dialect = "app.cash.sqldelight:sqlite-3-30-dialect:${libs.versions.sqldelight.get()}"
         create("Database") {
             packageName.set("eu.teele.neugesplitter.storage")
-            // Android 13 ships SQLite 3.32, and nothing newer may be assumed (TR-2, TR-16).
-            dialect("app.cash.sqldelight:sqlite-3-30-dialect:${libs.versions.sqldelight.get()}")
+            srcDirs("src/main/sqldelight")
+            dialect(dialect)
+        }
+        // A file of its own, so that backups can leave it out (TR-37).
+        create("SecretsDatabase") {
+            packageName.set("eu.teele.neugesplitter.storage.settings")
+            srcDirs("src/main/secrets")
+            dialect(dialect)
         }
     }
 }

@@ -169,6 +169,8 @@ report on them.
 Passphrase handling lands here too: generation from the shipped word list
 (TR-25a), the on-device strength estimate (TR-25b), and unlocking off the main
 thread once per session and never on the path of reading an object (TR-26).
+Credentials and the passphrase are kept sealed under a keystore key (TR-25,
+TR-36) from the start, since connecting a group is what first stores them.
 
 ## 7. Phase 5 — The read path and a second device
 
@@ -202,7 +204,7 @@ retrofitted into a sync path that never saw them.
 
 ## 9. Phase 7 — Hardening
 
-Credentials under a keystore key (TR-36), the accessibility pass — every
+The accessibility pass — every
 colour-carried meaning also carried by a sign or a label, checked in greyscale
 (UX-6) — German strings at roughly a third longer than English without reflow
 (UX-5), a confirmation that nothing transmits (TR-53), the reproducible build

@@ -1,0 +1,39 @@
+-- How each shared group's sync last went (SY-6): when it last succeeded (TR-12), the object it
+-- halted at and why (SY-15), and what failed since. `succeeded` is in epoch milliseconds.
+CREATE TABLE IF NOT EXISTS sync_state (
+    group_id TEXT NOT NULL PRIMARY KEY,
+    succeeded INTEGER,
+    halted_at INTEGER,
+    halt TEXT,
+    failure TEXT
+);
+
+succeeded:
+INSERT INTO sync_state (group_id, succeeded)
+VALUES (:group_id, :at)
+ON CONFLICT (group_id) DO UPDATE
+SET succeeded = :at, halted_at = NULL, halt = NULL, failure = NULL;
+
+halted:
+INSERT INTO sync_state (group_id, halted_at, halt)
+VALUES (:group_id, :halted_at, :halt)
+ON CONFLICT (group_id) DO UPDATE
+SET halted_at = :halted_at, halt = :halt, failure = NULL;
+
+failed:
+INSERT INTO sync_state (group_id, failure)
+VALUES (:group_id, :failure)
+ON CONFLICT (group_id) DO UPDATE
+SET failure = :failure;
+
+state:
+SELECT succeeded, halted_at, halt, failure
+FROM sync_state
+WHERE group_id = ?;
+
+forget:
+DELETE FROM sync_state
+WHERE group_id = ?;
+
+forgetAll:
+DELETE FROM sync_state;

@@ -32,6 +32,8 @@ import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.format.json.EventJson
 import eu.teele.neugesplitter.storage.projection.Projection
+import eu.teele.neugesplitter.storage.settings.BackendSettings
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -116,6 +118,14 @@ class GroupRepositoryTest {
 
     private fun appendedOneByOne(group: GroupId, events: List<Event>) {
         for (event in events) groups.append(group, listOf(event), TODAY)
+    }
+
+    private fun connected(group: GroupId) {
+        groups.backends.connect(
+            group,
+            BackendSettings("https://s3.example", "bucket", group.hex, "auto", true, "key"),
+        )
+        groups.backends.succeeded(group, Instant.EPOCH)
     }
 
     private fun rows(sql: String): List<String> =
@@ -468,11 +478,12 @@ class GroupRepositoryTest {
     }
 
     @Test
-    fun `deleting a group removes its log, retained objects and projection (TR-20, GR-11)`() {
+    fun `deleting a group removes its log, retained objects, projection and backend (TR-20, GR-11)`() {
         appendedOneByOne(GROUP, household)
         groups.append(trip, weekend, TODAY)
         for (group in listOf(GROUP, trip)) {
             database.logObjectQueries.retain(group.hex, 1, "ba7c".repeat(8), byteArrayOf(1, 2, 3))
+            connected(group)
         }
         groups.actAs(GROUP, ANNA)
         groups.actAs(trip, BEN)
@@ -495,8 +506,10 @@ class GroupRepositoryTest {
         }
         assertNull(groups.load(GROUP))
         assertNull(groups.actingAs(GROUP))
+        assertNull(groups.backends.settings(GROUP))
         assertNotNull(groups.load(trip))
         assertEquals(BEN, groups.actingAs(trip))
+        assertEquals(listOf(trip), groups.backends.connected())
         assertEquals(others, projection())
     }
 
@@ -506,6 +519,7 @@ class GroupRepositoryTest {
         groups.append(trip, weekend, TODAY)
         for (group in listOf(GROUP, trip)) {
             database.logObjectQueries.retain(group.hex, 1, "ba7c".repeat(8), byteArrayOf(1, 2, 3))
+            connected(group)
         }
         groups.actAs(GROUP, ANNA)
         groups.actAs(trip, BEN)

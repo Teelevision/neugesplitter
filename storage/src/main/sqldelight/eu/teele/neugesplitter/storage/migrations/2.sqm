@@ -1,0 +1,34 @@
+-- Version 2 required a batch of every retained object, and an encrypted group's root object has none.
+CREATE TABLE log_object_new (
+    group_id TEXT NOT NULL,
+    number INTEGER NOT NULL,
+    batch TEXT,
+    bytes BLOB NOT NULL,
+    PRIMARY KEY (group_id, number)
+);
+
+INSERT INTO log_object_new (group_id, number, batch, bytes)
+SELECT group_id, number, batch, bytes
+FROM log_object;
+
+DROP TABLE log_object;
+
+ALTER TABLE log_object_new RENAME TO log_object;
+
+CREATE TABLE IF NOT EXISTS backend_settings (
+    group_id TEXT NOT NULL PRIMARY KEY,
+    endpoint TEXT NOT NULL,
+    bucket TEXT NOT NULL,
+    prefix TEXT NOT NULL,
+    region TEXT NOT NULL,
+    path_style INTEGER NOT NULL,
+    access_key TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sync_state (
+    group_id TEXT NOT NULL PRIMARY KEY,
+    succeeded INTEGER,
+    halted_at INTEGER,
+    halt TEXT,
+    failure TEXT
+);

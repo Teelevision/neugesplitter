@@ -78,6 +78,11 @@ SELECT count(*)
 FROM event_row
 WHERE group_id = ?;
 
+waiting:
+SELECT count(*)
+FROM event_row
+WHERE group_id = ? AND object_number IS NULL;
+
 forget:
 DELETE FROM event_row
 WHERE group_id = ?;

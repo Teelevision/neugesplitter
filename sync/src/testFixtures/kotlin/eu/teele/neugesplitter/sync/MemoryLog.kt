@@ -36,6 +36,10 @@ class MemoryLog(retained: Map<ObjectNumber, ByteArray> = emptyMap()) : LocalLog 
         }
     }
 
+    override suspend fun rooted(bytes: ByteArray) {
+        objects[ObjectNumber.ROOT] = bytes
+    }
+
     override suspend fun written(number: ObjectNumber, bytes: ByteArray) {
         val batch = checkNotNull(closed) { "no batch was closed" }
         objects[number] = bytes

@@ -83,13 +83,16 @@ sealed interface Upload {
     data class Written(val number: ObjectNumber) : Upload
 
     /**
-     * Object [number], somebody else's, cannot be applied, so nothing after it can be written and
-     * the group stops syncing (format-spec 2.2, 5.3, 8). The batch waits.
+     * Object [number] is missing or, being somebody else's, cannot be applied, so nothing after it
+     * can be written and the group stops syncing (format-spec 2.2, 5.3, 8, TR-40). The batch waits.
      */
     data class Halted(val number: ObjectNumber, val reason: Halt) : Upload
 }
 
 enum class Halt {
+    /** The backend no longer holds it, though this installation does (TR-40, SY-15). */
+    TRUNCATED,
+
     /** It does not follow the object before it (TR-26a). */
     COMPROMISED,
 

@@ -23,6 +23,11 @@ interface LocalLog {
      */
     suspend fun batch(fresh: BatchId): Batch?
 
+    /**
+     * An encrypted group's root object, stored as [bytes], which its log follows (format-spec 5.1).
+     */
+    suspend fun rooted(bytes: ByteArray)
+
     /** The closed batch is object [number], stored as [bytes] (TR-17, TR-17d). */
     suspend fun written(number: ObjectNumber, bytes: ByteArray)
 

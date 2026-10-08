@@ -46,6 +46,12 @@ internal class StoredLog(
             }
         }
 
+    override suspend fun rooted(bytes: ByteArray) {
+        withContext(context) {
+            objects.retain(id.hex, ObjectNumber.ROOT.value.toLong(), null, bytes)
+        }
+    }
+
     override suspend fun written(number: ObjectNumber, bytes: ByteArray) =
         withContext(context) {
             database.transaction {

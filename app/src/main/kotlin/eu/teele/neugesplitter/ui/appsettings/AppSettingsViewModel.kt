@@ -17,6 +17,8 @@ class AppSettingsViewModel(
     private val repository: GroupRepository,
     private val preferences: Preferences,
     private val languages: Languages,
+    /** Stops every sync and forgets every secret. */
+    private val forgetAll: () -> Unit = {},
 ) : ViewModel() {
 
     val theme: StateFlow<Theme> = preferences.theme
@@ -36,7 +38,10 @@ class AppSettingsViewModel(
     /** Removes every group and setting from this device, then calls [onDone] (PR-9, TR-20). */
     fun deleteAll(onDone: () -> Unit) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { repository.deleteAll() }
+            withContext(Dispatchers.IO) {
+                forgetAll()
+                repository.deleteAll()
+            }
             preferences.clear()
             languages.current = null
             onDone()

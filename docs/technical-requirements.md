@@ -145,8 +145,10 @@ unsatisfying.
   ever created depends on it.
 - **TR-24** (Core): The group key pair and all random identifiers MUST come from
   the platform's cryptographically secure generator (threat model TM-11).
-- **TR-25** (Core): Passphrases MUST be held in memory only as long as needed
-  and MUST NOT be written to disk, logs or backups (PR-12).
+- **TR-25** (Core): Passphrases MUST be held in memory only as long as needed,
+  MUST NOT be written to logs or backups (PR-12), and MUST NOT be written to
+  disk unless sealed with a key held in the platform keystore, as backend
+  credentials are (TR-36).
 - **TR-25a** (Core): A generated passphrase (PR-12a) MUST be at least six words
   drawn with the platform's secure generator from a list of at least 7 776
   words, about 77 bits, with every draw uniform and independent. The list MUST
