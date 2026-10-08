@@ -156,4 +156,25 @@ class CodecTest {
         assertEquals(before.entries.getValue(e2).copy(note = "Changed"), after.entries.getValue(e2))
         assertEquals(before.entries - e2, after.entries - e2)
     }
+
+    @Test
+    fun `received events keep their text exactly as the object holds it (TR-17c)`() {
+        val first =
+            """{ "id":"${"%032x".format(1)}", "type":"member.renamed", "by":"${anna.hex}",""" +
+                """ "at":"2026-01-02T00:00:00Z", "target":"${anna.hex}", "name":"An\u006ea",""" +
+                """ "mood":{"later":[1, 2]} }"""
+        val second =
+            EventJson.write(
+                Event.MemberRemoved(EventId.parse("%032x".format(2)), anna, Instant.EPOCH, anna)
+            )
+        val bytes =
+            """{"neugesplitter":1,"batch":"${batch.hex}","events":[ $first ,
+                |$second]}"""
+                .trimMargin()
+                .encodeToByteArray()
+        val received = LogObject.receive(bytes)
+        assertEquals(listOf(first, second), received.texts)
+        assertEquals(LogObject.read(bytes), received.carried)
+        assertEquals(received.carried.events, received.texts.map(EventJson::read))
+    }
 }

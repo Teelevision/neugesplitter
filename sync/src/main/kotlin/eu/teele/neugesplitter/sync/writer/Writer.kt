@@ -30,15 +30,16 @@ class Writer(
 
     /**
      * Writes the waiting batch at the number after the highest one held. Losing that number to
-     * somebody else applies their object and tries the next, with the object rebuilt to follow it
-     * and its batch id kept (TR-26c). Finding the batch's own id there means an earlier attempt
-     * landed after all, and nothing is written twice (sync-design 4).
+     * somebody else applies their object and tries the next, with the object rebuilt to follow it,
+     * its events restated where they no longer apply and its batch id kept (TR-26c, sync-design 4).
+     * Finding the batch's own id there means an earlier attempt landed after all, and nothing is
+     * written twice.
      *
      * @throws StoreException if the backend could not be asked; the batch keeps its id for the
      *   retry, which is what makes that safe.
      */
     suspend fun write(): Upload {
-        val batch = local.batch(fresh()) ?: return Upload.Idle
+        var batch = local.batch(fresh()) ?: return Upload.Idle
         var head = local.head()
         while (true) {
             val number = head?.let { ObjectNumber(it.number.value + 1) } ?: ObjectNumber.ROOT
@@ -52,12 +53,14 @@ class Writer(
                 store.get(number)
                     ?: throw StoreException.Failed("object $number is taken but cannot be read")
             try {
-                val carried = sealing.read(taken, head)
-                if (carried.batch == batch.id) {
+                val received = sealing.read(taken, head)
+                if (received.carried.batch == batch.id) {
                     local.written(number, taken)
                     return Upload.Written(number)
                 }
-                local.received(number, taken, carried)
+                local.received(number, taken, received)
+                batch =
+                    checkNotNull(local.batch(fresh())) { "a closed batch is kept until written" }
             } catch (e: Compromised) {
                 return Upload.Halted(number, Halt.COMPROMISED)
             } catch (e: Unsupported) {

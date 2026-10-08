@@ -67,19 +67,41 @@ data class LogObject(val batch: BatchId, val prev: Link?, val events: List<Event
          * @throws Malformed if [bytes] break any rule of version 1 (format-spec 2.2, 4).
          * @throws Unsupported if they were written by a later version (format-spec 8).
          */
-        fun read(bytes: ByteArray): LogObject {
-            val json = Json.parseToJsonElement(restricted(bytes)) as JsonObject
+        fun read(bytes: ByteArray): LogObject = receive(bytes).carried
+
+        /**
+         * As [read], keeping the text of each event as well.
+         *
+         * @throws Malformed if [bytes] break any rule of version 1 (format-spec 2.2, 4).
+         * @throws Unsupported if they were written by a later version (format-spec 8).
+         */
+        fun receive(bytes: ByteArray): Received {
+            val texts = mutableListOf<String>()
+            val json = Json.parseToJsonElement(restricted(bytes, texts)) as JsonObject
             // The version comes before every other rule of version 1 (format-spec 2.2).
             val version = json.required(VERSION_FIELD, ::integer)
             if (version > VERSION) throw Unsupported("format version $version")
             if (version != VERSION.toLong()) throw Malformed("format version $version")
             val events = json.required("events", ::array)
             if (events.isEmpty()) throw Malformed("an object carries no events")
-            return LogObject(
-                json.required("batch", parsed(BatchId::parse)),
-                json.optional("prev", parsed(Link::parse)),
-                events.map(Events::decode),
-            )
+            val carried =
+                LogObject(
+                    json.required("batch", parsed(BatchId::parse)),
+                    json.optional("prev", parsed(Link::parse)),
+                    events.map(Events::decode),
+                )
+            return Received(carried, texts)
         }
+    }
+}
+
+/**
+ * A log object as read, with each event's JSON text exactly as the object holds it, which is what
+ * an installation keeps (TR-17c).
+ */
+class Received(val carried: LogObject, val texts: List<String>) {
+
+    init {
+        require(texts.size == carried.events.size) { "one text for each event" }
     }
 }

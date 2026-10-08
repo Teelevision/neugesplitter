@@ -244,6 +244,43 @@ data class Group(
         }
 
         /**
+         * [waiting], written on top of [from], as they are to follow [onto] instead (sync-design
+         * 4). An `entry.updated` that no longer applies is restated to name every field of the
+         * split (amount, payers, beneficiaries) in which the entry it produced on top of [from]
+         * differs from the one in [onto], since those are all [requireSplittable] reads; its other
+         * fields, and every other event, are kept as they are.
+         *
+         * @param from null when [waiting] begin with the group's `group.created`.
+         * @throws Malformed if an event other than `entry.updated` no longer applies.
+         */
+        fun rebase(waiting: List<Event>, from: Group?, onto: Group): List<Event> {
+            var seen = from
+            var state = onto
+            return waiting.map { event ->
+                seen = seen?.plus(event) ?: replay(listOf(event))
+                val kept =
+                    try {
+                        state + event
+                        event
+                    } catch (e: Malformed) {
+                        if (event !is Event.EntryUpdated) throw e
+                        val intended = seen!!.entries.getValue(event.target)
+                        val split = EntryChanges.between(state.known(event.target), intended)
+                        event.copy(
+                            entry =
+                                event.entry.copy(
+                                    amount = split.amount,
+                                    payers = split.payers,
+                                    beneficiaries = split.beneficiaries,
+                                )
+                        )
+                    }
+                state += kept
+                kept
+            }
+        }
+
+        /**
          * The events that create a group: its `group.created`, then a `member.added` for each of
          * [members] in order. The first member is the person creating it, who writes all of them
          * (GR-1, GR-2, ID-2). Decimal places start at two and are not asked for (AM-7).

@@ -119,6 +119,22 @@ names a predecessor that has just changed. The batch id does not change with it:
 the events are the same intent, and it is the batch id that has to stay
 recognisable across exactly this retry.
 
+Rebuilding can change an event too. An `entry.updated` names only the fields it
+changes, so two edits that were each valid against what their writers saw can
+combine into an entry that cannot be split — a new amount from one, absolute
+values summing to the old amount from the other. An event that has not been
+written yet is still provisional, so the writer restates it before it goes up.
+Whether an entry can be split depends on its amount, payers and beneficiaries
+alone, so those three are restated as one: the event names each of them in which
+the entry it produced differs from the entry now in force, and keeps every other
+field as it was written. The split is then the one its writer saw and accepted,
+so the entry is valid. The later number wins for the split as a whole and for
+every other field on its own, as it does between any two updates (section 6),
+and the other edit stays in the history. Nothing else can stop applying:
+identifiers are random and never leave a group, and every other event carries
+its payload whole. A restated event keeps its id, so the batch is still the same
+events and keeps its id as well.
+
 ## 5. Reading
 
 A sync pass is:

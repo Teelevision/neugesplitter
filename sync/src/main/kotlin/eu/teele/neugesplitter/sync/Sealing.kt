@@ -6,6 +6,7 @@ import eu.teele.neugesplitter.format.chain.Link
 import eu.teele.neugesplitter.format.crypto.AgeCodec
 import eu.teele.neugesplitter.format.crypto.GroupKey
 import eu.teele.neugesplitter.format.json.LogObject
+import eu.teele.neugesplitter.format.json.Received
 
 /** How a group's objects are stored: as their payload, or encrypted to its key (format-spec 5). */
 sealed interface Sealing {
@@ -27,7 +28,7 @@ sealed interface Sealing {
      * @throws Unsupported if a later version wrote it (format-spec 8).
      * @throws Compromised if it does not follow [previous] (format-spec 5.3).
      */
-    fun read(stored: ByteArray, previous: Retained?): LogObject
+    fun read(stored: ByteArray, previous: Retained?): Received
 
     data object Plain : Sealing {
 
@@ -35,8 +36,8 @@ sealed interface Sealing {
 
         override fun link(previous: Retained?): Link? = null
 
-        override fun read(stored: ByteArray, previous: Retained?): LogObject =
-            LogObject.read(stored)
+        override fun read(stored: ByteArray, previous: Retained?): Received =
+            LogObject.receive(stored)
     }
 
     class Encrypted(private val codec: AgeCodec, private val key: GroupKey) : Sealing {
@@ -45,13 +46,13 @@ sealed interface Sealing {
 
         override fun link(previous: Retained?): Link = key.chain.link(payload(previous))
 
-        override fun read(stored: ByteArray, previous: Retained?): LogObject {
-            val carried = LogObject.read(codec.decrypt(key, stored))
-            val prev = carried.prev ?: throw Compromised("an object carries no link")
+        override fun read(stored: ByteArray, previous: Retained?): Received {
+            val received = LogObject.receive(codec.decrypt(key, stored))
+            val prev = received.carried.prev ?: throw Compromised("an object carries no link")
             if (!key.chain.verifies(payload(previous), prev)) {
                 throw Compromised("an object does not follow the one before it")
             }
-            return carried
+            return received
         }
 
         /** The bytes [previous] was encrypted from; the first log object follows none. */

@@ -80,10 +80,12 @@ frequency, not a schedule**.
   later without reconstructing events from projections or current state. Each
   row MUST retain the event as JSON text in the wire schema plus its local sync
   state. Before sync assigns backend object numbers, local ordering MAY be
-  provisional and events MAY still be batched or reordered for upload.
+  provisional and events MAY still be batched or reordered for upload, and an
+  `entry.updated` that no longer applies MAY be restated (sync-design 4).
 - **TR-17c** (Core): The JSON text retained for a local event MUST be treated as
   durable source material, not as a cache of typed columns. It MUST NOT be
-  normalised, trimmed, re-keyed or otherwise rewritten on the way in. SQLite's
+  normalised, trimmed, re-keyed or otherwise rewritten on the way in. Restating
+  an event that has not been written yet (TR-17b) is the one exception. SQLite's
   JSON support MAY be used for indexing and queries, but the durable source of
   truth remains the stored JSON text.
 - **TR-17a** (Core): Restoring a missing object MUST upload the retained bytes

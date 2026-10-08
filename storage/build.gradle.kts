@@ -29,12 +29,14 @@ sqldelight {
 
 dependencies {
     api(project(":domain"))
+    api(project(":sync"))
     api(libs.kotlinx.coroutines.core)
     implementation(project(":format"))
     implementation(libs.sqldelight.android.driver)
     implementation(libs.sqldelight.coroutines)
 
     testImplementation(testFixtures(project(":domain")))
+    testImplementation(testFixtures(project(":sync")))
     testImplementation(libs.sqldelight.sqlite.driver)
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test.junit)

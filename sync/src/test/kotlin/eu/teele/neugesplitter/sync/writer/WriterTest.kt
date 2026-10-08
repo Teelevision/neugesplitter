@@ -127,7 +127,7 @@ class WriterTest {
             assertEquals(lost.batch, won.batch)
             assertNotEquals(lost.prev, won.prev)
             val read = encrypted.read(store.at(2), Retained(number(1), store.at(1)))
-            assertEquals(listOf(ben), read.events)
+            assertEquals(listOf(ben), read.carried.events)
         }
 
     @Test
@@ -138,7 +138,7 @@ class WriterTest {
         assertEquals(Upload.Written(number(1)), Writer(store, local, encrypted).write())
         assertEquals(
             key.chain.link(ByteArray(0)),
-            encrypted.read(store.at(1), Retained(ROOT, root)).prev,
+            encrypted.read(store.at(1), Retained(ROOT, root)).carried.prev,
         )
     }
 

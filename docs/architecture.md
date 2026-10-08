@@ -127,9 +127,9 @@ a bounded debounce closes the batch (TR-14); `:format` serialises those pending
 events into one backend object, chains and encrypts it; `:sync` asks for a
 conditional write at the next number. Once the write is confirmed, the exact
 object bytes are retained and linked back to the events they carried. A `412`
-means someone else took that number: fetch the winner, apply it, rebuild the
-object so its chain link points at the new predecessor, keep the batch id, and
-try again (TR-26c).
+means someone else took that number: fetch the winner, apply it, restate any
+waiting update it has made inapplicable, rebuild the object so its chain link
+points at the new predecessor, keep the batch id, and try again (TR-26c).
 
 **A sync pass.** List from one number below the highest object held, and require
 that object to still be there — a backend that comes back shorter halts the

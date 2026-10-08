@@ -18,6 +18,13 @@ FROM log_object
 WHERE group_id = ?
 ORDER BY number;
 
+head:
+SELECT number, bytes
+FROM log_object
+WHERE group_id = ?
+ORDER BY number DESC
+LIMIT 1;
+
 forget:
 DELETE FROM log_object
 WHERE group_id = ?;

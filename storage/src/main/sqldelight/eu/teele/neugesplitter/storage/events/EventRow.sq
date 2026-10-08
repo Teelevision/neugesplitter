@@ -1,13 +1,16 @@
 -- The canonical local event log of each group (TR-17b).
 --
 -- `json` is the event's text exactly as it was written or received, and nothing rewrites it
--- (TR-17c). An event with no `object_number` has not been written to a backend yet, and until it
--- is, its `local_order` is provisional (architecture.md 4).
+-- (TR-17c) unless it is waiting and no longer applies (sync-design 4). An event with no
+-- `object_number` has not been written to a backend yet, and until it is, its `local_order` is
+-- provisional (architecture.md 4). `batch` is set once a waiting event's batch is closed, and is
+-- kept until the batch is written so that its id survives a restart (format-spec 2.2).
 CREATE TABLE IF NOT EXISTS event_row (
     group_id TEXT NOT NULL,
     local_order INTEGER NOT NULL,
     json TEXT NOT NULL,
     object_number INTEGER,
+    batch TEXT,
     PRIMARY KEY (group_id, local_order)
 );
 
@@ -22,6 +25,49 @@ SELECT json
 FROM event_row
 WHERE group_id = ?
 ORDER BY local_order;
+
+rows:
+SELECT local_order, json, object_number, batch
+FROM event_row
+WHERE group_id = ?
+ORDER BY local_order;
+
+closed:
+SELECT json, batch
+FROM event_row
+WHERE group_id = ? AND object_number IS NULL AND batch IS NOT NULL
+ORDER BY local_order;
+
+closeBatch:
+UPDATE event_row
+SET batch = :batch
+WHERE group_id = :group_id AND object_number IS NULL AND batch IS NULL;
+
+written:
+UPDATE event_row
+SET object_number = :object_number
+WHERE group_id = :group_id AND object_number IS NULL AND batch = :batch;
+
+-- Moving the waiting rows on by `by` in one statement could collide with itself on the key, so they
+-- pass through negative values first and `settle` turns them back.
+makeRoom:
+UPDATE event_row
+SET local_order = -(local_order + :by)
+WHERE group_id = :group_id AND object_number IS NULL;
+
+settle:
+UPDATE event_row
+SET local_order = -local_order
+WHERE group_id = ? AND local_order < 0;
+
+received:
+INSERT INTO event_row (group_id, local_order, json, object_number)
+VALUES (?, ?, ?, ?);
+
+restate:
+UPDATE event_row
+SET json = :json
+WHERE group_id = :group_id AND local_order = :local_order AND object_number IS NULL;
 
 groups:
 SELECT DISTINCT group_id

@@ -3,7 +3,7 @@ package eu.teele.neugesplitter.sync
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.format.json.BatchId
-import eu.teele.neugesplitter.format.json.LogObject
+import eu.teele.neugesplitter.format.json.Received
 
 /**
  * One group as this installation holds it, in the terms sync needs: the objects it has retained and
@@ -28,11 +28,12 @@ interface LocalLog {
 
     /**
      * Somebody else's object [number], stored as [bytes]: its events are applied ahead of every
-     * event still waiting (TR-17b).
+     * event still waiting (TR-17b), keeping the texts it holds them in (TR-17c). A waiting
+     * `entry.updated` that no longer applies is restated; the batch keeps its id (sync-design 4).
      *
      * @throws Malformed if they contradict the log before them (format-spec 4.2); nothing is kept.
      */
-    suspend fun received(number: ObjectNumber, bytes: ByteArray, carried: LogObject)
+    suspend fun received(number: ObjectNumber, bytes: ByteArray, received: Received)
 }
 
 /** An object as the backend holds it (TR-17). */

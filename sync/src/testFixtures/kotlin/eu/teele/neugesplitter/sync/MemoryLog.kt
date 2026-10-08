@@ -2,7 +2,7 @@ package eu.teele.neugesplitter.sync
 
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.format.json.BatchId
-import eu.teele.neugesplitter.format.json.LogObject
+import eu.teele.neugesplitter.format.json.Received
 
 /** A group's local log in memory, starting from [retained] objects. */
 class MemoryLog(retained: Map<ObjectNumber, ByteArray> = emptyMap()) : LocalLog {
@@ -43,8 +43,8 @@ class MemoryLog(retained: Map<ObjectNumber, ByteArray> = emptyMap()) : LocalLog 
         closed = null
     }
 
-    override suspend fun received(number: ObjectNumber, bytes: ByteArray, carried: LogObject) {
+    override suspend fun received(number: ObjectNumber, bytes: ByteArray, received: Received) {
         objects[number] = bytes
-        applied += carried.events
+        applied += received.carried.events
     }
 }

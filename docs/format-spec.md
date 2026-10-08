@@ -294,6 +294,15 @@ buys the property that a reference always resolves — the alternative is a
 balance belonging to a member nobody can name, which no reader could display and
 two readers would handle differently.
 
+The entry an `entry.updated` produces MUST also be one that can be split
+(section 7), and here being caught up is not enough: two updates made at once
+can each be valid and still combine into one that is not, because each names
+only what it changes. A writer therefore MUST check every event against the log
+it is about to follow and MUST NOT write one that does not apply. An
+`entry.updated` that no longer applies is restated instead, naming each of
+`amount`, `payers` and `beneficiaries` in which the entry it produced differs
+from the one in force, and keeping its other fields (sync-design section 4).
+
 Repeating `member.removed`, `entry.deleted`, `series.deleted` or
 `occurrence.deleted` is **not** a contradiction and MUST be accepted: two
 installations may each decide to remove the same thing, and the second event

@@ -25,9 +25,11 @@ object Limits {
  * nothing is sized from what the text declares (TR-39). Whether a `null` or a boolean is allowed
  * depends on where it is, which is the codec's business, not this one's.
  *
+ * @param events receives the text of each element of the top-level `events` array, exactly as it is
+ *   in [bytes].
  * @throws Malformed at the first rule broken. The message never quotes the content (TR-38).
  */
-internal fun restricted(bytes: ByteArray): String {
+internal fun restricted(bytes: ByteArray, events: MutableList<String>? = null): String {
     if (bytes.size > Limits.SIZE) {
         throw Malformed("an object is ${bytes.size} bytes, more than ${Limits.SIZE}")
     }
@@ -44,7 +46,7 @@ internal fun restricted(bytes: ByteArray): String {
         } catch (_: CharacterCodingException) {
             throw Malformed("an object is not UTF-8")
         }
-    Scanner(text).document()
+    Scanner(text, events).document()
     return text
 }
 
@@ -54,7 +56,7 @@ private val BOM = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
  * Recursive descent over RFC 8259, recognising and discarding. Recursion is bounded by
  * [Limits.DEPTH], which is checked before each level is entered.
  */
-private class Scanner(private val text: String) {
+private class Scanner(private val text: String, private val events: MutableList<String>?) {
 
     private var at = 0
 
@@ -108,7 +110,9 @@ private class Scanner(private val text: String) {
             if (counted && ++count > Limits.EVENTS) {
                 throw Malformed("an object carries more than ${Limits.EVENTS} events")
             }
+            val start = at
             value(depth + 1, counted = false)
+            if (counted) events?.add(text.substring(start, at))
             space()
         } while (take(','))
         expect(']')

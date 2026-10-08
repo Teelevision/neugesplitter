@@ -16,6 +16,7 @@ import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.format.json.EventJson
 import eu.teele.neugesplitter.storage.projection.Projection
+import eu.teele.neugesplitter.sync.LocalLog
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -55,6 +56,16 @@ class GroupRepository(private val driver: SqlDriver) {
     /** [events], again whenever group [id]'s log changes. */
     fun log(id: GroupId, context: CoroutineContext = Dispatchers.IO): Flow<List<Event>> =
         database.eventRowQueries.length(id.hex).asFlow().map { events(id) }.flowOn(context)
+
+    /**
+     * Group [id]'s log as sync writes and receives it (TR-17b, TR-17d). What it receives is brought
+     * into the projection as of [today].
+     */
+    fun local(
+        id: GroupId,
+        today: () -> EntryDate,
+        context: CoroutineContext = Dispatchers.IO,
+    ): LocalLog = StoredLog(database, projection, id, today, context)
 
     /**
      * Every group this installation holds, again whenever a write changes the list. The projection

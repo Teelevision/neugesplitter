@@ -1,0 +1,2 @@
+-- Version 1 had no batch kept for waiting events, so none is closed yet.
+ALTER TABLE event_row ADD COLUMN batch TEXT;
