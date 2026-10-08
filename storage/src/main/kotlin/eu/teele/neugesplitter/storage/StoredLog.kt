@@ -38,12 +38,17 @@ internal class StoredLog(
     override suspend fun batch(fresh: BatchId): Batch? =
         withContext(context) {
             database.transactionWithResult {
-                closed()
+                closedBatch()
                     ?: run {
                         rows.closeBatch(fresh.hex, id.hex)
-                        closed()
+                        closedBatch()
                     }
             }
+        }
+
+    override suspend fun closed(): BatchId? =
+        withContext(context) {
+            rows.closed(id.hex).executeAsList().firstOrNull()?.batch?.let(BatchId::parse)
         }
 
     override suspend fun rooted(bytes: ByteArray) {
@@ -55,7 +60,7 @@ internal class StoredLog(
     override suspend fun written(number: ObjectNumber, bytes: ByteArray) =
         withContext(context) {
             database.transaction {
-                val batch = checkNotNull(closed()) { "no batch was closed" }
+                val batch = checkNotNull(closedBatch()) { "no batch was closed" }
                 rows.written(number.value.toLong(), id.hex, batch.id.hex)
                 objects.retain(id.hex, number.value.toLong(), batch.id.hex, bytes)
             }
@@ -92,7 +97,7 @@ internal class StoredLog(
             }
         }
 
-    private fun closed(): Batch? {
+    private fun closedBatch(): Batch? {
         val closed = rows.closed(id.hex).executeAsList()
         if (closed.isEmpty()) return null
         return Batch(BatchId.parse(closed.first().batch!!), closed.map { EventJson.read(it.json) })

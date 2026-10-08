@@ -3,6 +3,7 @@ package eu.teele.neugesplitter.backend.s3
 import eu.teele.neugesplitter.domain.BEN
 import eu.teele.neugesplitter.domain.CLARA
 import eu.teele.neugesplitter.domain.Log
+import eu.teele.neugesplitter.sync.GroupSync
 import eu.teele.neugesplitter.sync.LogStore
 import eu.teele.neugesplitter.sync.MemoryLog
 import eu.teele.neugesplitter.sync.ObjectNumber
@@ -120,6 +121,25 @@ class SeaweedFsTest {
                 Writer(store, anna, Sealing.Plain).write(),
             )
             assertEquals(log, anna.events())
+        }
+
+    @Test
+    fun `installations sharing a backend end with the same log (SY-2, sync-design 5)`() =
+        runBlocking {
+            val store = store()
+            val anna = MemoryLog().apply { record(log[0]) }
+            GroupSync(store, anna, Sealing.Plain).pass()
+            val ben = MemoryLog().apply { record(log[1]) }
+            GroupSync(store, ben, Sealing.Plain).pass()
+            anna.record(log[2])
+
+            assertEquals(
+                Upload.Written(ObjectNumber(2)),
+                GroupSync(store, anna, Sealing.Plain).pass(),
+            )
+            assertEquals(Upload.Idle, GroupSync(store, ben, Sealing.Plain).pass())
+            assertEquals(log, anna.applied)
+            assertEquals(log, ben.applied)
         }
 
     @Test

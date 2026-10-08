@@ -23,6 +23,9 @@ interface LocalLog {
      */
     suspend fun batch(fresh: BatchId): Batch?
 
+    /** The id of the batch [batch] closed and nothing has [written] yet, if there is one. */
+    suspend fun closed(): BatchId?
+
     /**
      * An encrypted group's root object, stored as [bytes], which its log follows (format-spec 5.1).
      */

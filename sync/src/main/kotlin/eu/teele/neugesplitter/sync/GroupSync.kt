@@ -1,6 +1,7 @@
 package eu.teele.neugesplitter.sync
 
 import eu.teele.neugesplitter.sync.ObjectNumber.Companion.ROOT
+import eu.teele.neugesplitter.sync.reader.Reader
 import eu.teele.neugesplitter.sync.writer.Halt
 import eu.teele.neugesplitter.sync.writer.Upload
 import eu.teele.neugesplitter.sync.writer.Writer
@@ -13,23 +14,30 @@ import kotlinx.coroutines.sync.withLock
  */
 class GroupSync(private val store: LogStore, private val local: LocalLog, sealing: Sealing) {
 
+    private val reader = Reader(store, local, sealing)
     private val writer = Writer(store, local, sealing)
     private val lock = Mutex()
 
     /**
-     * Confirms the backend still holds the highest object this installation does, and writes what
-     * is waiting (TR-40). A backend that does not is never written to.
+     * Lists from the highest object this installation holds, confirming the backend still holds it
+     * too (TR-40), applies whatever follows it, and writes what is waiting (sync-design 5). A
+     * backend that has gone backwards, or holds an object that cannot be applied, is never written
+     * to.
      *
      * @throws StoreException if the backend could not be asked.
      */
     suspend fun pass(): Upload =
         lock.withLock {
             val head = local.head()
-            if (head != null && store.listFrom(head.number).firstOrNull() != head.number) {
-                Upload.Halted(head.number, Halt.TRUNCATED)
-            } else {
-                writer.write()
-            }
+            val listed = store.listFrom(head?.number ?: ROOT)
+            val halted =
+                when {
+                    head == null -> reader.read(null, listed)
+                    listed.firstOrNull() != head.number ->
+                        Upload.Halted(head.number, Halt.TRUNCATED)
+                    else -> reader.read(head, listed.drop(1))
+                }
+            halted ?: writer.write()
         }
 
     /**

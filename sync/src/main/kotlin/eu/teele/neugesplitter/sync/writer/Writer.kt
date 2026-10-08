@@ -1,10 +1,7 @@
 package eu.teele.neugesplitter.sync.writer
 
-import eu.teele.neugesplitter.domain.Malformed
-import eu.teele.neugesplitter.format.Unsupported
 import eu.teele.neugesplitter.format.json.BatchId
 import eu.teele.neugesplitter.format.json.LogObject
-import eu.teele.neugesplitter.sync.Compromised
 import eu.teele.neugesplitter.sync.LocalLog
 import eu.teele.neugesplitter.sync.LogStore
 import eu.teele.neugesplitter.sync.ObjectNumber
@@ -12,6 +9,9 @@ import eu.teele.neugesplitter.sync.Retained
 import eu.teele.neugesplitter.sync.Sealing
 import eu.teele.neugesplitter.sync.StoreException
 import eu.teele.neugesplitter.sync.Write
+import eu.teele.neugesplitter.sync.reader.Taken
+import eu.teele.neugesplitter.sync.reader.after
+import eu.teele.neugesplitter.sync.reader.take
 import java.security.SecureRandom
 
 /**
@@ -42,7 +42,7 @@ class Writer(
         var batch = local.batch(fresh()) ?: return Upload.Idle
         var head = local.head()
         while (true) {
-            val number = head?.let { ObjectNumber(it.number.value + 1) } ?: ObjectNumber.ROOT
+            val number = after(head)
             val payload = LogObject(batch.id, sealing.link(head), batch.events).write()
             val bytes = sealing.seal(payload)
             if (store.createIfAbsent(number, bytes) == Write.CREATED) {
@@ -52,21 +52,14 @@ class Writer(
             val taken =
                 store.get(number)
                     ?: throw StoreException.Failed("object $number is taken but cannot be read")
-            try {
-                val received = sealing.read(taken, head)
-                if (received.carried.batch == batch.id) {
-                    local.written(number, taken)
-                    return Upload.Written(number)
-                }
-                local.received(number, taken, received)
-                batch =
-                    checkNotNull(local.batch(fresh())) { "a closed batch is kept until written" }
-            } catch (e: Compromised) {
-                return Upload.Halted(number, Halt.COMPROMISED)
-            } catch (e: Unsupported) {
-                return Upload.Halted(number, Halt.UNSUPPORTED)
-            } catch (e: Malformed) {
-                return Upload.Halted(number, Halt.MALFORMED)
+            when (val outcome = local.take(sealing, number, taken, head, batch.id)) {
+                Taken.Own -> return Upload.Written(number)
+                Taken.Theirs ->
+                    batch =
+                        checkNotNull(local.batch(fresh())) {
+                            "a closed batch is kept until written"
+                        }
+                is Taken.Refused -> return Upload.Halted(number, outcome.halt)
             }
             head = Retained(number, taken)
         }
@@ -92,6 +85,9 @@ sealed interface Upload {
 enum class Halt {
     /** The backend no longer holds it, though this installation does (TR-40, SY-15). */
     TRUNCATED,
+
+    /** The backend holds objects after it but not it, and neither does this installation. */
+    GAP,
 
     /** It does not follow the object before it (TR-26a). */
     COMPROMISED,

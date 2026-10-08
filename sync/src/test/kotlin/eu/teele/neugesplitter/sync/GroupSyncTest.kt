@@ -76,6 +76,37 @@ class GroupSyncTest {
         }
 
     @Test
+    fun `a pass applies what others wrote before writing after it (sync-design 5)`(): Unit =
+        runBlocking {
+            val store = BucketStore().apply { objects["log/0000000"] = root.copyOf() }
+            val anna = MemoryLog(mapOf(ROOT to root))
+            val ben = MemoryLog(mapOf(ROOT to root))
+            anna.record(log[0])
+            GroupSync(store, anna, encrypted).pass()
+            ben.record(log[1])
+
+            assertEquals(Upload.Written(ObjectNumber(2)), GroupSync(store, ben, encrypted).pass())
+            assertEquals(Upload.Idle, GroupSync(store, anna, encrypted).pass())
+
+            assertEquals(log, ben.applied)
+            assertEquals(log, anna.applied)
+        }
+
+    @Test
+    fun `an installation holding nothing reads an unencrypted group from its root`(): Unit =
+        runBlocking {
+            val store = BucketStore()
+            GroupSync(store, MemoryLog().apply { record(log[0]) }, Sealing.Plain).pass()
+            val fresh = MemoryLog().apply { record(log[1]) }
+
+            assertEquals(
+                Upload.Written(ObjectNumber(1)),
+                GroupSync(store, fresh, Sealing.Plain).pass(),
+            )
+            assertEquals(log, fresh.applied)
+        }
+
+    @Test
     fun `passes asked for together run one after the other (TR-15)`(): Unit = runBlocking {
         val bucket = BucketStore()
         val slow =

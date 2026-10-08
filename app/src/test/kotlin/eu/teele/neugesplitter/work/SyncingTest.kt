@@ -14,6 +14,7 @@ import eu.teele.neugesplitter.format.crypto.AgeCodec
 import eu.teele.neugesplitter.format.crypto.GroupKey
 import eu.teele.neugesplitter.format.crypto.KageCodec
 import eu.teele.neugesplitter.format.crypto.WrongPassphrase
+import eu.teele.neugesplitter.format.json.BatchId
 import eu.teele.neugesplitter.format.json.LogObject
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
@@ -44,6 +45,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -240,6 +242,22 @@ class SyncingTest {
         assertEquals(at, state.succeeded)
         assertEquals(0L, state.waiting)
         assertNotNull(flaky.at(0))
+    }
+
+    @Test
+    fun `a started group fetches what others wrote meanwhile (SY-2, SY-9)`() {
+        created()
+        runBlocking { syncing().connect(trip, settings, "secret") }
+        settled { it.waiting == 0L }
+        restart()
+
+        val renamed = GroupChanges(description = Change.To("Elsewhere"))
+        val theirs = Event.GroupUpdated(EventId.parse(id(0x200)), anna.id, at, renamed)
+        bucket.objects["log/0000001"] =
+            LogObject(BatchId.parse(id(0x300)), null, listOf(theirs)).write()
+        syncing().start()
+
+        runBlocking { withTimeout(5.seconds) { while (theirs !in groups.events(trip)) delay(10) } }
     }
 
     @Test

@@ -12,7 +12,7 @@ class MemoryLog(retained: Map<ObjectNumber, ByteArray> = emptyMap()) : LocalLog 
     /** The events written or received, in object order. */
     val applied = mutableListOf<Event>()
 
-    private var closed: Batch? = null
+    private var closedBatch: Batch? = null
     private val waiting = mutableListOf<Event>()
 
     fun record(vararg events: Event) {
@@ -20,31 +20,33 @@ class MemoryLog(retained: Map<ObjectNumber, ByteArray> = emptyMap()) : LocalLog 
     }
 
     /** The log as the installation shows it: what is on the backend, then what is not yet. */
-    fun events(): List<Event> = applied + closed?.events.orEmpty() + waiting
+    fun events(): List<Event> = applied + closedBatch?.events.orEmpty() + waiting
 
     override suspend fun head(): Retained? =
         objects.entries.lastOrNull()?.let { (n, bytes) -> Retained(n, bytes) }
 
     override suspend fun batch(fresh: BatchId): Batch? {
-        closed?.let {
+        closedBatch?.let {
             return it
         }
         if (waiting.isEmpty()) return null
         return Batch(fresh, waiting.toList()).also {
-            closed = it
+            closedBatch = it
             waiting.clear()
         }
     }
+
+    override suspend fun closed(): BatchId? = closedBatch?.id
 
     override suspend fun rooted(bytes: ByteArray) {
         objects[ObjectNumber.ROOT] = bytes
     }
 
     override suspend fun written(number: ObjectNumber, bytes: ByteArray) {
-        val batch = checkNotNull(closed) { "no batch was closed" }
+        val batch = checkNotNull(closedBatch) { "no batch was closed" }
         objects[number] = bytes
         applied += batch.events
-        closed = null
+        closedBatch = null
     }
 
     override suspend fun received(number: ObjectNumber, bytes: ByteArray, received: Received) {

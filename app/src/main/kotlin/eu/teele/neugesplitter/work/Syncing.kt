@@ -56,9 +56,9 @@ class Syncing(
 ) {
     private val running = ConcurrentHashMap<GroupId, Runner>()
 
-    /** Starts every group shared already; anything waiting goes up after the usual wait. */
+    /** Starts every group shared already, each with a pass to fetch what others wrote meanwhile. */
     fun start() {
-        scope.launch(context) { groups.backends.connected().forEach(::runner) }
+        scope.launch(context) { groups.backends.connected().forEach { runner(it).debounce.now() } }
     }
 
     /**

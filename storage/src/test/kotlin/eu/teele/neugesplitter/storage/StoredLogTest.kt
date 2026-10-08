@@ -93,11 +93,13 @@ class StoredLogTest {
     fun `waiting events close into one batch whose id survives a restart (format-spec 2_2)`():
         Unit = runBlocking {
         groups.create(base, TODAY)
+        assertNull(log.closed())
         val closed = log.batch(batch(1))!!
         assertEquals(batch(1), closed.id)
         assertEquals(base, closed.events)
 
         val restarted = GroupRepository(driver).local(GROUP, { TODAY }, Dispatchers.Unconfined)
+        assertEquals(batch(1), restarted.closed())
         val again = restarted.batch(batch(2))!!
         assertEquals(batch(1), again.id)
         assertEquals(base, again.events)
