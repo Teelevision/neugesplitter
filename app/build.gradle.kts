@@ -1,3 +1,8 @@
+import com.android.build.api.variant.HostTestBuilder
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.result.ResolvedComponentResult
+import org.gradle.api.artifacts.result.ResolvedDependencyResult
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
@@ -81,4 +86,55 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+}
+
+/** Writes the release build's external `group:module`s, one per line. */
+abstract class ModuleList : DefaultTask() {
+    @get:Input abstract val modules: SetProperty<String>
+    @get:OutputDirectory abstract val output: DirectoryProperty
+
+    @TaskAction
+    fun write() {
+        output
+            .file("release-modules.txt")
+            .get()
+            .asFile
+            .writeText(modules.get().sorted().joinToString("\n"))
+    }
+}
+
+fun modules(root: ResolvedComponentResult): Set<String> {
+    val seen = mutableSetOf<ResolvedComponentResult>()
+    val queue = ArrayDeque(listOf(root))
+    while (queue.isNotEmpty()) {
+        val component = queue.removeFirst()
+        if (seen.add(component)) {
+            component.dependencies.filterIsInstance<ResolvedDependencyResult>().forEach {
+                queue += it.selected
+            }
+        }
+    }
+    return seen
+        .mapNotNull {
+            (it.id as? ModuleComponentIdentifier)?.let { id -> "${id.group}:${id.module}" }
+        }
+        .toSet()
+}
+
+// The licences screen's test holds its list against these.
+val releaseModules =
+    tasks.register<ModuleList>("releaseModules") {
+        modules =
+            configurations
+                .named("releaseRuntimeClasspath")
+                .flatMap { it.incoming.resolutionResult.rootComponent }
+                .map(::modules)
+        output = layout.buildDirectory.dir("generated/releaseModules")
+    }
+
+androidComponents.onVariants { variant ->
+    variant.hostTests[HostTestBuilder.UNIT_TEST_TYPE]
+        ?.sources
+        ?.resources
+        ?.addGeneratedSourceDirectory(releaseModules, ModuleList::output)
 }

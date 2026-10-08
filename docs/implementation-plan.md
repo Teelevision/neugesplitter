@@ -204,12 +204,12 @@ retrofitted into a sync path that never saw them.
 
 ## 9. Phase 7 — Hardening
 
-The accessibility pass — every
-colour-carried meaning also carried by a sign or a label, checked in greyscale
-(UX-6) — German strings at roughly a third longer than English without reflow
-(UX-5), a confirmation that nothing transmits (TR-53), the reproducible build
-proven from a clean checkout (TR-51), and then F-Droid (TR-52). The hosted
-provider compatibility matrix (TR-50) is Later and belongs here or after.
+The accessibility pass — every colour-carried meaning also carried by a sign or
+a label, checked in greyscale (UX-6) — German strings at roughly a third longer
+than English without reflow (UX-5), a confirmation that nothing transmits
+(TR-53), the reproducible build proven from a clean checkout (TR-51), and then
+F-Droid (TR-52). The hosted provider compatibility matrix (TR-50) is Later and
+belongs here or after.
 
 ## 10. The design work
 

@@ -36,6 +36,8 @@ import eu.teele.neugesplitter.ui.grouplist.GroupListScreen
 import eu.teele.neugesplitter.ui.grouplist.GroupListViewModel
 import eu.teele.neugesplitter.ui.history.EntryHistoryScreen
 import eu.teele.neugesplitter.ui.history.EntryHistoryViewModel
+import eu.teele.neugesplitter.ui.licences.LicenceScreen
+import eu.teele.neugesplitter.ui.licences.LicencesScreen
 import eu.teele.neugesplitter.ui.newgroup.NewGroupScreen
 import eu.teele.neugesplitter.ui.newgroup.NewGroupViewModel
 import eu.teele.neugesplitter.ui.overview.OverviewScreen
@@ -52,6 +54,11 @@ import kotlinx.serialization.Serializable
 @Serializable data object NewGroup : NavKey
 
 @Serializable data object AppSettings : NavKey
+
+@Serializable data object Licences : NavKey
+
+/** @property name the notice's name. */
+@Serializable data class Licence(val name: String) : NavKey
 
 /** @property group the group's id, as hex. */
 @Serializable data class GroupOverview(val group: String) : NavKey
@@ -128,9 +135,14 @@ fun App(graph: AppGraph) {
                         },
                         version = version,
                         onBack = { pop() },
+                        onLicences = { stack.add(Licences) },
                         onDeleted = { pop() },
                     )
                 }
+                entry<Licences> {
+                    LicencesScreen(onBack = { pop() }, onOpen = { stack.add(Licence(it)) })
+                }
+                entry<Licence> { key -> LicenceScreen(key.name, onBack = { pop() }) }
                 entry<NewGroup> {
                     NewGroupScreen(
                         viewModel {

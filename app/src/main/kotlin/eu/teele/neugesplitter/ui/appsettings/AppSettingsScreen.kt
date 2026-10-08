@@ -71,6 +71,7 @@ fun AppSettingsScreen(
     viewModel: AppSettingsViewModel,
     version: String,
     onBack: () -> Unit,
+    onLicences: () -> Unit,
     onDeleted: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -78,7 +79,6 @@ fun AppSettingsScreen(
     val language by viewModel.language.collectAsStateWithLifecycle()
     var dialog by rememberSaveable { mutableStateOf<Dialog?>(null) }
     var deleting by rememberSaveable { mutableStateOf(false) }
-    var licences by rememberSaveable { mutableStateOf(false) }
     var typed by rememberSaveable { mutableStateOf("") }
     val confirmation = remember { BringIntoViewRequester() }
     val scope = rememberCoroutineScope()
@@ -189,20 +189,8 @@ fun AppSettingsScreen(
             SettingRow(
                 stringResource(R.string.third_party),
                 supporting = null,
-                onClick = { licences = !licences },
+                onClick = onLicences,
             )
-            if (licences) {
-                val adapted = stringResource(R.string.adapted)
-                SettingRow(
-                    stringResource(R.string.words_german),
-                    "Uli Fouquet · CC BY 3.0 · $adapted",
-                )
-                SettingRow(
-                    stringResource(R.string.words_english),
-                    "Electronic Frontier Foundation · CC BY 3.0 US · $adapted",
-                )
-                for ((library, licence) in LIBRARIES) SettingRow(library, licence)
-            }
         }
     }
 
@@ -236,22 +224,6 @@ fun AppSettingsScreen(
 
 /** The language tags offered, the system's (null) first. */
 private val LANGUAGES = listOf(null, "en", "de")
-
-/** What the release build ships, by its runtime classpath. */
-private val LIBRARIES =
-    listOf(
-        "AndroidX, Jetpack Compose" to "Apache-2.0",
-        "Kotlin, kotlinx.coroutines, kotlinx.serialization" to "Apache-2.0",
-        "SQLDelight" to "Apache-2.0",
-        "OkHttp, Okio" to "Apache-2.0",
-        "kage" to "MIT, Apache-2.0",
-        "Bouncy Castle" to "MIT",
-        "HKDF" to "Apache-2.0",
-        "kotlin-result" to "ISC",
-        "zxcvbn4j" to "MIT",
-        "Guava ListenableFuture" to "Apache-2.0",
-        "JSpecify" to "Apache-2.0",
-    )
 
 private val Theme.label: Int
     get() =

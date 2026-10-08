@@ -50,6 +50,7 @@ class AppSettingsScreenTest {
     private val at = Instant.parse("2026-10-07T12:00:00Z")
     private var ids = 0
     private var deleted = 0
+    private var licences = 0
 
     private fun id(n: Int) = "%032x".format(n)
 
@@ -86,6 +87,7 @@ class AppSettingsScreenTest {
                     viewModel,
                     version = "1.2.3",
                     onBack = {},
+                    onLicences = { licences++ },
                     onDeleted = { deleted++ },
                 )
             }
@@ -157,15 +159,10 @@ class AppSettingsScreenTest {
     }
 
     @Test
-    fun `the third-party licences unfold at the bottom, crediting the word lists`() {
+    fun `the third-party licences open their own screen`() {
         show()
-        compose.onNodeWithText("zxcvbn4j").assertDoesNotExist()
         compose.onNodeWithText("Third-party licences").performClick()
-        compose.onNodeWithText("zxcvbn4j").assertExists()
-        compose.onNodeWithText("Uli Fouquet · CC BY 3.0 · adapted").assertExists()
-        compose
-            .onNodeWithText("Electronic Frontier Foundation · CC BY 3.0 US · adapted")
-            .assertExists()
+        assertEquals(1, licences)
     }
 
     @Test
