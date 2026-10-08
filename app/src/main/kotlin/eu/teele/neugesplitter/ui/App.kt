@@ -187,7 +187,6 @@ fun App(graph: AppGraph) {
                                             )
                                         )
                                     },
-                                    onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
                                     modifier = modifier,
                                 )
                             Destination.SETTINGS ->

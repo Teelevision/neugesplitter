@@ -116,9 +116,10 @@
     <string name="scheme_shares">Anteile</string>
     <string name="scheme_adjustments">Angepasst</string>
     <string name="scheme_absolute">Exakt</string>
-    <string name="split_scheme">Aufteilung: %1$s</string>
     <string name="split_title">Aufteilung „%1$s“</string>
     <string name="split_shares_total">%1$s Anteile insgesamt</string>
+    <string name="split_shares_more">Mehr Anteile für %1$s</string>
+    <string name="split_shares_fewer">Weniger Anteile für %1$s</string>
     <string name="split_left">Noch %1$s zu verteilen</string>
     <string name="split_over">%1$s mehr als der Betrag</string>
     <string name="split_adds_up">Ergibt den Betrag</string>
@@ -139,8 +140,6 @@
     <string name="balance_settled">ausgeglichen</string>
     <string name="member_removed">Entfernt</string>
     <string name="member_rename">Umbenennen</string>
-    <string name="member_entries">Einträge</string>
-    <string name="member_no_entries">Keine Einträge</string>
     <string name="member_remove">Aus der Gruppe entfernen</string>
     <string name="member_remove_title">%1$s entfernen?</string>
     <string name="member_remove_text">%1$s wird für neue Einträge nicht mehr angeboten. Bisherige Einträge und der Saldo bleiben genau, wie sie sind.\n\nDer Zugriff auf die Gruppe bleibt davon unberührt: Wer die Zugangsdaten des Speichers hat, kann sie weiterhin lesen und ändern.</string>
@@ -153,25 +152,19 @@
 
     <!-- Group settings -->
     <string name="destination_settings">Einstellungen</string>
-    <string name="settings_group">Gruppe</string>
     <string name="none">Keine</string>
-    <string name="settings_entries">Einträge</string>
     <string name="default_participants">Standard-Beteiligte</string>
     <string name="everyone">Alle</string>
-    <string name="settings_danger">Gefahrenbereich</string>
     <string name="delete_group_device">Gruppe von diesem Gerät löschen</string>
 
     <!-- App settings -->
-    <string name="settings_appearance">Darstellung</string>
     <string name="theme">Design</string>
     <string name="system_default">Systemstandard</string>
     <string name="theme_light">Hell</string>
     <string name="theme_dark">Dunkel</string>
     <string name="language">Sprache</string>
-    <string name="settings_about">Über</string>
     <string name="version">Version</string>
     <string name="licence">Lizenz</string>
-    <string name="settings_data">Daten</string>
     <string name="delete_all">Alle lokalen Daten löschen</string>
     <string name="delete_all_warning">Alle Gruppen auf diesem Gerät samt Einträgen und deine Einstellungen werden entfernt. Gruppen, die nur auf diesem Gerät existieren, lassen sich nicht wiederherstellen.</string>
     <string name="delete_all_prompt">Zum Bestätigen %1$s eingeben</string>

@@ -37,8 +37,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -106,7 +104,6 @@ fun GroupSettingsScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(bottom = 16.dp),
         ) {
-            item(key = "group") { Heading(R.string.settings_group) }
             item(key = "name") {
                 if (editing == Field.NAME) {
                     InlineEditor(
@@ -155,8 +152,6 @@ fun GroupSettingsScreen(
             item(key = "colour") {
                 Looks(R.string.group_colour) { ColourPicker(state.colour, viewModel::colour) }
             }
-
-            item(key = "entries") { Heading(R.string.settings_entries) }
             item(key = "participants") {
                 SettingRow(
                     stringResource(R.string.default_participants),
@@ -164,16 +159,12 @@ fun GroupSettingsScreen(
                     onClick = { dialog = Dialog.PARTICIPANTS },
                 )
             }
-
-            item(key = "storage") { Heading(R.string.storage_header) }
             item(key = "local") {
                 SettingRow(
                     stringResource(R.string.storage_local),
                     stringResource(R.string.storage_local_warning),
                 )
             }
-
-            item(key = "danger") { Heading(R.string.settings_danger) }
             item(key = "delete") {
                 SettingRow(
                     stringResource(R.string.delete_group_device),
@@ -229,19 +220,6 @@ private fun participants(state: GroupSettingsState): String {
     val chosen = state.defaultParticipants ?: return stringResource(R.string.everyone)
     val names = state.members.filter { it.id in chosen }.joinToString(", ") { it.name }
     return names.ifEmpty { stringResource(R.string.none) }
-}
-
-@Composable
-private fun Heading(label: Int) {
-    Text(
-        stringResource(label),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier =
-            Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp).semantics {
-                heading()
-            },
-    )
 }
 
 /** A label and its value; a row with no [onClick] only informs. */

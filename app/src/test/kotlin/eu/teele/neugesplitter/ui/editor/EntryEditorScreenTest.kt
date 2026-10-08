@@ -1,10 +1,17 @@
 package eu.teele.neugesplitter.ui.editor
 
 import android.os.Looper
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isFocused
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -13,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTouchInput
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.balance.Transfer
 import eu.teele.neugesplitter.domain.entry.Entry
@@ -77,6 +85,7 @@ class EntryEditorScreenTest {
         entry: EntryId? = null,
         duplicate: Boolean = false,
         settling: Transfer? = null,
+        ready: String = "Description",
     ) {
         groups.create(
             Group.create(trip, "Trip", null, "⛺", null, listOf(anna, ben, clara), at, ::eventId),
@@ -110,14 +119,17 @@ class EntryEditorScreenTest {
             )
         compose.setContent { NeugesplitterTheme { EntryEditorScreen(viewModel) { closed++ } } }
         compose.waitUntil(5_000) {
-            compose.onAllNodesWithText("Description").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText(ready).fetchSemanticsNodes().isNotEmpty()
         }
     }
 
     private fun stored() = groups.load(trip)!!.entries
 
+    /** Types [keys] into the calculator, which a blank new entry has open already. */
     private fun enterAmount(keys: String) {
-        compose.onNodeWithText("Amount").performClick()
+        if (compose.onAllNodesWithContentDescription("OK").fetchSemanticsNodes().isEmpty()) {
+            compose.onNodeWithText("Amount").performClick()
+        }
         compose.waitUntil(5_000) {
             compose.onAllNodesWithContentDescription("OK").fetchSemanticsNodes().isNotEmpty()
         }
@@ -136,12 +148,33 @@ class EntryEditorScreenTest {
         }
     }
 
+    /** No input has focus, and the calculator has not opened by itself. */
+    private fun assertQuiet() {
+        shadowOf(Looper.getMainLooper()).idle()
+        compose.waitForIdle()
+        compose.onAllNodes(isFocused()).assertCountEquals(0)
+        compose.onAllNodesWithContentDescription("OK").assertCountEquals(0)
+    }
+
+    /** Taps the scrim at the top, which no sheet reaches. */
+    private fun dismissSheet() {
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Close sheet").performTouchInput {
+            click(Offset(width / 2f, 10f))
+        }
+    }
+
+    private fun scheme(label: String) = hasText(label) and isSelected()
+
+    private fun count(matcher: SemanticsMatcher) =
+        compose.onAllNodes(matcher).fetchSemanticsNodes().size
+
     @Test
     fun `a new expense typed in is stored with its payer and beneficiaries (EN-1, EN-2, EN-4, EN-5)`() {
         show()
         compose.onNodeWithText("New entry").assertExists()
-        compose.onNodeWithText("Description").performTextInput("Taxi")
         enterAmount("12.5")
+        compose.onNodeWithText("Description").performTextInput("Taxi")
         compose.onNodeWithText("12.50").assertExists()
         // The payers are listed first, then the beneficiaries.
         compose.onAllNodesWithText("Anna")[0].performClick()
@@ -159,14 +192,14 @@ class EntryEditorScreenTest {
     }
 
     @Test
-    fun `saving is refused until there is a description and an amount (EN-2)`() {
+    fun `saving is refused until there is an amount and a description (EN-2)`() {
         show()
         compose.onNodeWithText("Save").assertIsNotEnabled()
-        compose.onNodeWithText("Add a description").assertExists()
-        compose.onNodeWithText("Description").performTextInput("Taxi")
         compose.onNodeWithText("Enter an amount").assertExists()
-        compose.onNodeWithText("Save").assertIsNotEnabled()
         enterAmount("5")
+        compose.onNodeWithText("Add a description").assertExists()
+        compose.onNodeWithText("Save").assertIsNotEnabled()
+        compose.onNodeWithText("Description").performTextInput("Taxi")
         compose.onNodeWithText("Save").assertIsEnabled()
         assertTrue(stored().isEmpty())
         assertEquals(0, closed)
@@ -196,6 +229,7 @@ class EntryEditorScreenTest {
         compose.onNodeWithText("10.00").assertExists()
         compose.onNodeWithText("From").assertExists()
         compose.onNodeWithText("To").assertExists()
+        assertQuiet()
         save()
         val entry = stored().values.single()
         assertEquals(Kind.TRANSFER, entry.kind)
@@ -211,6 +245,7 @@ class EntryEditorScreenTest {
         compose.onNodeWithText("New entry").assertExists()
         compose.onNodeWithText("Dinner").assertExists()
         compose.onNodeWithText("30.00").assertExists()
+        assertQuiet()
         save()
         val entries = stored()
         assertEquals(2, entries.size)
@@ -221,5 +256,118 @@ class EntryEditorScreenTest {
         assertEquals(today, copy.date)
         assertEquals(entries.getValue(dinner).payers, copy.payers)
         assertEquals(entries.getValue(dinner).beneficiaries, copy.beneficiaries)
+    }
+
+    @Test
+    fun `editing an entry focuses nothing and opens no calculator (EN-9)`() {
+        show(existing = true, entry = dinner)
+        compose.onNodeWithText("30.00").assertExists()
+        assertQuiet()
+    }
+
+    @Test
+    fun `a blank new entry opens the calculator first, and OK moves on to the description (EN-2)`() {
+        show()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithContentDescription("OK").fetchSemanticsNodes().isNotEmpty()
+        }
+        enterAmount("7")
+        compose.onNodeWithText("7.00").assertExists()
+        compose.waitUntil(5_000) {
+            shadowOf(Looper.getMainLooper()).idle()
+            compose.onAllNodes(isFocused()).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Description").assertIsFocused()
+    }
+
+    @Test
+    fun `dismissing the first calculator leaves the entry as it is (EN-2)`() {
+        show()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithContentDescription("OK").fetchSemanticsNodes().isNotEmpty()
+        }
+        dismissSheet()
+        compose.waitUntil(5_000) {
+            shadowOf(Looper.getMainLooper()).idle()
+            compose.onAllNodesWithContentDescription("OK").fetchSemanticsNodes().isEmpty()
+        }
+        assertQuiet()
+        compose.onNodeWithText("Save").assertIsNotEnabled()
+    }
+
+    @Test
+    fun `the split is chosen on a bar, and equal needs no sheet (SP-1)`() {
+        show()
+        enterAmount("30")
+        for (label in listOf("Equal", "Shares", "Adjusted", "Exact")) {
+            compose.onNodeWithText(label).assertExists()
+        }
+        assertEquals(1, count(scheme("Equal")))
+        compose.onNodeWithText("Equal").performClick()
+        assertEquals(1, count(scheme("Equal")))
+        compose.onAllNodesWithContentDescription("More shares for Anna").assertCountEquals(0)
+        compose.onNodeWithText("Anna 10.00   Ben 10.00   Clara 10.00").assertExists()
+    }
+
+    @Test
+    fun `a non-equal scheme opens the sheet with it chosen, and the entry changes only on OK (SP-1)`() {
+        show()
+        enterAmount("30")
+        compose.onNodeWithText("Shares").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("3 shares in all").fetchSemanticsNodes().isNotEmpty()
+        }
+        // The sheet's tab is on shares, the bar under it still on equal.
+        assertEquals(1, count(scheme("Shares")))
+        assertEquals(1, count(scheme("Equal")))
+        compose.onNodeWithContentDescription("More shares for Anna").performClick()
+        compose.onNodeWithText("Anna 10.00   Ben 10.00   Clara 10.00").assertExists()
+        dismissSheet()
+        compose.waitUntil(5_000) {
+            shadowOf(Looper.getMainLooper()).idle()
+            compose.onAllNodesWithText("4 shares in all").fetchSemanticsNodes().isEmpty()
+        }
+        assertEquals(1, count(scheme("Equal")))
+        assertEquals(0, count(scheme("Shares")))
+        compose.onNodeWithText("Anna 10.00   Ben 10.00   Clara 10.00").assertExists()
+    }
+
+    @Test
+    fun `OK keeps the scheme, the same segment edits it again, and equal drops it (SP-1)`() {
+        show()
+        enterAmount("30")
+        compose.onNodeWithText("Shares").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("3 shares in all").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("More shares for Anna").performClick()
+        compose.onNodeWithText("OK").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("4 shares in all").fetchSemanticsNodes().isEmpty()
+        }
+        assertEquals(1, count(scheme("Shares")))
+        compose.onNodeWithText("Anna 15.00   Ben 7.50   Clara 7.50").assertExists()
+        compose.onNodeWithText("Shares").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("4 shares in all").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("OK").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("4 shares in all").fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithText("Equal").performClick()
+        assertEquals(1, count(scheme("Equal")))
+        compose.onAllNodesWithContentDescription("More shares for Anna").assertCountEquals(0)
+        compose.onNodeWithText("Anna 10.00   Ben 10.00   Clara 10.00").assertExists()
+    }
+
+    @Test
+    @Config(qualifiers = "de-rDE-w360dp-h800dp")
+    fun `the four schemes are labelled in German on a narrow screen (SP-1)`() {
+        show(ready = "Beschreibung")
+        enterAmount("30")
+        for (label in listOf("Gleich", "Anteile", "Angepasst", "Exakt")) {
+            compose.onNodeWithText(label).assertExists()
+        }
     }
 }

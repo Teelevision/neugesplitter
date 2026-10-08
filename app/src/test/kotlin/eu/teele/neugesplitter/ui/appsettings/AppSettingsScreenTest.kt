@@ -1,6 +1,7 @@
 package eu.teele.neugesplitter.ui.appsettings
 
 import android.os.Looper
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
@@ -137,6 +138,15 @@ class AppSettingsScreenTest {
         choose("English")
         awaitGone("Cancel")
         assertEquals("en", languages.current)
+    }
+
+    @Test
+    fun `the rows have no section headings`() {
+        show()
+        for (heading in listOf("Appearance", "About", "Data")) {
+            compose.onNodeWithText(heading).assertDoesNotExist()
+        }
+        compose.onAllNodesWithText("Language").assertCountEquals(1)
     }
 
     @Test

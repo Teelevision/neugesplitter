@@ -55,10 +55,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.balance.Transfer
-import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
-import eu.teele.neugesplitter.ui.EntryRow
 import eu.teele.neugesplitter.ui.InlineEditor
 import eu.teele.neugesplitter.ui.formatted
 import java.util.Locale
@@ -76,7 +74,6 @@ fun PeopleScreen(
     viewModel: PeopleViewModel,
     onBack: () -> Unit,
     onRecord: (Transfer) -> Unit,
-    onOpen: (EntryId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -213,26 +210,6 @@ fun PeopleScreen(
                 // Whoever is acting cannot remove themselves, and nobody is removed twice (GR-6).
                 if (!member.me && !member.removed) {
                     SheetAction(R.drawable.ic_remove, R.string.member_remove) { removing = true }
-                }
-                Heading(R.string.member_entries)
-                if (member.entries.isEmpty()) {
-                    Text(
-                        stringResource(R.string.member_no_entries),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    )
-                }
-                for (entry in member.entries) {
-                    EntryRow(
-                        entry,
-                        state.scale,
-                        locale,
-                        Modifier.clickable {
-                            sheet = null
-                            onOpen(entry.id)
-                        },
-                    )
                 }
             }
         }

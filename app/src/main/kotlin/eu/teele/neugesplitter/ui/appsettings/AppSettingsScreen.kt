@@ -4,12 +4,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,22 +30,28 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.Theme
+import kotlinx.coroutines.launch
 
 private enum class Dialog {
     THEME,
@@ -68,6 +79,12 @@ fun AppSettingsScreen(
     var dialog by rememberSaveable { mutableStateOf<Dialog?>(null) }
     var deleting by rememberSaveable { mutableStateOf(false) }
     var typed by rememberSaveable { mutableStateOf("") }
+    val confirmation = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    val keyboard = WindowInsets.ime.getBottom(LocalDensity.current)
+
+    // The keyboard shrinks the viewport while it animates in, so ask again at every step.
+    LaunchedEffect(deleting, keyboard) { if (deleting) confirmation.bringIntoView() }
 
     Scaffold(
         modifier = modifier,
@@ -93,25 +110,21 @@ fun AppSettingsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(bottom = 16.dp)
         ) {
-            Heading(R.string.settings_appearance)
             SettingRow(
                 stringResource(R.string.theme),
                 stringResource(theme.label),
                 onClick = { dialog = Dialog.THEME },
             )
 
-            Heading(R.string.language)
             SettingRow(
                 stringResource(R.string.language),
                 stringResource(language.label),
                 onClick = { dialog = Dialog.LANGUAGE },
             )
 
-            Heading(R.string.settings_about)
             SettingRow(stringResource(R.string.version), version)
             SettingRow(stringResource(R.string.licence), stringResource(R.string.licence_notice))
 
-            Heading(R.string.settings_data)
             SettingRow(
                 stringResource(R.string.delete_all),
                 supporting = null,
@@ -121,7 +134,10 @@ fun AppSettingsScreen(
             if (deleting) {
                 val word = stringResource(R.string.delete_all_word)
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .bringIntoViewRequester(confirmation)
+                            .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
@@ -133,7 +149,16 @@ fun AppSettingsScreen(
                         onValueChange = { typed = it },
                         label = { Text(stringResource(R.string.delete_all_prompt, word)) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions =
+                            KeyboardOptions(
+                                autoCorrectEnabled = false,
+                                capitalization = KeyboardCapitalization.Characters,
+                                keyboardType = KeyboardType.Text,
+                            ),
+                        modifier =
+                            Modifier.fillMaxWidth().onFocusChanged {
+                                if (it.isFocused) scope.launch { confirmation.bringIntoView() }
+                            },
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -208,19 +233,6 @@ private val String?.label: Int
             "de" -> R.string.language_german
             else -> R.string.system_default
         }
-
-@Composable
-private fun Heading(label: Int) {
-    Text(
-        stringResource(label),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier =
-            Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp).semantics {
-                heading()
-            },
-    )
-}
 
 /** A label and its value; a row with no [onClick] only informs. */
 @Composable

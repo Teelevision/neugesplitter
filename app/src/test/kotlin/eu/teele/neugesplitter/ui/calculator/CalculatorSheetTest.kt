@@ -1,7 +1,6 @@
 package eu.teele.neugesplitter.ui.calculator
 
 import androidx.compose.ui.test.SemanticsNodeInteraction
-import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
@@ -83,14 +82,18 @@ class CalculatorSheetTest {
     }
 
     @Test
-    fun `confirming is refused while the calculation is empty or unfinished (AM-6)`() {
+    fun `confirming is refused while the calculation is empty (AM-6)`() {
         show()
         compose.onNodeWithContentDescription("OK").assertIsNotEnabled()
-        press("5+")
-        compose.onNodeWithContentDescription("OK").assertIsNotEnabled()
-        press("2")
-        compose.onNodeWithContentDescription("OK").assertIsEnabled()
         assertNull(confirmed)
+    }
+
+    @Test
+    fun `an operator still waiting for its number is left out when confirming (AM-6)`() {
+        show()
+        press("5+")
+        confirm()
+        assertEquals(cents(500), confirmed)
     }
 
     @Test

@@ -1,12 +1,21 @@
 package eu.teele.neugesplitter.ui.split
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.text.TextRange
 import eu.teele.neugesplitter.domain.entry.Scheme
 import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.value.Amount
@@ -33,23 +42,21 @@ class SplitSheetTest {
     private val ben = Member(MemberId.parse(id(2)), "Ben")
     private val clara = Member(MemberId.parse(id(3)), "Clara")
 
-    private var scheme: Scheme? = null
-    private var typed: Pair<MemberId, String>? = null
+    private var done: Split? = null
 
     private fun cents(value: Long) = Amount.ofUnits(value * 1_000_000L)
 
-    private fun show(split: Split, amount: Amount? = cents(3000)) {
+    private fun show(start: Split, amount: Amount? = cents(3000)) {
         compose.setContent {
             NeugesplitterTheme {
                 SplitSheet(
                     title = "For",
                     members = listOf(anna, ben, clara),
-                    split = split,
+                    start = start,
                     amount = amount,
                     scale = Scale.DEFAULT,
                     locale = Locale.US,
-                    onScheme = { scheme = it },
-                    onTyped = { member, text -> typed = member to text },
+                    onDone = { done = it },
                     onDismiss = {},
                 )
             }
@@ -57,6 +64,11 @@ class SplitSheetTest {
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("Anna").fetchSemanticsNodes().isNotEmpty()
         }
+    }
+
+    private fun ok(): Split {
+        compose.onNodeWithText("OK").performClick()
+        return done!!
     }
 
     @Test
@@ -71,26 +83,27 @@ class SplitSheetTest {
     }
 
     @Test
-    fun `choosing a scheme reports it (SP-1)`() {
+    fun `the chosen scheme is handed over on OK (SP-1)`() {
         show(Split())
         for (label in listOf("Equal", "Shares", "Adjusted", "Exact")) {
             compose.onNodeWithText(label).assertExists()
         }
-        compose.onNodeWithText("Exact").performClick()
-        assertEquals(Scheme.ABSOLUTE, scheme)
         compose.onNodeWithText("Shares").performClick()
-        assertEquals(Scheme.SHARES, scheme)
+        compose.onNodeWithText("Exact").performClick()
+        assertEquals(null, done)
+        assertEquals(Scheme.ABSOLUTE, ok().scheme)
     }
 
     @Test
-    fun `shares show their parts and total, and typing reports the member (SP-3, SP-6)`() {
+    fun `shares show their parts and total, and what is typed is handed over (SP-3, SP-6)`() {
         val shares = mapOf(anna.id to "2", ben.id to "1", clara.id to "1")
         show(Split(Scheme.SHARES, shares = shares), amount = cents(4000))
         compose.onNodeWithText("20.00").assertExists()
         assertEquals(2, compose.onAllNodesWithText("10.00").fetchSemanticsNodes().size)
         compose.onNodeWithText("4 shares in all").assertExists()
         compose.onAllNodes(hasSetTextAction())[1].performTextReplacement("3")
-        assertEquals(ben.id to "3", typed)
+        compose.onNodeWithText("6 shares in all").assertExists()
+        assertEquals("3", ok().input(ben.id))
     }
 
     @Test
@@ -100,12 +113,53 @@ class SplitSheetTest {
         assertEquals(2, compose.onAllNodesWithText("5.00").fetchSemanticsNodes().size)
         compose.onNodeWithText("Adds up to the amount").assertExists()
         compose.onAllNodes(hasSetTextAction())[2].performTextReplacement("7")
-        assertEquals(clara.id to "7", typed)
+        assertEquals("7", ok().input(clara.id))
     }
 
     @Test
     fun `a value that is not a number is called out (SP-6)`() {
         show(Split(Scheme.SHARES, shares = mapOf(ben.id to "x")))
         compose.onNodeWithText("Not every value is a number").assertExists()
+    }
+
+    @Test
+    fun `plus and minus change a member's shares, and minus stops at none (SP-3)`() {
+        show(Split(Scheme.SHARES, shares = mapOf(anna.id to "1", ben.id to "0")))
+        val fields = compose.onAllNodes(hasSetTextAction())
+        compose.onNodeWithContentDescription("Fewer shares for Ben").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("More shares for Ben").performClick()
+        fields[1].assertTextEquals("1")
+        compose.onNodeWithContentDescription("Fewer shares for Ben").assertIsEnabled()
+        compose.onNodeWithContentDescription("More shares for Anna").performClick()
+        fields[0].assertTextEquals("2")
+        compose.onNodeWithContentDescription("Fewer shares for Anna").performClick()
+        compose.onNodeWithContentDescription("Fewer shares for Anna").performClick()
+        fields[0].assertTextEquals("0")
+        compose.onNodeWithContentDescription("Fewer shares for Anna").assertIsNotEnabled()
+    }
+
+    @Test
+    fun `focusing a shares field selects its text so typing replaces it (SP-3)`() {
+        show(Split(Scheme.SHARES, shares = mapOf(anna.id to "12")))
+        val field = compose.onAllNodes(hasSetTextAction())[0]
+        field.requestFocus()
+        compose.waitUntil(5_000) {
+            field.fetchSemanticsNode().config.getOrNull(SemanticsProperties.TextSelectionRange) ==
+                TextRange(0, 2)
+        }
+        field.performTextReplacement("5")
+        field.assertTextEquals("5")
+    }
+
+    @Test
+    fun `only shares get a stepper (SP-3)`() {
+        show(Split(Scheme.ABSOLUTE))
+        assertEquals(
+            0,
+            compose
+                .onAllNodes(hasContentDescription("More shares", substring = true))
+                .fetchSemanticsNodes()
+                .size,
+        )
     }
 }

@@ -57,9 +57,15 @@ class CalculationTest {
     }
 
     @Test
-    fun `an unfinished calculation has no value (AM-6)`() {
+    fun `an empty calculation has no value (AM-6)`() {
         assertNull(calculate("").value)
-        assertNull(calculate("12+").value)
+        assertNull(calculate("").fault)
+    }
+
+    @Test
+    fun `an operator still waiting for its number is left out of the value`() {
+        assertEquals(amount("12"), calculate("12+").value)
+        assertEquals(amount("15"), calculate("12+3*").value)
         assertNull(calculate("12+").fault)
     }
 

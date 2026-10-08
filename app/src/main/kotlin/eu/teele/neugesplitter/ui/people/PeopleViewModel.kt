@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.teele.neugesplitter.domain.balance.Settlement
 import eu.teele.neugesplitter.domain.balance.Transfer
-import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
@@ -15,7 +14,6 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.storage.GroupRepository
-import eu.teele.neugesplitter.storage.ListedEntry
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,25 +23,20 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/**
- * A member as the people screen lists them, with their settled balance (BA-1).
- *
- * @property entries the entries that count in which they pay or benefit, newest first.
- */
+/** A member as the people screen lists them, with their settled balance (BA-1). */
 data class Person(
     val id: MemberId,
     val name: String,
     val balance: Amount,
     val removed: Boolean,
     val me: Boolean,
-    val entries: List<ListedEntry> = emptyList(),
 )
 
 /**
  * @property loaded false until the group has been read once.
  * @property title the group's emoji and name; null once loaded only if this device no longer holds
  *   the group.
- * @property people largest creditor first (BA-1).
+ * @property people in the order the members were added to the group.
  */
 data class PeopleState(
     val loaded: Boolean = false,
@@ -123,7 +116,6 @@ internal fun people(group: Group, me: MemberId?, today: EntryDate): PeopleState 
         (group.entries.values + occurrences.map { it.entry })
             .flatMap { it.payers.members + it.beneficiaries.members }
             .toSet()
-    val counted = listed(group, occurrences.filterNot { it.pending }.map { it.entry }, me)
     val people =
         group.members.values
             .filter {
@@ -136,11 +128,8 @@ internal fun people(group: Group, me: MemberId?, today: EntryDate): PeopleState 
                     balance = balances.getValue(it.id),
                     removed = it.id in group.removed,
                     me = it.id == me,
-                    entries =
-                        counted.filter { (entry, _) -> it.id in entry.involved }.map { it.second },
                 )
             }
-            .sortedWith(compareByDescending<Person> { it.balance }.thenBy { it.name })
     return PeopleState(
         loaded = true,
         title = listOfNotNull(group.emoji, group.name).joinToString(" "),
@@ -148,34 +137,4 @@ internal fun people(group: Group, me: MemberId?, today: EntryDate): PeopleState 
         people = people,
         transfers = Settlement.transfers(balances),
     )
-}
-
-private val Entry.involved
-    get() = payers.members + beneficiaries.members
-
-/** The entries that count, with [occurrences] that do, as the overview lists them to [me]. */
-private fun listed(
-    group: Group,
-    occurrences: List<Entry>,
-    me: MemberId?,
-): List<Pair<Entry, ListedEntry>> {
-    val repeating = occurrences.mapTo(HashSet()) { it.id }
-    // Reversed first so that, within a day, the stable sort puts the latest created first.
-    return (group.entries.values + occurrences)
-        .reversed()
-        .sortedByDescending { it.date }
-        .map {
-            it to
-                ListedEntry(
-                    id = it.id,
-                    kind = it.kind,
-                    description = it.description,
-                    date = it.date,
-                    amount = it.amount,
-                    payers = it.payers.members.map { payer -> group.members.getValue(payer).name },
-                    own = me?.let { m -> it.beneficiaries.parts(it.amount)[m] },
-                    repeats = it.id in repeating,
-                    edited = group.authors[it.id]?.edited == true,
-                )
-        }
 }

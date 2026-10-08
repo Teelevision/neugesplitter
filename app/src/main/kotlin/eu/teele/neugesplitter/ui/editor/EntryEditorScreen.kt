@@ -1,11 +1,13 @@
 package eu.teele.neugesplitter.ui.editor
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,7 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -58,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.entry.Kind
+import eu.teele.neugesplitter.domain.entry.Scheme
 import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
@@ -85,13 +87,30 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
     var picking by rememberSaveable { mutableStateOf(false) }
     var calculating by rememberSaveable { mutableStateOf(false) }
     var splitting by rememberSaveable { mutableStateOf<Party?>(null) }
+    // The scheme the sheet opens with; the side keeps its own until OK.
+    var splitScheme by rememberSaveable { mutableStateOf(Scheme.EQUAL) }
+    var asked by rememberSaveable { mutableStateOf(false) }
+    var describe by remember { mutableStateOf(false) }
     val label = { party: Party -> if (party == Party.PAYERS) payersLabel else beneficiariesLabel }
     val focus = LocalFocusManager.current
     val description = remember { FocusRequester() }
     val amountTaps = remember { MutableInteractionSource() }
 
     LaunchedEffect(state.done) { if (state.done) onClose() }
-    LaunchedEffect(state.loaded) { if (state.loaded && !state.editing) description.requestFocus() }
+    // Amount first: a blank new entry asks for it right away, once.
+    LaunchedEffect(state.loaded) {
+        if (state.loaded && state.blank && !asked) {
+            asked = true
+            calculating = true
+        }
+    }
+    // Waits for the calculator to be gone, or the keyboard would not show.
+    LaunchedEffect(describe, calculating) {
+        if (describe && !calculating) {
+            describe = false
+            description.requestFocus()
+        }
+    }
     LaunchedEffect(amountTaps) {
         amountTaps.interactions.collect {
             if (it is PressInteraction.Release) {
@@ -187,25 +206,6 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Kinds(state.kind, viewModel::kind)
-            OutlinedTextField(
-                value = state.description,
-                onValueChange = viewModel::description,
-                label = { Text(stringResource(R.string.entry_description)) },
-                singleLine = true,
-                keyboardOptions =
-                    KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Next,
-                    ),
-                keyboardActions =
-                    KeyboardActions(
-                        onNext = {
-                            focus.clearFocus()
-                            calculating = true
-                        }
-                    ),
-                modifier = Modifier.fillMaxWidth().focusRequester(description),
-            )
             // Read-only: tapping it opens the calculator instead of the keyboard (AM-2).
             OutlinedTextField(
                 value = state.amount?.let { formatted(it, state.scale, locale) }.orEmpty(),
@@ -220,6 +220,19 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                 interactionSource = amountTaps,
                 modifier = Modifier.fillMaxWidth(),
             )
+            OutlinedTextField(
+                value = state.description,
+                onValueChange = viewModel::description,
+                label = { Text(stringResource(R.string.entry_description)) },
+                singleLine = true,
+                keyboardOptions =
+                    KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Done,
+                    ),
+                keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
+                modifier = Modifier.fillMaxWidth().focusRequester(description),
+            )
             Section(stringResource(R.string.entry_date)) {
                 OutlinedButton(onClick = { picking = true }) { Text(longDate(state.date, locale)) }
             }
@@ -230,7 +243,19 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                         state.selected(party),
                         if (party == Party.PAYERS) viewModel::payer else viewModel::beneficiary,
                     )
-                    SplitSummary(state, party, locale) { splitting = party }
+                    val open = { scheme: Scheme ->
+                        splitScheme = scheme
+                        splitting = party
+                    }
+                    SplitSummary(
+                        state,
+                        party,
+                        locale,
+                        onScheme = {
+                            if (it == Scheme.EQUAL) viewModel.scheme(party, it) else open(it)
+                        },
+                        onOpen = { open(state.split(party).scheme) },
+                    )
                 }
             }
         }
@@ -253,6 +278,7 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
             onConfirm = {
                 viewModel.amount(it)
                 calculating = false
+                if (state.description.isEmpty()) describe = true
             },
             onDismiss = { calculating = false },
         )
@@ -268,12 +294,14 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
         SplitSheet(
             title = stringResource(label(party)),
             members = order.mapNotNull { names[it] },
-            split = state.split(party),
+            start = state.split(party).copy(scheme = splitScheme),
             amount = state.amount,
             scale = state.scale,
             locale = locale,
-            onScheme = { viewModel.scheme(party, it) },
-            onTyped = { member, text -> viewModel.typed(party, member, text) },
+            onDone = {
+                viewModel.split(party, it)
+                splitting = null
+            },
             onDismiss = { splitting = null },
         )
     }
@@ -281,16 +309,42 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Kinds(selected: Kind, onSelect: (Kind) -> Unit) {
-    val kinds = Kind.entries
+private fun Kinds(selected: Kind, onSelect: (Kind) -> Unit) =
+    Segments(Kind.entries, selected, ::kindLabel, onSelect)
+
+/**
+ * The look shared by the kind bar and the split bar. [compact] drops the check mark and the label
+ * padding, which on 360dp leave four segments too little room for a word like "Angepasst".
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun <T> Segments(
+    options: List<T>,
+    selected: T,
+    label: (T) -> Int,
+    onSelect: (T) -> Unit,
+    compact: Boolean = false,
+) {
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        kinds.forEachIndexed { index, kind ->
-            SegmentedButton(
-                selected = kind == selected,
-                onClick = { onSelect(kind) },
-                shape = SegmentedButtonDefaults.itemShape(index, kinds.size),
-            ) {
-                Text(stringResource(kindLabel(kind)))
+        options.forEachIndexed { index, option ->
+            val shape = SegmentedButtonDefaults.itemShape(index, options.size)
+            val text = @Composable { Text(stringResource(label(option)), maxLines = 1) }
+            if (compact) {
+                SegmentedButton(
+                    selected = option == selected,
+                    onClick = { onSelect(option) },
+                    shape = shape,
+                    contentPadding = PaddingValues(),
+                    icon = {},
+                    label = text,
+                )
+            } else {
+                SegmentedButton(
+                    selected = option == selected,
+                    onClick = { onSelect(option) },
+                    shape = shape,
+                    label = text,
+                )
             }
         }
     }
@@ -323,25 +377,21 @@ private fun Chooser(members: List<Member>, selected: Set<MemberId>, onToggle: (M
 }
 
 /**
- * With more than one member on [party]'s side: how it is split, which opens the split sheet, and
- * what each part comes to (SP-1, SP-6).
+ * With more than one member on [party]'s side: how it is split, chosen on a bar, and what each part
+ * comes to, which opens the split sheet unless the split is equal (SP-1, SP-6).
  */
 @Composable
 private fun SplitSummary(
     state: EntryEditorState,
     party: Party,
     locale: Locale,
+    onScheme: (Scheme) -> Unit,
     onOpen: () -> Unit,
 ) {
     val order = state.ordered(party)
     if (order.size < 2) return
     val split = state.split(party)
-    AssistChip(
-        onClick = onOpen,
-        label = {
-            Text(stringResource(R.string.split_scheme, stringResource(schemeLabel(split.scheme))))
-        },
-    )
+    Segments(Scheme.entries, split.scheme, ::schemeLabel, onScheme, compact = true)
     val amount = state.amount ?: return
     val parts = split.parts(order, amount) ?: return
     val names = state.members.associate { it.id to it.name }
@@ -351,6 +401,7 @@ private fun SplitSummary(
         },
         style = MaterialTheme.typography.bodyMedium.merge(TextStyle(fontFeatureSettings = "tnum")),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.clickable(enabled = split.scheme != Scheme.EQUAL, onClick = onOpen),
     )
 }
 

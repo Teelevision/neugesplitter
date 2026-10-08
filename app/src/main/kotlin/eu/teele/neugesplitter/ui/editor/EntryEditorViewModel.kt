@@ -53,12 +53,14 @@ enum class Party {
  *   removed ones still on the entry.
  * @property source the entry being edited or duplicated. A side that comes out the same as there
  *   stays as it was saved.
+ * @property blank a new entry with nothing prefilled.
  * @property done once the editor should close.
  */
 data class EntryEditorState(
     val date: EntryDate,
     val loaded: Boolean = false,
     val editing: Boolean = false,
+    val blank: Boolean = false,
     val scale: Scale = Scale.DEFAULT,
     val members: List<Member> = emptyList(),
     val source: Entry? = null,
@@ -76,8 +78,8 @@ data class EntryEditorState(
     val problem: Problem?
         get() =
             when {
-                description.isBlank() -> Problem.DESCRIPTION
                 amount?.isPositive != true -> Problem.AMOUNT
+                description.isBlank() -> Problem.DESCRIPTION
                 payers.isEmpty() -> Problem.PAYERS
                 beneficiaries.isEmpty() -> Problem.BENEFICIARIES
                 mismatch(Party.PAYERS) != null -> Problem.PAYER_SPLIT
@@ -175,6 +177,7 @@ class EntryEditorViewModel(
                 val base =
                     state.copy(
                         loaded = true,
+                        blank = entry == null && settling == null,
                         scale = loaded.scale,
                         members =
                             loaded.members.values.filter {
@@ -242,13 +245,8 @@ class EntryEditorViewModel(
     /** Chooses how [party]'s side is split (SP-1). */
     fun scheme(party: Party, scheme: Scheme) = split(party) { it.copy(scheme = scheme) }
 
-    /** Types [text] as [member]'s input to [party]'s split, if it fits there. */
-    fun typed(party: Party, member: MemberId, text: String) {
-        val state = mutable.value
-        if (state.split(party).accepts(member, text, state.scale)) {
-            split(party) { it.typed(member, text) }
-        }
-    }
+    /** Takes [split] for [party]'s side, as the split sheet confirms it. */
+    fun split(party: Party, split: Split) = split(party) { split }
 
     private fun split(party: Party, change: (Split) -> Split) =
         mutable.update {

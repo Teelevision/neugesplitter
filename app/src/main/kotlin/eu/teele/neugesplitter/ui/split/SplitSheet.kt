@@ -11,6 +11,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -20,13 +22,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,8 +59,8 @@ fun schemeLabel(scheme: Scheme): Int =
     }
 
 /**
- * How one side of an entry is split, edited live: the parts under the entry follow every keystroke
- * (SP-1 to SP-6, ui-design 5).
+ * How one side of an entry is split, edited as a draft that starts from [start]: only OK hands it
+ * to [onDone], and leaving the sheet any other way drops it (SP-1 to SP-6, ui-design 5).
  *
  * @param members the members on this side, in the group's order.
  */
@@ -59,14 +69,17 @@ fun schemeLabel(scheme: Scheme): Int =
 fun SplitSheet(
     title: String,
     members: List<Member>,
-    split: Split,
+    start: Split,
     amount: Amount?,
     scale: Scale,
     locale: Locale,
-    onScheme: (Scheme) -> Unit,
-    onTyped: (MemberId, String) -> Unit,
+    onDone: (Split) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var split by remember { mutableStateOf(start) }
+    val onTyped = { member: MemberId, text: String ->
+        if (split.accepts(member, text, scale)) split = split.typed(member, text)
+    }
     val order = members.map { it.id }
     val parts = amount?.let { split.parts(order, it) }
     val figures = TextStyle(fontFeatureSettings = "tnum")
@@ -90,17 +103,20 @@ fun SplitSheet(
                 for (scheme in Scheme.entries) {
                     Tab(
                         selected = scheme == split.scheme,
-                        onClick = { onScheme(scheme) },
+                        onClick = { split = split.copy(scheme = scheme) },
                         text = { Text(stringResource(schemeLabel(scheme)), maxLines = 1) },
                     )
                 }
             }
             members.forEachIndexed { index, member ->
+                val stepping = split.scheme == Scheme.SHARES
+                val imeAction = if (index == members.lastIndex) ImeAction.Done else ImeAction.Next
                 Row(
                     modifier =
                         Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 24.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    // The stepper takes room the names and parts would otherwise have on 360dp.
+                    horizontalArrangement = Arrangement.spacedBy(if (stepping) 8.dp else 16.dp),
                 ) {
                     Text(
                         member.name,
@@ -108,7 +124,14 @@ fun SplitSheet(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
-                    if (split.scheme != Scheme.EQUAL) {
+                    if (stepping) {
+                        SharesStepper(
+                            member = member,
+                            value = split.input(member.id),
+                            imeAction = imeAction,
+                            onChange = { onTyped(member.id, it) },
+                        )
+                    } else if (split.scheme != Scheme.EQUAL) {
                         OutlinedTextField(
                             value = split.input(member.id),
                             onValueChange = { onTyped(member.id, it) },
@@ -119,12 +142,8 @@ fun SplitSheet(
                                     .copy(textAlign = TextAlign.End),
                             keyboardOptions =
                                 KeyboardOptions(
-                                    keyboardType =
-                                        if (split.scheme == Scheme.SHARES) KeyboardType.Number
-                                        else KeyboardType.Decimal,
-                                    imeAction =
-                                        if (index == members.lastIndex) ImeAction.Done
-                                        else ImeAction.Next,
+                                    keyboardType = KeyboardType.Decimal,
+                                    imeAction = imeAction,
                                 ),
                             modifier = Modifier.width(120.dp),
                         )
@@ -133,7 +152,7 @@ fun SplitSheet(
                         parts?.get(member.id)?.let { part(it, scale, locale) }.orEmpty(),
                         style = MaterialTheme.typography.bodyLarge.merge(figures),
                         textAlign = TextAlign.End,
-                        modifier = Modifier.width(96.dp),
+                        modifier = Modifier.width(if (stepping) 80.dp else 96.dp),
                     )
                 }
             }
@@ -142,8 +161,56 @@ fun SplitSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Total(split, order, amount, scale, locale, Modifier.weight(1f))
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
+                TextButton(onClick = { onDone(split) }) { Text(stringResource(R.string.ok)) }
             }
+        }
+    }
+}
+
+/** [member]'s shares: a number to type over, with a button each side to add or take one. */
+@Composable
+private fun SharesStepper(
+    member: Member,
+    value: String,
+    imeAction: ImeAction,
+    onChange: (String) -> Unit,
+) {
+    // Typing may be refused, then the field shows [value] again.
+    var field by remember { mutableStateOf(TextFieldValue(value)) }
+    val shown = if (field.text == value) field else TextFieldValue(value, TextRange(value.length))
+    val shares = value.toLongOrNull() ?: 0L
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = { onChange((shares - 1).toString()) }, enabled = shares > 0) {
+            Icon(
+                painterResource(R.drawable.ic_minus),
+                stringResource(R.string.split_shares_fewer, member.name),
+            )
+        }
+        OutlinedTextField(
+            value = shown,
+            onValueChange = {
+                field = it
+                if (it.text != value) onChange(it.text)
+            },
+            singleLine = true,
+            textStyle =
+                MaterialTheme.typography.bodyLarge
+                    .merge(TextStyle(fontFeatureSettings = "tnum"))
+                    .copy(textAlign = TextAlign.Center),
+            keyboardOptions =
+                KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = imeAction),
+            modifier =
+                Modifier.width(64.dp).onFocusChanged {
+                    if (it.isFocused) {
+                        field = TextFieldValue(shown.text, TextRange(0, shown.text.length))
+                    }
+                },
+        )
+        IconButton(onClick = { onChange((shares + 1).toString()) }) {
+            Icon(
+                painterResource(R.drawable.ic_add),
+                stringResource(R.string.split_shares_more, member.name),
+            )
         }
     }
 }

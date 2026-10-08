@@ -153,7 +153,6 @@ pre-filled as a transfer, so confirming is one further tap (BA-6).
 **Managing members.** A member row is tapped to open the member sheet:
 
 - rename (the name is per group, ID-2)
-- see that member's entries
 - remove, only from inside the sheet, behind a confirmation that says plainly
   that removing does not take away access to the backend and that their past
   entries are untouched (GR-6, GR-7, BE-13)
@@ -221,8 +220,8 @@ and a save action. Top to bottom:
 When more than one member is on a side, the per-member result is shown under
 that side as the user types, both sides at once (SP-6). Save is disabled, with
 the reason stated inline, when absolute values do not sum to the total or
-adjustments add up to more than the total (SP-6), or when the amount is
-unfinished or meaningless (AM-6).
+adjustments add up to more than the total (SP-6), or when the amount is missing
+or meaningless (AM-6).
 
 A transfer relabels the two sides as "from" and "to" and hides the split schemes
 unless more than one member is selected (EN-7).
@@ -232,9 +231,9 @@ unless more than one member is selected (EN-7).
 A full-width sheet that replaces the keyboard: digits, decimal separator, `+`,
 `-`, `*`, `/`, a backspace and a clear (AM-4). No parentheses and no precedence
 — each operator commits the expression so far, and the running result stays
-visible above the keypad (AM-2, AM-3). Confirming rounds to the group's two
-places and writes the number into the entry; the calculation itself is not kept
-(AM-5, AM-7).
+visible above the keypad (AM-2, AM-3). Confirming leaves out an operator still
+waiting for its number, rounds to the group's two places and writes the number
+into the entry; the calculation itself is not kept (AM-5, AM-6, AM-7).
 
 ### Split editor
 

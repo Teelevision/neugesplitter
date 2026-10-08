@@ -274,8 +274,9 @@ of everyone entering the same backend settings.
   comitting and to clear the whole calculation.
 - **AM-5** (Core): Only the resulting number is stored with the entry; the
   calculation itself is not kept.
-- **AM-6** (Core): Meaningless input (e.g. division by zero, an unfinished
-  operation) MUST be prevented or clearly indicated, and MUST NOT be saveable.
+- **AM-6** (Core): Meaningless input (e.g. division by zero) MUST be prevented
+  or clearly indicated, and MUST NOT be saveable. Confirming while an operator
+  still waits for its number leaves that operator out.
 - **AM-7** (Core): Amounts MUST be entered and displayed with two decimal
   places. The number of places is a property of the group, fixed when the group
   is created; a calculator result with more places MUST be rounded to it when

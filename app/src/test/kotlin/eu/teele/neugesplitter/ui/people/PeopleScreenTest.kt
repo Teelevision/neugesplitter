@@ -68,11 +68,7 @@ class PeopleScreenTest {
     private fun eventId() = EventId.parse(id(0x100 + events++))
 
     /** Anna's group, acted in as Anna, after Anna paid [paid] for all three of them. */
-    private fun show(
-        paid: Amount?,
-        onRecord: (Transfer) -> Unit = {},
-        onOpen: (EntryId) -> Unit = {},
-    ) {
+    private fun show(paid: Amount?, onRecord: (Transfer) -> Unit = {}) {
         val created =
             Group.create(trip, "Trip", null, "⛺", null, listOf(anna, ben, clara), at, ::eventId)
         groups.create(created, today)
@@ -90,7 +86,7 @@ class PeopleScreenTest {
             groups.append(trip, listOf(Event.EntryCreated(eventId(), anna.id, at, dinner)), today)
         }
         val viewModel = PeopleViewModel(groups, trip, { id(0x100 + events++) }, { today }, { at })
-        compose.setContent { NeugesplitterTheme { PeopleScreen(viewModel, {}, onRecord, onOpen) } }
+        compose.setContent { NeugesplitterTheme { PeopleScreen(viewModel, {}, onRecord) } }
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("⛺ Trip").fetchSemanticsNodes().isNotEmpty()
         }
@@ -113,7 +109,7 @@ class PeopleScreenTest {
         compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
 
     @Test
-    fun `members show what they are owed or owe, largest creditor first (BA-1)`() {
+    fun `members show what they are owed or owe, in the order they were added (BA-1)`() {
         show(paid = cents(3000))
         compose.onNodeWithText("is owed 20.00").assertExists()
         assertEquals(2, compose.onAllNodesWithText("owes 10.00").fetchSemanticsNodes().size)
@@ -185,24 +181,6 @@ class PeopleScreenTest {
     }
 
     @Test
-    fun `the member sheet lists their entries and opens one (GR-5)`() {
-        var opened: EntryId? = null
-        show(paid = cents(3000), onOpen = { opened = it })
-        compose.onNodeWithText("Ben").performClick()
-        compose.onNodeWithText("Entries").assertExists()
-        compose.onNodeWithText("Paid by Anna").assertExists()
-        compose.onNodeWithText("Dinner").performClick()
-        assertEquals(EntryId.parse(id(10)), opened)
-    }
-
-    @Test
-    fun `a member in no entry shows none (GR-5)`() {
-        show(paid = null)
-        compose.onNodeWithText("Ben").performClick()
-        compose.onNodeWithText("No entries").assertExists()
-    }
-
-    @Test
     fun `removing a member asks first, keeps their balance and offers them no more (GR-6, GR-7, BE-13)`() {
         show(paid = cents(3000))
         val settled = groups.load(trip)!!.settlement(today)
@@ -231,7 +209,6 @@ class PeopleScreenTest {
 
         compose.onNodeWithText("Clara").performClick()
         compose.onNodeWithText("Rename").assertExists()
-        compose.onNodeWithText("Dinner").assertExists()
         assertEquals(0, compose.onAllNodesWithText("Remove from group").fetchSemanticsNodes().size)
     }
 

@@ -49,8 +49,8 @@ data class Calculation(
     private val outcome: Outcome by lazy { outcome() }
 
     /**
-     * What confirming gives, rounded to [scale] (AM-7, TR-35), or null if the calculation is empty,
-     * unfinished or meaningless (AM-6).
+     * What confirming gives, rounded to [scale] (AM-7, TR-35), or null if the calculation is empty
+     * or meaningless (AM-6). An operator still waiting for its number is left out.
      */
     val value: Amount?
         get() = (outcome as? Outcome.Value)?.amount
@@ -103,7 +103,6 @@ data class Calculation(
 
     private fun outcome(): Outcome {
         if (typed.isEmpty() && result == null) return Outcome.Unfinished
-        if (typed.isEmpty() && operator != null) return Outcome.Unfinished
         val exact = combined()
         if (exact !is Outcome.Value) return exact
         return within(BigInteger.valueOf(exact.amount.roundedTo(scale).units))

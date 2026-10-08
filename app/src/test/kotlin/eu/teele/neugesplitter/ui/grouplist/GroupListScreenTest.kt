@@ -119,11 +119,10 @@ class GroupListScreenTest {
     }
 
     @Test
-    fun `the overflow menu opens the app settings (UX-3)`() {
+    fun `the settings button opens the app settings (UX-3)`() {
         var opened = 0
         show(onSettings = { opened++ })
-        compose.onNodeWithContentDescription("More options").performClick()
-        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithContentDescription("Settings").performClick()
         assertEquals(1, opened)
     }
 
