@@ -30,13 +30,16 @@ A group occupies a prefix in a bucket:
 <prefix>/log/0000000        the root object
 <prefix>/log/0000001        further batches
 <prefix>/attachments/<hash>
+<prefix>/probe              left by the backend check
 ```
 
 Log object names are exactly seven lowercase hex digits. Names outside that
 shape MUST be ignored by readers and MUST NOT be written. The name is the
-object's **number**. Names establish the order in which objects are _fetched_;
-the hash chain of section 5.3 establishes the order in which they are
-_believed_.
+object's **number**. `probe` is written by the backend check of BE-7, which
+needs a key it may create without touching the log (sync-design 4); its content
+means nothing and readers MUST ignore it. Names establish the order in which
+objects are _fetched_; the hash chain of section 5.3 establishes the order in
+which they are _believed_.
 
 **A stored object is either plain JSON or an age file, and nothing else.** There
 is no container of ours, no magic bytes, no header. Standard tools are meant to

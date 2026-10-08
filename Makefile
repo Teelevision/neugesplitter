@@ -22,6 +22,13 @@ domain: ## Run the domain tests alone, which is the fast loop
 .PHONY: codec
 codec: ## Run the :format tests and the format-spec vectors
 	$(GRADLE) :format:test
+
+# Colima and Docker Desktop keep their socket elsewhere; the containers still see it at the usual place.
+.PHONY: integration
+integration: ## Run the backend suite against SeaweedFS in Docker (TR-48)
+	DOCKER_HOST=$${DOCKER_HOST:-$$(docker context inspect -f '{{.Endpoints.docker.Host}}')} \
+	TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
+	$(GRADLE) :backend-s3:integrationTest
 .PHONY: format
 format: ## Apply ktfmt and prettier
 	$(GRADLE) spotlessApply

@@ -49,6 +49,7 @@ produces. The backend computes nothing.
     0000134            one object, one batch of events, written once
   attachments/
     <attachment-id>    opaque blobs, referenced by events
+  probe                left by the backend test (section 4)
 ```
 
 Object numbers are seven lowercase hex digits, so a lexicographic listing is
@@ -88,7 +89,10 @@ than rethinking anything.
 conditional writes at all. The backend test (BE-7) must therefore write a probe
 key twice and require a `412`, and refuse the backend if it does not get one. A
 server that fails that test is not supported in a degraded mode: silently losing
-an entry is not a degraded mode.
+an entry is not a degraded mode. The key is `probe`, beside `log/`, and it is
+never deleted, because nothing here can delete: the next installation to check
+the location gets its `412` on the first write instead of the second, which
+answers the same question.
 
 Two things follow from numbering. **Order is fixed at write time**, identically
 for everyone, so the timestamps recorded inside events stay a record and never

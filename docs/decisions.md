@@ -71,6 +71,26 @@ are described in [sync-design.md](sync-design.md).
   parts a hand-written stack would have had to grow, so writing one would only
   have postponed the dependency. Navigation 2 was the alternative; it keeps the
   stack inside a controller the app can only send commands to.
+- **Which HTTP client does `:backend-s3` use?** OkHttp. TR-27 wants exact
+  control over each request, and OkHttp sends the headers it is given —
+  `If-None-Match: *` included — and adds nothing that changes what a `PUT`
+  means: no `Expect: 100-continue`, no cache unless one is configured, and with
+  its retries switched off nothing is resent behind the writer's back. It is the
+  same library on the JVM, where the integration suite runs, and on Android, so
+  what the tests exercise is what the phone sends, and its `MockWebServer` is
+  the backend that lacks conditional writes in TR-49's test. Apache 2.0.
+  `HttpURLConnection` needed no dependency, but it is a different implementation
+  on each of the two platforms; Ktor would have put an engine abstraction over
+  the same thing. SigV4 is a page of `MessageDigest` and `Mac`, and the listing
+  is parsed with the platform's SAX parser, so neither needs a library.
+- **Which S3 server does the integration suite run against?** SeaweedFS. TR-48
+  needs a real implementation in a container. MinIO was the obvious one, but its
+  community images stopped being published in 2025, and an image that no longer
+  changes is a poor thing to pin a check to. SeaweedFS is Apache 2.0,
+  maintained, starts a whole cluster in one process, and documents
+  `If-None-Match: *` as compare-and-create. The suite is its own task,
+  `make integration`, outside `check`: it needs Docker and pulls an image, and
+  TR-51's clean build needs neither.
 - **Passphrase or key pair?** A key pair. age can encrypt to a passphrase
   directly, but it derives a key with scrypt for every file, deliberately and
   expensively — which would make decrypting a whole history, in the app or at a

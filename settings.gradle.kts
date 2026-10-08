@@ -32,3 +32,7 @@ include(":domain")
 include(":format")
 
 include(":storage")
+
+include(":sync")
+
+include(":backend-s3")

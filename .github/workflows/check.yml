@@ -26,6 +26,11 @@ jobs:
           ./gradlew check assembleDebug
           -Porg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_25_X64
 
+      # Against SeaweedFS in Docker, which the runner has (TR-48).
+      - run: >
+          ./gradlew :backend-s3:integrationTest
+          -Porg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_25_X64
+
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

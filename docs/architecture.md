@@ -72,7 +72,7 @@ neugesplitter/
 │   ├── crypto/       AgeCodec port and binding, key pair, passphrase generation
 │   └── derived/      occurrence ids
 ├── sync/src/main/kotlin/eu/teele/neugesplitter/sync/
-│   ├── LogStore.kt   the backend port: createIfAbsent, get, listFrom, putAttachment
+│   ├── LogStore.kt   the backend port: createIfAbsent, get, listFrom, createProbe
 │   ├── LocalLog.kt   the retention port: retained bytes in, retained bytes out
 │   ├── writer/       batching, conditional write, batch-id recovery
 │   ├── reader/       listing, truncation detection, verify-then-apply
