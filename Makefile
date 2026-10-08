@@ -29,6 +29,21 @@ integration: ## Run the backend suite against SeaweedFS in Docker (TR-48)
 	DOCKER_HOST=$${DOCKER_HOST:-$$(docker context inspect -f '{{.Endpoints.docker.Host}}')} \
 	TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
 	$(GRADLE) :backend-s3:integrationTest
+
+S3_IP = $$(ipconfig getifaddr en0)
+
+.PHONY: s3
+s3: ## Serve SeaweedFS on this Mac's Wi-Fi address for a phone, and print its settings
+	docker run -d --name neugesplitter-s3 --restart unless-stopped -p 8333:8333 \
+		-v neugesplitter-s3:/data -v $(CURDIR)/backend-s3/seaweedfs.json:/etc/seaweedfs/s3.json:ro \
+		chrislusf/seaweedfs:4.48 mini -dir=/data -s3.config=/etc/seaweedfs/s3.json -s3.autoCreateBucket=false
+	until curl -sf localhost:8333/healthz > /dev/null; do sleep 1; done
+	for b in groups spare; do echo "s3.bucket.create -name $$b" | docker exec -i neugesplitter-s3 weed shell -master=localhost:9333 > /dev/null; done
+	@printf 'endpoint: http://%s:8333\nbucket: groups\nregion: us-east-1\npath_style: true\naccess_key: writer\nsecret_key: writer-secret\n' "$(S3_IP)"
+
+.PHONY: s3-stop
+s3-stop: ## Remove the SeaweedFS container; its data stays in the neugesplitter-s3 volume
+	docker rm -f neugesplitter-s3
 .PHONY: format
 format: ## Apply ktfmt and prettier
 	$(GRADLE) spotlessApply
