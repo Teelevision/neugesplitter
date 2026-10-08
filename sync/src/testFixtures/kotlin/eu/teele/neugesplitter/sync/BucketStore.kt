@@ -9,7 +9,7 @@ import java.io.IOException
 class BucketStore(
     private val conditional: Boolean = true,
     private val writable: Boolean = true,
-    private val reachable: Boolean = true,
+    @Volatile var reachable: Boolean = true,
 ) : LogStore {
 
     val objects = sortedMapOf<String, ByteArray>()

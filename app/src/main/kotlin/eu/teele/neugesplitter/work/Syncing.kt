@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -34,7 +35,8 @@ import kotlinx.coroutines.withContext
 
 /**
  * Every shared group's sync while the app runs: a pass shortly after local changes stop, bounded
- * (TR-14, SY-14), or at once when asked (TR-13). How each pass ended is recorded for SY-6.
+ * (TR-14, SY-14), or at once when asked (TR-13). How each pass ended is recorded for SY-6, and one
+ * that could not reach the backend goes again after a while.
  */
 class Syncing(
     private val groups: GroupRepository,
@@ -48,6 +50,8 @@ class Syncing(
     private val stores: (BackendSettings, String) -> LogStore,
     private val quiet: Duration = 5.seconds,
     private val bound: Duration = 30.seconds,
+    /** The first wait before a pass that could not reach the backend goes again; it doubles. */
+    private val retry: Duration = 30.seconds,
     private val context: CoroutineContext = Dispatchers.IO,
 ) {
     private val running = ConcurrentHashMap<GroupId, Runner>()
@@ -127,6 +131,8 @@ class Syncing(
             )
         val debounce = Debounce(scope, quiet, bound) { pass() }
         private var sync: GroupSync? = null
+        private var again: Job? = null
+        private var failures = 0
 
         init {
             scope.launch {
@@ -140,6 +146,7 @@ class Syncing(
         }
 
         private suspend fun pass() {
+            again?.cancel()
             val sync = sync ?: built() ?: return groups.backends.failed(id, Failure.LOCKED)
             this.sync = sync
             try {
@@ -147,8 +154,19 @@ class Syncing(
                     is Upload.Halted -> groups.backends.halted(id, upload)
                     else -> groups.backends.succeeded(id, now())
                 }
+                failures = 0
             } catch (e: StoreException) {
-                groups.backends.failed(id, Failure.of(e))
+                val failure = Failure.of(e)
+                groups.backends.failed(id, failure)
+                // Denied and missing wait for a person; the others may pass on their own.
+                if (failure == Failure.UNREACHABLE || failure == Failure.FAILED) {
+                    val wait = retry * (1 shl minOf(failures++, 4))
+                    again =
+                        scope.launch {
+                            delay(wait)
+                            debounce.now()
+                        }
+                }
             }
         }
 

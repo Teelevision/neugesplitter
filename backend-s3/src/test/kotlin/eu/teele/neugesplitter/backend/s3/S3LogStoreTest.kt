@@ -11,6 +11,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import mockwebserver3.MockResponse
+import mockwebserver3.SocketEffect
 
 class S3LogStoreTest {
 
@@ -73,6 +75,33 @@ class S3LogStoreTest {
         }
         server.close()
         assertFailsWith<StoreException.Unreachable> { store.get(ObjectNumber.ROOT) }
+    }
+
+    @Test
+    fun `a read goes again on a connection the backend closed while idle`() = runBlocking {
+        val store = server.store()
+        server.server.enqueue(
+            MockResponse.Builder()
+                .code(404)
+                .body(error("NoSuchKey"))
+                .onResponseEnd(SocketEffect.ShutdownConnection)
+                .build()
+        )
+        server.enqueue(200, "{}")
+        assertNull(store.get(ObjectNumber.ROOT))
+        assertContentEquals("{}".toByteArray(), store.get(ObjectNumber.ROOT))
+    }
+
+    @Test
+    fun `a write is never sent twice (sync-design 4)`(): Unit = runBlocking {
+        server.server.enqueue(
+            MockResponse.Builder().onResponseStart(SocketEffect.ShutdownConnection).build()
+        )
+        server.enqueue(200)
+        assertFailsWith<StoreException.Unreachable> {
+            server.store().createIfAbsent(ObjectNumber(1), ByteArray(0))
+        }
+        assertEquals(1, server.server.requestCount)
     }
 
     @Test

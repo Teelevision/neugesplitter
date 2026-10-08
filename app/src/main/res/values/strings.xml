@@ -210,7 +210,8 @@
     <string name="setup_not_checked">Not checked</string>
     <string name="setup_not_checked_read_only">Not needed without write access.</string>
     <string name="setup_empty">Empty</string>
-    <string name="setup_empty_text">There is no data at this location yet. The group is created here.</string>
+    <string name="setup_empty_text">There is no data at this location yet.</string>
+    <string name="setup_empty_created">The group is created here.</string>
     <string name="setup_empty_read_only">With read access only, the group cannot be created here.</string>
     <string name="setup_empty_connected">This group is already shared elsewhere. Moving it to another location is not possible yet.</string>
     <string name="setup_same">This group</string>

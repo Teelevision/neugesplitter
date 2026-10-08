@@ -115,6 +115,7 @@ class SyncingTest {
             { _, _ -> store },
             quiet = 20.milliseconds,
             bound = 100.milliseconds,
+            retry = 50.milliseconds,
         )
 
     private fun created() {
@@ -225,6 +226,20 @@ class SyncingTest {
         syncing().start()
         appended()
         assertEquals(Failure.LOCKED, settled { it.failure == Failure.LOCKED }.failure)
+    }
+
+    @Test
+    fun `a pass that could not reach the backend goes again by itself (SY-6)`() {
+        created()
+        val flaky = BucketStore(reachable = false)
+        runBlocking { syncing(store = flaky).connect(trip, settings, "secret") }
+        settled { it.failure == Failure.UNREACHABLE }
+
+        flaky.reachable = true
+        val state = settled { it.failure == null }
+        assertEquals(at, state.succeeded)
+        assertEquals(0L, state.waiting)
+        assertNotNull(flaky.at(0))
     }
 
     @Test

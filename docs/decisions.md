@@ -75,14 +75,15 @@ are described in [sync-design.md](sync-design.md).
   control over each request, and OkHttp sends the headers it is given —
   `If-None-Match: *` included — and adds nothing that changes what a `PUT`
   means: no `Expect: 100-continue`, no cache unless one is configured, and with
-  its retries switched off nothing is resent behind the writer's back. It is the
-  same library on the JVM, where the integration suite runs, and on Android, so
-  what the tests exercise is what the phone sends, and its `MockWebServer` is
-  the backend that lacks conditional writes in TR-49's test. Apache 2.0.
-  `HttpURLConnection` needed no dependency, but it is a different implementation
-  on each of the two platforms; Ktor would have put an engine abstraction over
-  the same thing. SigV4 is a page of `MessageDigest` and `Mac`, and the listing
-  is parsed with the platform's SAX parser, so neither needs a library.
+  its retries switched off for writes nothing is resent behind the writer's
+  back. It is the same library on the JVM, where the integration suite runs, and
+  on Android, so what the tests exercise is what the phone sends, and its
+  `MockWebServer` is the backend that lacks conditional writes in TR-49's test.
+  Apache 2.0. `HttpURLConnection` needed no dependency, but it is a different
+  implementation on each of the two platforms; Ktor would have put an engine
+  abstraction over the same thing. SigV4 is a page of `MessageDigest` and `Mac`,
+  and the listing is parsed with the platform's SAX parser, so neither needs a
+  library.
 - **Which S3 server does the integration suite run against?** SeaweedFS. TR-48
   needs a real implementation in a container. MinIO was the obvious one, but its
   community images stopped being published in 2025, and an image that no longer

@@ -6,7 +6,6 @@ import android.os.PersistableBundle
 import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -474,7 +473,7 @@ private fun WhatIsThere(state: BackendSetupState) {
             Found(
                 R.drawable.ic_folder,
                 R.string.setup_empty,
-                listOfNotNull(R.string.setup_empty_text, blocked),
+                listOf(R.string.setup_empty_text, blocked ?: R.string.setup_empty_created),
                 if (blocked == null) colours.surfaceContainerHigh else colours.errorContainer,
             )
         }
@@ -602,6 +601,9 @@ private fun ColumnScope.Passphrase(state: BackendSetupState, viewModel: BackendS
     ) {
         Text(stringResource(R.string.next))
     }
+    if (state.busy) {
+        CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
+    }
     TextButton(
         onClick = { viewModel.custom(!state.custom) },
         modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -628,24 +630,10 @@ private fun Generated(state: BackendSetupState, viewModel: BackendSetupViewModel
             ),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Box(Modifier.fillMaxWidth().padding(16.dp)) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(top = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                state.words.chunked(3).forEach { row ->
-                    Row(Modifier.fillMaxWidth()) {
-                        row.forEach {
-                            Text(
-                                it,
-                                style = MaterialTheme.typography.titleMedium,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    }
-                }
-            }
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             IconButton(
                 onClick = {
                     // Marked sensitive, so the system does not show it in its copy preview.
@@ -656,12 +644,24 @@ private fun Generated(state: BackendSetupState, viewModel: BackendSetupViewModel
                         }
                     scope.launch { clipboard.setClipEntry(ClipEntry(clip)) }
                 },
-                modifier = Modifier.align(Alignment.TopEnd),
+                modifier = Modifier.align(Alignment.End),
             ) {
                 Icon(
                     painterResource(R.drawable.ic_content_copy),
                     stringResource(R.string.passphrase_copy),
                 )
+            }
+            state.words.chunked(3).forEach { row ->
+                Row(Modifier.fillMaxWidth()) {
+                    row.forEach {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.titleMedium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
         }
     }

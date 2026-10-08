@@ -153,6 +153,7 @@ class BackendSetupScreenTest {
         compose.onNodeWithText("Simultaneous changes protected").assertExists()
         click("Next")
         compose.onNodeWithText("Empty").assertExists()
+        compose.onNodeWithText("The group is created here.").assertExists()
         click("Next")
         compose.onNodeWithText("Next").assertIsNotEnabled()
         click("Without encryption")
@@ -266,6 +267,7 @@ class BackendSetupScreenTest {
         compose
             .onNodeWithText("With read access only, the group cannot be created here.")
             .assertExists()
+        compose.onNodeWithText("The group is created here.").assertDoesNotExist()
         compose.onNodeWithText("Next").assertIsNotEnabled()
     }
 

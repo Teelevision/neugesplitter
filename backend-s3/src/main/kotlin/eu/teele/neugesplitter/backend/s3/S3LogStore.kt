@@ -29,6 +29,9 @@ internal constructor(
 
     constructor(location: S3Location) : this(location, CLIENT, Clock.systemUTC(), 1000)
 
+    /** Reads may be resent, so one on a connection the backend closed while idle goes again. */
+    private val reads = http.newBuilder().retryOnConnectionFailure(true).build()
+
     override suspend fun createIfAbsent(number: ObjectNumber, bytes: ByteArray): Write =
         create(log(number), bytes)
 
@@ -136,7 +139,7 @@ internal constructor(
 
         return withContext(Dispatchers.IO) {
             try {
-                http.newCall(request).execute().use { response ->
+                (if (method == "GET") reads else http).newCall(request).execute().use { response ->
                     val source = response.body.source()
                     if (source.request(MAX_BODY + 1L)) {
                         throw StoreException.Failed("the backend sent more than $MAX_BODY bytes")
@@ -201,8 +204,8 @@ internal constructor(
             "Left by Neugesplitter's backend check (BE-7). Nothing reads it.\n".toByteArray()
 
         /**
-         * Retries and redirects off: a resent conditional write could lose to itself, and a
-         * redirect would carry a signature made for another host.
+         * Retries (but for [reads]) and redirects off: a resent conditional write could lose to
+         * itself, and a redirect would carry a signature made for another host.
          */
         val CLIENT: OkHttpClient =
             OkHttpClient.Builder()
