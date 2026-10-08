@@ -73,6 +73,8 @@ fun GroupSettingsScreen(
     onBack: () -> Unit,
     onDeleted: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Opens backend setup: to share the group, or to give its location a new secret. */
+    onBackend: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var dialog by rememberSaveable { mutableStateOf<Dialog?>(null) }
@@ -159,11 +161,43 @@ fun GroupSettingsScreen(
                     onClick = { dialog = Dialog.PARTICIPANTS },
                 )
             }
-            item(key = "local") {
-                SettingRow(
-                    stringResource(R.string.storage_local),
-                    stringResource(R.string.storage_local_warning),
-                )
+            val backend = state.backend
+            if (backend == null) {
+                item(key = "local") {
+                    SettingRow(
+                        stringResource(R.string.storage_local),
+                        stringResource(R.string.storage_local_warning),
+                    )
+                }
+                item(key = "share") {
+                    SettingRow(
+                        stringResource(R.string.storage_set_up),
+                        supporting = null,
+                        onClick = onBackend,
+                        headlineColour = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            } else {
+                item(key = "shared") {
+                    SettingRow(
+                        stringResource(R.string.storage_shared),
+                        stringResource(
+                            R.string.storage_shared_summary,
+                            backend.host,
+                            backend.bucket,
+                        ),
+                        onClick = onBackend,
+                    )
+                }
+                item(key = "encryption") {
+                    SettingRow(
+                        stringResource(R.string.encryption),
+                        stringResource(
+                            if (backend.encrypted) R.string.encryption_on
+                            else R.string.encryption_off
+                        ),
+                    )
+                }
             }
             item(key = "delete") {
                 SettingRow(

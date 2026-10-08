@@ -28,6 +28,8 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.ui.appsettings.AppSettingsScreen
 import eu.teele.neugesplitter.ui.appsettings.AppSettingsViewModel
+import eu.teele.neugesplitter.ui.backend.BackendSetupScreen
+import eu.teele.neugesplitter.ui.backend.BackendSetupViewModel
 import eu.teele.neugesplitter.ui.detail.EntryDetailScreen
 import eu.teele.neugesplitter.ui.detail.EntryDetailViewModel
 import eu.teele.neugesplitter.ui.editor.EntryEditorScreen
@@ -85,6 +87,9 @@ data class EntryEditor(
 @Serializable data class EntryDetail(val group: String, val entry: String) : NavKey
 
 @Serializable data class EntryHistory(val group: String, val entry: String) : NavKey
+
+/** @property group the group's id, as hex. */
+@Serializable data class BackendSetup(val group: String) : NavKey
 
 /** Every screen, and how one leads to the next (ui-design 2). */
 @Composable
@@ -154,10 +159,29 @@ fun App(graph: AppGraph) {
                             )
                         },
                         onClose = { pop() },
-                        onCreated = {
+                        onCreated = { id, shared ->
                             pop()
-                            stack.add(GroupOverview(it.hex))
+                            stack.add(GroupOverview(id.hex))
+                            if (shared) stack.add(BackendSetup(id.hex))
                         },
+                    )
+                }
+                entry<BackendSetup> { key ->
+                    val locale = LocalConfiguration.current.locales[0]
+                    BackendSetupScreen(
+                        viewModel {
+                            BackendSetupViewModel(
+                                graph.groups,
+                                GroupId.parse(key.group),
+                                graph::today,
+                                locale,
+                                graph.stores,
+                                graph.syncing::newKey,
+                                graph.syncing::connect,
+                            )
+                        },
+                        onClose = { pop() },
+                        onDone = { pop() },
                     )
                 }
                 entry<GroupOverview> { key ->
@@ -226,6 +250,7 @@ fun App(graph: AppGraph) {
                                         )
                                     },
                                     onBack = { pop() },
+                                    onBackend = { stack.add(BackendSetup(key.group)) },
                                     onDeleted = { while (stack.size > 1) pop() },
                                     modifier = modifier,
                                 )

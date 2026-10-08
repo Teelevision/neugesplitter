@@ -25,6 +25,7 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.storage.settings.BackendSettings
 import eu.teele.neugesplitter.ui.theme.GROUP_COLOURS
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
 import java.time.Instant
@@ -49,6 +50,7 @@ class GroupSettingsScreenTest {
     private val at = Instant.parse("2026-10-07T12:00:00Z")
     private var ids = 0
     private var deleted = false
+    private var backend = 0
 
     private fun id(n: Int) = "%032x".format(n)
 
@@ -65,15 +67,21 @@ class GroupSettingsScreenTest {
     private fun eventId() = EventId.parse(id(0x100 + ids++))
 
     /** Anna's group "Trip", with no description, emoji or colour, acted in as Anna. */
-    private fun show() {
+    private fun show(before: () -> Unit = {}) {
         val created =
             Group.create(trip, "Trip", null, null, null, listOf(anna, ben, clara), at, ::eventId)
         groups.create(created, today)
+        before()
         val viewModel =
             GroupSettingsViewModel(groups, trip, { id(0x100 + ids++) }, { today }, { at })
         compose.setContent {
             NeugesplitterTheme {
-                GroupSettingsScreen(viewModel, onBack = {}, onDeleted = { deleted = true })
+                GroupSettingsScreen(
+                    viewModel,
+                    onBack = {},
+                    onDeleted = { deleted = true },
+                    onBackend = { backend++ },
+                )
             }
         }
         compose.waitUntil(5_000) {
@@ -249,6 +257,24 @@ class GroupSettingsScreenTest {
         compose
             .onNodeWithText("Quick to set up. This group is lost if the device is lost.")
             .assertExists()
+        open("Set up shared storage")
+        assertEquals(1, backend)
+    }
+
+    @Test
+    fun `a shared group names its location and encryption, and opens setup for a new secret (BE-1, PR-11)`() {
+        show {
+            groups.backends.connect(
+                trip,
+                BackendSettings("https://s3.example", "splits", "", "auto", false, "AK"),
+            )
+        }
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Encryption"))
+        compose.onNodeWithText("S3 · s3.example · splits").assertExists()
+        compose.onNodeWithText("Off").assertExists()
+        compose.onNodeWithText("Only on this device").assertDoesNotExist()
+        open("Shared storage (S3)")
+        assertEquals(1, backend)
     }
 
     @Test

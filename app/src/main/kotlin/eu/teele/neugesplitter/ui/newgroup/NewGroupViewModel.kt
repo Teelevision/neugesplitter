@@ -42,6 +42,7 @@ data class NewGroupState(
     val colour: Colour = GROUP_COLOURS.first(),
     val you: String = "",
     val others: List<String> = emptyList(),
+    val shared: Boolean = false,
     val creating: Boolean = false,
     val failed: Boolean = false,
     val created: Boolean = false,
@@ -85,6 +86,9 @@ class NewGroupViewModel(
     fun removeMember(index: Int) =
         mutable.update { it.copy(others = it.others.toMutableList().apply { removeAt(index) }) }
 
+    /** Shared storage is set up once the group exists (BE-1, BE-2). */
+    fun shared(shared: Boolean) = mutable.update { it.copy(shared = shared) }
+
     /** Moves to the next step, or creates the group from the last one. */
     fun next() {
         val state = mutable.value
@@ -108,7 +112,7 @@ class NewGroupViewModel(
         return true
     }
 
-    /** Stores the group on this device only, the one backend this version has (BE-1, DA-1). */
+    /** Stores the group on this device; sharing it comes after (BE-1, DA-1). */
     private fun create(state: NewGroupState) {
         mutable.update { it.copy(creating = true, failed = false) }
         val names = listOf(state.you) + state.others.filter { it.isNotBlank() }

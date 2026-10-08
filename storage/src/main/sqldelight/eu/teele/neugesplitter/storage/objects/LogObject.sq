@@ -18,6 +18,11 @@ SELECT bytes
 FROM log_object
 WHERE group_id = ? AND number = 0 AND batch IS NULL;
 
+first:
+SELECT bytes
+FROM log_object
+WHERE group_id = ? AND number = 0;
+
 inGroup:
 SELECT number, batch, bytes
 FROM log_object

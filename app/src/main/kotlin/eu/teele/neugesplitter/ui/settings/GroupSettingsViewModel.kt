@@ -13,12 +13,13 @@ import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.GroupRepository
+import java.net.URI
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -40,7 +41,11 @@ data class GroupSettingsState(
     val colour: Colour? = null,
     val members: List<Member> = emptyList(),
     val defaultParticipants: List<MemberId>? = null,
+    val backend: Shared? = null,
 )
+
+/** Where a shared group is kept, and whether it is encrypted there (PR-11). */
+data class Shared(val host: String, val bucket: String, val encrypted: Boolean)
 
 /** What a group is called and looks like, who entries start with, and where it is kept. */
 class GroupSettingsViewModel(
@@ -54,9 +59,20 @@ class GroupSettingsViewModel(
 ) : ViewModel() {
 
     val state: StateFlow<GroupSettingsState> =
-        repository
-            .group(group)
-            .map { log -> if (log == null) GroupSettingsState(loaded = true) else settings(log) }
+        combine(repository.group(group), repository.backends.state(group)) { log, sync ->
+                if (log == null) return@combine GroupSettingsState(loaded = true)
+                val shared =
+                    sync?.let {
+                        repository.backends.settings(group)?.let { at ->
+                            Shared(
+                                URI(at.endpoint).host ?: at.endpoint,
+                                at.bucket,
+                                repository.backends.root(group) != null,
+                            )
+                        }
+                    }
+                settings(log).copy(backend = shared)
+            }
             .flowOn(Dispatchers.IO)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupSettingsState())
 

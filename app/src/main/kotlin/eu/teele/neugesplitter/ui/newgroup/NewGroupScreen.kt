@@ -68,12 +68,12 @@ private val NAME_OPTIONS =
 fun NewGroupScreen(
     viewModel: NewGroupViewModel,
     onClose: () -> Unit,
-    onCreated: (GroupId) -> Unit,
+    onCreated: (GroupId, shared: Boolean) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val back = { if (!viewModel.back()) onClose() }
 
-    LaunchedEffect(state.created) { if (state.created) onCreated(state.id) }
+    LaunchedEffect(state.created) { if (state.created) onCreated(state.id, state.shared) }
     BackHandler(onBack = back)
 
     Scaffold(
@@ -128,7 +128,7 @@ fun NewGroupScreen(
             when (state.step) {
                 Step.DETAILS -> Details(state, viewModel)
                 Step.MEMBERS -> Members(state, viewModel)
-                Step.STORAGE -> Storage(state)
+                Step.STORAGE -> Storage(state, viewModel)
             }
         }
     }
@@ -226,9 +226,9 @@ private fun Members(state: NewGroupState, viewModel: NewGroupViewModel) {
     }
 }
 
-/** Only this device so far; shared storage arrives with the first backend (BE-1, DA-1). */
+/** This device only, or shared storage set up right after (BE-1, DA-1). */
 @Composable
-private fun Storage(state: NewGroupState) {
+private fun Storage(state: NewGroupState, viewModel: NewGroupViewModel) {
     Column {
         Heading(stringResource(R.string.storage_header).uppercase())
         Text(
@@ -237,33 +237,19 @@ private fun Storage(state: NewGroupState) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
-    Column(Modifier.selectableGroup()) {
-        OutlinedCard(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .selectable(selected = true, onClick = {}, role = Role.RadioButton),
-            colors =
-                CardDefaults.outlinedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                ),
-        ) {
-            Column(Modifier.padding(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.storage_local),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f),
-                    )
-                    RadioButton(selected = true, onClick = null)
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.storage_local_warning),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        StorageOption(
+            R.string.storage_local,
+            R.string.storage_local_warning,
+            selected = !state.shared,
+            onClick = { viewModel.shared(false) },
+        )
+        StorageOption(
+            R.string.storage_shared,
+            R.string.storage_shared_hint,
+            selected = state.shared,
+            onClick = { viewModel.shared(true) },
+        )
     }
     if (state.failed) {
         Text(
@@ -271,6 +257,36 @@ private fun Storage(state: NewGroupState) {
             color = MaterialTheme.colorScheme.error,
             style = MaterialTheme.typography.bodyMedium,
         )
+    }
+}
+
+@Composable
+private fun StorageOption(title: Int, text: Int, selected: Boolean, onClick: () -> Unit) {
+    OutlinedCard(
+        modifier =
+            Modifier.fillMaxWidth()
+                .selectable(selected = selected, onClick = onClick, role = Role.RadioButton),
+        colors =
+            CardDefaults.outlinedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            ),
+    ) {
+        Column(Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                RadioButton(selected = selected, onClick = null)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(text),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

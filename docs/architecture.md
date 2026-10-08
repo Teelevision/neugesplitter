@@ -80,7 +80,7 @@ neugesplitter/
 │   ├── writer/       batching, the bounded debounce, conditional write, batch-id recovery
 │   ├── reader/       listing, truncation detection, verify-then-apply
 │   ├── restore/      explicit restore from retained bytes
-│   └── probe/        backend acceptance check
+│   └── probe/        backend acceptance check, and what a location already holds
 ├── backend-s3/src/main/kotlin/eu/teele/neugesplitter/backend/s3/
 ├── storage/src/main/kotlin/eu/teele/neugesplitter/storage/
 │   ├── events/       the canonical local event log and sync-state tracking
@@ -205,11 +205,12 @@ battery-optimisation exemption (TR-11).
 Compose, one ViewModel per screen exposing a single immutable state object, fed
 by Flows off the projection. No UI path awaits a network call — sync is
 something the state reports, not something a button waits for (TR-6, TR-8,
-SY-6). Screens read the domain types directly where they fit, and get their own
-model only where the screen genuinely differs in shape from the aggregate. SQL
-may help find candidate rows to replay or display, but the meaning of an event —
-that it changes an entry, a balance or an occurrence — is decided only in the
-domain module (TR-18a).
+SY-6). The one exception is backend setup, whose test and connect steps are the
+network call the user asked for (BE-7). Screens read the domain types directly
+where they fit, and get their own model only where the screen genuinely differs
+in shape from the aggregate. SQL may help find candidate rows to replay or
+display, but the meaning of an event — that it changes an entry, a balance or an
+occurrence — is decided only in the domain module (TR-18a).
 
 ## 8. Not part of the architecture
 

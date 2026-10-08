@@ -75,6 +75,14 @@ class PassphrasesTest {
         assertTrue(Passphrases.isWeak(chosen, listOf("ferienhaus", "ostsee", "kasse")))
     }
 
+    @Test
+    fun `strength grows toward a passphrase that is not weak`() {
+        val weak = Passphrases.strength("hallo".toCharArray())
+        val better = Passphrases.strength("hallo welt baum".toCharArray())
+        assertTrue(weak in 0f..<better, "$weak, $better")
+        assertEquals(1f, Passphrases.strength(Passphrases.generate(Locale.ENGLISH)))
+    }
+
     private companion object {
         val SPELLINGS =
             listOf(

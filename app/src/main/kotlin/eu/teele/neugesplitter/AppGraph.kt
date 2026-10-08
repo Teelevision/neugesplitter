@@ -10,10 +10,12 @@ import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.format.crypto.KageCodec
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.storage.settings.BackendSettings
 import eu.teele.neugesplitter.storage.settings.KeystoreVault
 import eu.teele.neugesplitter.storage.settings.Secrets
 import eu.teele.neugesplitter.storage.settings.SecretsDatabase
 import eu.teele.neugesplitter.sync.Keyring
+import eu.teele.neugesplitter.sync.LogStore
 import eu.teele.neugesplitter.work.Syncing
 import java.security.SecureRandom
 import java.time.Instant
@@ -38,6 +40,20 @@ class AppGraph(context: Context) {
 
     val keyring = Keyring(codec)
 
+    /** The backend at a location, given its secret key. */
+    val stores: (BackendSettings, String) -> LogStore = { at, secretKey ->
+        S3LogStore(
+            S3Location(
+                at.endpoint,
+                at.bucket,
+                at.prefix,
+                at.region,
+                at.pathStyle,
+                Credentials(at.accessKey, secretKey),
+            )
+        )
+    }
+
     val syncing =
         Syncing(
             groups = groups,
@@ -51,18 +67,7 @@ class AppGraph(context: Context) {
             scope = scope,
             today = ::today,
             now = ::now,
-            stores = { at, secretKey ->
-                S3LogStore(
-                    S3Location(
-                        at.endpoint,
-                        at.bucket,
-                        at.prefix,
-                        at.region,
-                        at.pathStyle,
-                        Credentials(at.accessKey, secretKey),
-                    )
-                )
-            },
+            stores = stores,
         )
 
     private val random = SecureRandom()

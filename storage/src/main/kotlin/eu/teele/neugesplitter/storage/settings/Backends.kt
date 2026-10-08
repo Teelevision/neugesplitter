@@ -49,6 +49,10 @@ class Backends internal constructor(private val database: Database) {
     /** An encrypted group's root object, which its key is unlocked from; null for any other. */
     fun root(id: GroupId): ByteArray? = database.logObjectQueries.root(id.hex).executeAsOneOrNull()
 
+    /** Group [id]'s object 0, encrypted or not, which says whose log a location holds (BE-9). */
+    fun first(id: GroupId): ByteArray? =
+        database.logObjectQueries.first(id.hex).executeAsOneOrNull()
+
     /** A pass over group [id] ended [at] with nothing between it and its backend (TR-12). */
     fun succeeded(id: GroupId, at: Instant) {
         states.succeeded(id.hex, at.toEpochMilli())

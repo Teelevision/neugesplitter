@@ -84,6 +84,7 @@ class BackendsTest {
         log.rooted(root)
 
         assertContentEquals(root, backends.root(GROUP))
+        assertContentEquals(root, backends.first(GROUP))
         val head = log.head()!!
         assertEquals(ROOT, head.number)
         assertContentEquals(root, head.bytes)
@@ -91,8 +92,10 @@ class BackendsTest {
 
     @Test
     fun `an unencrypted group's first object is not a root to unlock (format-spec 2_1)`() {
+        assertNull(backends.first(GROUP))
         Database(driver).logObjectQueries.retain(GROUP.hex, 0, "ba7c".repeat(8), byteArrayOf(1))
         assertNull(backends.root(GROUP))
+        assertContentEquals(byteArrayOf(1), backends.first(GROUP))
     }
 
     @Test

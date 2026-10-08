@@ -56,10 +56,14 @@ object Passphrases {
      * Whether a passphrase a user chose deserves PR-12b's warning, judged on the device alone
      * (TR-25b). [context] is what an attacker would try first, such as the group's name.
      */
-    fun isWeak(passphrase: CharArray, context: List<String> = emptyList()): Boolean {
+    fun isWeak(passphrase: CharArray, context: List<String> = emptyList()): Boolean =
+        strength(passphrase, context) < 1f
+
+    /** How far toward no longer [isWeak] a passphrase is, from 0 to 1, for showing as a bar. */
+    fun strength(passphrase: CharArray, context: List<String> = emptyList()): Float {
         val strength = zxcvbn.measure(CharBuffer.wrap(passphrase), context)
         try {
-            return strength.guessesLog10 < WEAK_BELOW_LOG10
+            return (strength.guessesLog10 / WEAK_BELOW_LOG10).coerceIn(0.0, 1.0).toFloat()
         } finally {
             strength.wipe()
         }

@@ -193,7 +193,8 @@ Plain list, grouped:
 - **Recurring series**: the list of series, each openable to pause, resume, stop
   from a date, or delete (RE-6, RE-7)
 - **Backend**: current backend summary, sync interval (SY-13), edit or configure
-  (BE-2, BE-15), and the encryption state (PR-11)
+  (BE-2, BE-15), and the encryption state (PR-11). A local group shows that it
+  is local and a row that starts backend setup.
 - **Danger**: leave group (GR-12, later, warning when unsettled), delete group
   from this device (GR-11, confirmation)
 
@@ -271,22 +272,34 @@ a backend later (BE-2, BE-15).
 
 1. **Location**: endpoint, bucket, optional prefix, access key, secret, and the
    addressing options a provider needs. The whole set can be pasted as one blob,
-   because seven fields on a phone is the first thing every new member does.
+   because seven fields on a phone is the first thing every new member does. A
+   bare host means HTTPS, and a missing region means `us-east-1`.
 2. **Test**: reachability, credentials, and the conditional-write check, each
    reported as its own line in plain language. A backend that fails the
    conditional-write check is refused, with an explanation of what would go
    wrong, not an error code (BE-7). A read-only backend is accepted with a
-   standing note that local changes cannot be uploaded (BE-8).
+   standing note that local changes cannot be uploaded (BE-8); its third line
+   says the check was not needed rather than claiming it passed.
 3. **What is there**: nothing, this group, another state of this group — which
-   simply syncs (BE-10) — or foreign data, which is refused (BE-9).
+   simply syncs (BE-10) — or foreign data, which is refused (BE-9). Nothing is
+   refused too when the group cannot be created there: with read access only, or
+   when the group is shared already and this would be a move (BE-15). A location
+   that turns out foreign only when connecting lands back on this step.
 4. **Encryption**: off, or a passphrase (PR-11). Choosing it opens passphrase
-   setup.
+   setup. A location that holds this group skips the step, since the group's
+   encryption was decided where it was first shared.
 5. **Acknowledgement**: one screen, not a checkbox buried in settings, saying
    that everyone who can reach this location can read and change the group, and
    that securing and backing it up is the users' job (BE-12, PR-4). Plain HTTP
    adds a second, stronger warning that describes the consequence — the
    credential is readable by anyone on the network — rather than the protocol
    (PR-5).
+
+The pasted blob is one `key: value` or `key = value` per line, with an optional
+`export` and quotes, so that an `.env` file, an rclone section, the AWS
+variables or the app's own field names all work. Unknown lines are skipped, the
+first mention of a key wins, and a paste that names nothing says so rather than
+clearing the fields.
 
 ### Passphrase setup
 

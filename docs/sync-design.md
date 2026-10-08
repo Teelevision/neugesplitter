@@ -311,6 +311,11 @@ recoverable by no one has to be presented as such when it is chosen. Losing it
 costs the backend copy, not the group — every installation still holds the whole
 history (SY-11).
 
+One gap is known. Connecting publishes the root object first and keeps the
+passphrase after; an installation that dies between the two holds a group whose
+backend is encrypted to a passphrase it no longer has, and syncing reports the
+group locked until the passphrase is entered again.
+
 ## 10. Things that will hurt
 
 - **Shared credentials are shared power.** Everyone holding the group's key can

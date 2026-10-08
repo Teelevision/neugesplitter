@@ -38,6 +38,7 @@ class NewGroupScreenTest {
     private var issued = 0
     private var closed = 0
     private var created: GroupId? = null
+    private var shared: Boolean? = null
 
     private val groups =
         GroupRepository(
@@ -47,7 +48,16 @@ class NewGroupScreenTest {
     private fun show(identifier: () -> String = { "%032x".format(++issued) }) {
         val viewModel = NewGroupViewModel(groups, identifier, { today }, { at })
         compose.setContent {
-            NeugesplitterTheme { NewGroupScreen(viewModel, { closed++ }, { created = it }) }
+            NeugesplitterTheme {
+                NewGroupScreen(
+                    viewModel,
+                    { closed++ },
+                    { id, choice ->
+                        created = id
+                        shared = choice
+                    },
+                )
+            }
         }
     }
 
@@ -106,6 +116,21 @@ class NewGroupScreenTest {
         assertEquals(GROUP_COLOURS[2], group.colour)
         assertEquals(listOf("Anna", "Ben"), group.members.values.map { it.name })
         assertEquals("Anna", group.members.getValue(assertNotNull(groups.actingAs(group.id))).name)
+        assertEquals(false, shared)
+    }
+
+    @Test
+    fun `choosing shared storage creates the group locally and asks for its backend (BE-1)`() {
+        show()
+        type("Name", "Trip")
+        next()
+        type("Your name", "Anna")
+        next()
+        compose.onNodeWithText("Shared storage (S3)").performClick()
+        compose.onNodeWithText("Create group").performClick()
+        awaitCreated()
+        assertNotNull(groups.load(assertNotNull(created)))
+        assertEquals(true, shared)
     }
 
     @Test
