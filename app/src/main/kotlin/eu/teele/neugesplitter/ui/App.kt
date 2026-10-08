@@ -79,7 +79,8 @@ data class EntryEditor(
 @Composable
 fun App(graph: AppGraph) {
     val stack = rememberNavBackStack(GroupList)
-    val pop = { stack.removeLastOrNull() }
+    // Several screens may react to one deletion, so a pop can arrive when only the root is left.
+    val pop = { if (stack.size > 1) stack.removeLastOrNull() }
     // An entry deleted from its detail screen, for the overview under it to offer undo for.
     var deleting by remember { mutableStateOf<String?>(null) }
     NavDisplay(
@@ -115,7 +116,7 @@ fun App(graph: AppGraph) {
                         },
                         version = version,
                         onBack = { pop() },
-                        onDeleted = { if (stack.size > 1) pop() },
+                        onDeleted = { pop() },
                     )
                 }
                 entry<NewGroup> {
