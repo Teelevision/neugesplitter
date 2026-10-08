@@ -5,10 +5,12 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -109,11 +111,46 @@ class SplitSheetTest {
     @Test
     fun `exact values leave the rest to those left blank (SP-5, SP-6)`() {
         show(Split(Scheme.ABSOLUTE, absolute = mapOf(anna.id to "20.00")))
-        compose.onNode(hasText("20.00") and !hasSetTextAction()).assertExists()
+        compose
+            .onNode(hasText("20.00") and !hasContentDescription("Amount for Anna"))
+            .assertExists()
         assertEquals(2, compose.onAllNodesWithText("5.00").fetchSemanticsNodes().size)
         compose.onNodeWithText("Adds up to the amount").assertExists()
-        compose.onAllNodes(hasSetTextAction())[2].performTextReplacement("7")
-        assertEquals("7", ok().input(clara.id))
+        calculate("Clara", "7")
+        compose.onNodeWithContentDescription("Amount for Clara").assertTextEquals("7.00")
+        calculate("Anna", "C")
+        compose.onNodeWithContentDescription("Amount for Anna").assertTextEquals("")
+        val split = ok()
+        assertEquals("7.00", split.input(clara.id))
+        assertEquals("", split.input(anna.id))
+    }
+
+    @Test
+    fun `an adjustment is worked out on the calculator and may be negative (SP-4, AM-2)`() {
+        show(Split(Scheme.ADJUSTMENTS))
+        calculate("Ben", "0-5")
+        compose.onNodeWithContentDescription("Amount for Ben").assertTextEquals("-5.00")
+        compose.onNodeWithText("Adjustments add up to −5.00").assertExists()
+        assertEquals("-5.00", ok().input(ben.id))
+    }
+
+    /** Opens the calculator on [member]'s value, presses [keys] and confirms. */
+    private fun calculate(member: String, keys: String) {
+        compose.onNodeWithContentDescription("Amount for $member").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithContentDescription("OK").fetchSemanticsNodes().isNotEmpty()
+        }
+        for (key in keys) {
+            when (key) {
+                '-' -> compose.onNodeWithContentDescription("Minus").performClick()
+                'C' -> compose.onNodeWithContentDescription("Clear").performClick()
+                else -> compose.onNode(hasText("$key") and hasClickAction()).performClick()
+            }
+        }
+        compose.onNodeWithContentDescription("OK").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithContentDescription("OK").fetchSemanticsNodes().isEmpty()
+        }
     }
 
     @Test

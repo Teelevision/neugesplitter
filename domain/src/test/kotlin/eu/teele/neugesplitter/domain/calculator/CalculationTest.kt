@@ -109,4 +109,14 @@ class CalculationTest {
         assertEquals(amount("24.5"), Calculation.start(cents, amount("24.5")).keys("<<5").value)
         assertEquals(Calculation(cents), Calculation.start(cents, null))
     }
+
+    @Test
+    fun `an amount that is not positive starts out as a result, which a digit replaces (SP-4)`() {
+        val start = Calculation.start(cents, amount("-5.25"))
+        assertEquals(amount("-5.25"), start.result)
+        assertEquals(amount("-5.25"), start.value)
+        assertEquals(amount("-15.25"), start.keys("-10").value)
+        assertEquals(amount("7"), start.keys("7").value)
+        assertEquals(Amount.ZERO, Calculation.start(cents, Amount.ZERO).value)
+    }
 }

@@ -122,6 +122,7 @@
     <string name="split_shares_total">%1$s shares in all</string>
     <string name="split_shares_more">More shares for %1$s</string>
     <string name="split_shares_fewer">Fewer shares for %1$s</string>
+    <string name="split_value">Amount for %1$s</string>
     <string name="split_left">%1$s left to divide</string>
     <string name="split_over">%1$s more than the amount</string>
     <string name="split_adds_up">Adds up to the amount</string>

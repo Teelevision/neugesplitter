@@ -1,12 +1,16 @@
 package eu.teele.neugesplitter.ui
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -83,9 +87,12 @@ fun App(graph: AppGraph) {
     val pop = { if (stack.size > 1) stack.removeLastOrNull() }
     // An entry deleted from its detail screen, for the overview under it to offer undo for.
     var deleting by remember { mutableStateOf<String?>(null) }
+    val focus = LocalFocusManager.current
     NavDisplay(
         backStack = stack,
         onBack = { pop() },
+        // A tap nothing else takes, on the background, puts the keyboard away.
+        modifier = Modifier.pointerInput(Unit) { detectTapGestures { focus.clearFocus() } },
         entryDecorators =
             listOf(
                 rememberSaveableStateHolderNavEntryDecorator(),

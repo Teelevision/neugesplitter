@@ -1,5 +1,7 @@
 package eu.teele.neugesplitter.ui.split
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +35,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -46,8 +51,10 @@ import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.ui.calculator.CalculatorSheet
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.signed
+import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 fun schemeLabel(scheme: Scheme): Int =
@@ -77,6 +84,7 @@ fun SplitSheet(
     onDismiss: () -> Unit,
 ) {
     var split by remember { mutableStateOf(start) }
+    var calculating by remember { mutableStateOf<MemberId?>(null) }
     val onTyped = { member: MemberId, text: String ->
         if (split.accepts(member, text, scale)) split = split.typed(member, text)
     }
@@ -132,20 +140,11 @@ fun SplitSheet(
                             onChange = { onTyped(member.id, it) },
                         )
                     } else if (split.scheme != Scheme.EQUAL) {
-                        OutlinedTextField(
-                            value = split.input(member.id),
-                            onValueChange = { onTyped(member.id, it) },
-                            singleLine = true,
-                            textStyle =
-                                MaterialTheme.typography.bodyLarge
-                                    .merge(figures)
-                                    .copy(textAlign = TextAlign.End),
-                            keyboardOptions =
-                                KeyboardOptions(
-                                    keyboardType = KeyboardType.Decimal,
-                                    imeAction = imeAction,
-                                ),
-                            modifier = Modifier.width(120.dp),
+                        CalculatorField(
+                            split.input(member.id),
+                            stringResource(R.string.split_value, member.name),
+                            figures,
+                            onOpen = { calculating = member.id },
                         )
                     }
                     Text(
@@ -165,6 +164,42 @@ fun SplitSheet(
             }
         }
     }
+    calculating?.let { member ->
+        val input = split.input(member)
+        val close = { text: String ->
+            onTyped(member, text)
+            calculating = null
+        }
+        val separator = DecimalFormatSymbols.getInstance(locale).decimalSeparator
+        CalculatorSheet(
+            start = input.takeIf { it.isNotEmpty() }?.let(Split::amount),
+            scale = scale,
+            onConfirm = { close(Split.text(it, scale, separator)) },
+            onDismiss = { calculating = null },
+            // Only adjustments may be negative (SP-4).
+            accepts = { split.scheme == Scheme.ADJUSTMENTS || !it.isNegative },
+            onBlank = { close("") },
+        )
+    }
+}
+
+/** An amount the calculator fills in: a tap opens it rather than the keyboard (AM-2). */
+@Composable
+private fun CalculatorField(value: String, label: String, figures: TextStyle, onOpen: () -> Unit) {
+    val taps = remember { MutableInteractionSource() }
+    LaunchedEffect(taps) {
+        taps.interactions.collect { if (it is PressInteraction.Release) onOpen() }
+    }
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        readOnly = true,
+        singleLine = true,
+        textStyle =
+            MaterialTheme.typography.bodyLarge.merge(figures).copy(textAlign = TextAlign.End),
+        interactionSource = taps,
+        modifier = Modifier.width(120.dp).semantics { contentDescription = label },
+    )
 }
 
 /** [member]'s shares: a number to type over, with a button each side to add or take one. */

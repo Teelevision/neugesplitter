@@ -147,9 +147,13 @@ data class Calculation(
 
         private val LIMIT = BigInteger.valueOf(Amount.LIMIT)
 
-        /** [amount], ready to be changed, typed out at [scale]; empty unless it is positive. */
+        /**
+         * [amount], ready to be changed, typed out at [scale]. One that is not positive cannot be
+         * typed, so it stands as a result instead, which a digit replaces.
+         */
         fun start(scale: Scale, amount: Amount? = null): Calculation {
-            if (amount == null || !amount.isPositive) return Calculation(scale)
+            if (amount == null) return Calculation(scale)
+            if (!amount.isPositive) return Calculation(scale, result = amount.roundedTo(scale))
             val text =
                 BigDecimal.valueOf(amount.units, Amount.UNIT_DIGITS)
                     .setScale(scale.digits, RoundingMode.HALF_UP)

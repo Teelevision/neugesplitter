@@ -47,8 +47,9 @@ import java.util.Locale
 
 /**
  * The amount calculator, in place of the keyboard (AM-2 to AM-7, ui-design 5). It starts from
- * [start], and confirming hands [onConfirm] the result rounded to [scale]; the calculation itself
- * is not kept (AM-5).
+ * [start], and confirming hands [onConfirm] the result rounded to [scale] if [accepts] takes it;
+ * the calculation itself is not kept (AM-5). With [onBlank], an empty calculation confirms as
+ * nothing.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,13 +58,16 @@ fun CalculatorSheet(
     scale: Scale,
     onConfirm: (Amount) -> Unit,
     onDismiss: () -> Unit,
+    accepts: (Amount) -> Boolean = { it.isPositive },
+    onBlank: (() -> Unit)? = null,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     var calculation by
         rememberSaveable(stateSaver = saver(scale)) {
             mutableStateOf(Calculation.start(scale, start))
         }
-    val value = calculation.value?.takeIf { it.isPositive }
+    val value = calculation.value?.takeIf(accepts)
+    val blank = calculation.result == null && calculation.typed.isEmpty()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -77,7 +81,14 @@ fun CalculatorSheet(
                 calculation,
                 locale,
                 onChange = { calculation = it },
-                onConfirm = value?.let { { onConfirm(it) } },
+                onConfirm =
+                    when {
+                        value != null -> {
+                            { onConfirm(value) }
+                        }
+                        blank -> onBlank
+                        else -> null
+                    },
             )
         }
     }

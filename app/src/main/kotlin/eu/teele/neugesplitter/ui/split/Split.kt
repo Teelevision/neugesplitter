@@ -150,14 +150,7 @@ data class Split(
 
         /** The split [side] was saved with, written out with [separator] to be edited (SP-1). */
         fun of(side: Side, scale: Scale, separator: Char): Split {
-            fun text(amount: Amount): String {
-                val exact =
-                    BigDecimal.valueOf(amount.units, Amount.UNIT_DIGITS).stripTrailingZeros()
-                return exact
-                    .setScale(maxOf(scale.digits, exact.scale()))
-                    .toPlainString()
-                    .replace('.', separator)
-            }
+            fun text(amount: Amount) = text(amount, scale, separator)
             return when (side) {
                 is Side.Equal -> Split()
                 is Side.Shares ->
@@ -167,6 +160,15 @@ data class Split(
                 is Side.Absolute ->
                     Split(Scheme.ABSOLUTE, absolute = side.input.mapValues { text(it.value) })
             }
+        }
+
+        /** [amount] as an input, with [separator] and at least [scale]'s decimals. */
+        fun text(amount: Amount, scale: Scale, separator: Char): String {
+            val exact = BigDecimal.valueOf(amount.units, Amount.UNIT_DIGITS).stripTrailingZeros()
+            return exact
+                .setScale(maxOf(scale.digits, exact.scale()))
+                .toPlainString()
+                .replace('.', separator)
         }
 
         /** Whole shares typed; nothing typed is none. */
