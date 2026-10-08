@@ -1,0 +1,18 @@
+Neugesplitter ships with the following third-party data. The app's settings
+list it, together with the libraries the app is built with.
+
+format/src/main/resources/eu/teele/neugesplitter/format/crypto/words_de.txt
+  Adapted from wordlist_de_8k.txt of diceware, https://github.com/ulif/diceware
+  Copyright 2021 Uli Fouquet <uli@gnufix.de>
+  Licensed under CC BY 3.0, https://creativecommons.org/licenses/by/3.0/
+  Changed: every word that sounds like another word on the list was removed
+  (format/src/test/kotlin/eu/teele/neugesplitter/format/PassphrasesTest.kt).
+
+format/src/main/resources/eu/teele/neugesplitter/format/crypto/words_en.txt
+  Adapted from the EFF large and short wordlists,
+  https://www.eff.org/dice
+  Copyright 2016 Electronic Frontier Foundation
+  Licensed under CC BY 3.0 US, https://creativecommons.org/licenses/by/3.0/us/
+  Changed: the large list without hyphenated words and without words that
+  sound like another (by CMUdict pronunciations, and frays, phrase, freebee,
+  freebie), joined by the short lists' words that pass the same test.

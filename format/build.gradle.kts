@@ -6,6 +6,7 @@ dependencies {
     api(project(":domain"))
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kage)
+    implementation(libs.zxcvbn)
 
     testImplementation(testFixtures(project(":domain")))
     testImplementation(libs.junit)

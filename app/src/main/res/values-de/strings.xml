@@ -171,4 +171,8 @@
     <string name="delete_all_prompt">Zum Bestätigen %1$s eingeben</string>
     <string name="delete_all_word">LOESCHEN</string>
     <string name="delete_all_confirm">Alles löschen</string>
+    <string name="third_party">Lizenzen Dritter</string>
+    <string name="words_german">Deutsche Wortliste</string>
+    <string name="words_english">Englische Wortliste</string>
+    <string name="adapted">angepasst</string>
 </resources>

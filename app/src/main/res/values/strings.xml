@@ -176,4 +176,8 @@
     <string name="delete_all_prompt">Type %1$s to confirm</string>
     <string name="delete_all_word">DELETE</string>
     <string name="delete_all_confirm">Delete everything</string>
+    <string name="third_party">Third-party licences</string>
+    <string name="words_german">German word list</string>
+    <string name="words_english">English word list</string>
+    <string name="adapted">adapted</string>
 </resources>

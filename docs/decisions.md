@@ -235,6 +235,16 @@ are described in [sync-design.md](sync-design.md).
   weak passphrase, so the passphrase has to carry the strength itself, and a
   generated one is the only kind whose strength is known. A user who wants their
   own gets a warning rather than a refusal (PR-12b): it is their storage.
+- **Which word list, and which estimate?** The app's language decides. German
+  draws from diceware's German 8 192-word list, which has no umlauts to lose;
+  anything else from EFF's large list, without its hyphenated words. Each loses
+  every word that sounds like another, and the English one is topped up from
+  EFF's short lists, leaving 7 907 and 8 287 words — six make about 77 bits
+  either way (TR-25a). Both are CC BY, credited in NOTICE and the app's
+  settings. A chosen passphrase is measured by zxcvbn4j, on the device (TR-25b),
+  with the group's name and members as what an attacker tries first; below 10¹⁴
+  guesses it is weak, because at 10⁴ scrypt guesses a second that is about three
+  centuries, and nothing can raise the work factor afterwards.
 - **What are the parser limits?** 8 MiB per object, nesting depth 32, 64 KiB per
   string, 10 000 events, enforced while parsing rather than after (format-spec
   2.2). An object over any of them stops the log instead of being skipped,

@@ -69,12 +69,13 @@ neugesplitter/
 ├── format/src/main/kotlin/eu/teele/neugesplitter/format/
 │   ├── json/         envelope and payload codec, JSON restrictions, parser limits
 │   ├── chain/        chainKey, prev, verification
-│   ├── crypto/       AgeCodec port and binding, key pair, passphrase generation
+│   ├── crypto/       AgeCodec port and binding, key pair, passphrase generation and estimate
 │   └── derived/      occurrence ids
 ├── sync/src/main/kotlin/eu/teele/neugesplitter/sync/
 │   ├── LogStore.kt   the backend port: createIfAbsent, get, listFrom, createProbe
 │   ├── LocalLog.kt   the local port: retained objects in and out, the batch waiting
 │   ├── Sealing.kt    plain or encrypted: what is stored, the chain link, verification
+│   ├── Keyring.kt    the group keys unlocked this session, each unlocked once
 │   ├── writer/       batching, the bounded debounce, conditional write, batch-id recovery
 │   ├── reader/       listing, truncation detection, verify-then-apply
 │   ├── restore/      explicit restore from retained bytes
@@ -187,11 +188,11 @@ forward when that date has passed.
 
 ## 6. Lifecycle and threading
 
-The unlocked identity lives in memory for the session and never on the path of
-reading an object (TR-26). Background polling goes through WorkManager and
-tolerates arbitrary deferral; manual sync calls the same code directly rather
-than scheduling it (TR-13). No foreground service, no battery-optimisation
-exemption (TR-11).
+The unlocked identity lives in memory for the session, in `:sync`'s keyring, and
+never on the path of reading an object (TR-26). Background polling goes through
+WorkManager and tolerates arbitrary deferral; manual sync calls the same code
+directly rather than scheduling it (TR-13). No foreground service, no
+battery-optimisation exemption (TR-11).
 
 ## 7. UI
 

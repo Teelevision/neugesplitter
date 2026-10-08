@@ -83,8 +83,9 @@ whose sync has halted carries an error marker rather than a dot (SY-15).
 ### App settings
 
 Theme (UX-3), language (UX-5), app lock (PR-13, optional), and **delete all
-local data** (PR-9) as the last item, in error colour, behind a typed
-confirmation. About, licence, and the version.
+local data** (PR-9) as the last setting, in error colour, behind a typed
+confirmation. About, licence, and the version. Below them all, folded away, the
+third-party licences, the word lists' attribution among them (NOTICE).
 
 ### New group
 

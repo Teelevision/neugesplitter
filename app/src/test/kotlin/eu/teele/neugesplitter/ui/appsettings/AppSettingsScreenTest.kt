@@ -157,6 +157,18 @@ class AppSettingsScreenTest {
     }
 
     @Test
+    fun `the third-party licences unfold at the bottom, crediting the word lists`() {
+        show()
+        compose.onNodeWithText("zxcvbn4j").assertDoesNotExist()
+        compose.onNodeWithText("Third-party licences").performClick()
+        compose.onNodeWithText("zxcvbn4j").assertExists()
+        compose.onNodeWithText("Uli Fouquet · CC BY 3.0 · adapted").assertExists()
+        compose
+            .onNodeWithText("Electronic Frontier Foundation · CC BY 3.0 US · adapted")
+            .assertExists()
+    }
+
+    @Test
     fun `deleting everything needs the word typed and cancelling collapses it (PR-9)`() {
         show()
         compose.onNodeWithText("Delete all local data").performClick()
