@@ -178,12 +178,17 @@ Three stacked sections, each collapsible, in this order:
    or decline; declining does not stop the series and the screen says so once
    (RE-5).
 2. **History**: what changed, by which member, and when (HI-2), as a reverse
-   chronological list covering entries, membership and group settings. Unseen
+   chronological list covering entries, membership and group settings. A line
+   about an entry opens it, or its history once it is deleted (HI-3). Unseen
    items are highlighted; opening one clears it (HI-5, HI-6). The overflow holds
    **mark all as read** (HI-7).
 3. **Sync**: state and the time of the last _successful_ sync (SY-6, TR-12), a
    manual sync button (SY-9), and what is queued. When sync has halted, this
-   section is replaced by an error card leading to the sync problem screen.
+   section is replaced by an error card leading to the sync problem screen. A
+   group kept only on this device says so here and offers to share it (BE-1).
+
+The top bar shows the sync state as a cloud icon: done, uploading while changes
+wait, crossed out on a failure or a halt, and absent for a local group.
 
 The navigation bar's Activity icon carries a badge while anything above is
 pending.

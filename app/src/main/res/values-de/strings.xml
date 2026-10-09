@@ -155,6 +155,7 @@
 
     <!-- Group settings -->
     <string name="destination_settings">Einstellungen</string>
+    <string name="destination_activity">Aktivität</string>
     <string name="none">Keine</string>
     <string name="default_participants">Standard-Beteiligte</string>
     <string name="everyone">Alle</string>
@@ -304,4 +305,43 @@
     <string name="words_german">Deutsche Wortliste</string>
     <string name="words_english">Englische Wortliste</string>
     <string name="adapted">angepasst</string>
+
+    <!-- Activity -->
+    <string name="expand">Ausklappen</string>
+    <string name="collapse">Einklappen</string>
+    <string name="happened_at">%1$s · %2$s</string>
+    <string name="happened_created">%1$s hat die Gruppe erstellt</string>
+    <string name="happened_name">%1$s hat den Gruppennamen geändert</string>
+    <string name="happened_description">%1$s hat die Beschreibung geändert</string>
+    <string name="happened_emoji">%1$s hat das Emoji geändert</string>
+    <string name="happened_colour">%1$s hat die Farbe geändert</string>
+    <string name="happened_participants">%1$s hat die Standard-Beteiligten geändert</string>
+    <string name="happened_scale">%1$s hat die Nachkommastellen geändert</string>
+    <string name="happened_settings">%1$s hat die Gruppeneinstellungen geändert</string>
+    <string name="happened_joined">%1$s ist der Gruppe beigetreten</string>
+    <string name="happened_added">%1$s hat %2$s hinzugefügt</string>
+    <string name="happened_renamed">%1$s hat %2$s in %3$s umbenannt</string>
+    <string name="happened_removed">%1$s hat %2$s entfernt</string>
+    <string name="happened_entry_created">%1$s hat \'%2$s\' hinzugefügt</string>
+    <string name="happened_entry_edited">%1$s hat \'%2$s\' bearbeitet</string>
+    <string name="happened_entry_deleted">%1$s hat \'%2$s\' gelöscht</string>
+    <string name="happened_entry_restored">%1$s hat \'%2$s\' wiederhergestellt</string>
+    <string name="happened_recurring">%1$s hat einen wiederkehrenden Eintrag geändert</string>
+    <string name="sync">Synchronisierung</string>
+    <string name="sync_in_sync">Synchronisiert</string>
+    <string name="sync_pending">Änderungen warten</string>
+    <string name="sync_problem">Problem beim Synchronisieren</string>
+    <string name="sync_succeeded">Zuletzt erfolgreich: %1$s</string>
+    <string name="sync_never">Noch nicht synchronisiert</string>
+    <string name="sync_uploaded">Alle Änderungen hochgeladen</string>
+    <plurals name="sync_waiting">
+        <item quantity="one">%d Änderung wartet</item>
+        <item quantity="other">%d Änderungen warten</item>
+    </plurals>
+    <string name="sync_now">Jetzt synchronisieren</string>
+    <string name="sync_locked">Zugangsdaten fehlen</string>
+    <string name="sync_locked_text">Der Secret Key oder die Passphrase muss neu eingegeben werden.</string>
+    <string name="sync_halted">Synchronisierung angehalten</string>
+    <string name="sync_halted_text">Dem Speicher fehlt etwas, das dieses Gerät schon hat. Hier funktioniert die Gruppe weiter vollständig.</string>
+    <string name="sync_local_text">Es wird nichts synchronisiert. Teile die Gruppe, um sie auf anderen Geräten zu nutzen.</string>
 </resources>

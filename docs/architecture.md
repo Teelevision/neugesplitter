@@ -65,6 +65,7 @@ neugesplitter/
 │   ├── recurrence/   Series, Segment, Interval, occurrence expansion
 │   ├── balance/      balances and the settlement rounding of format-spec 7.1
 │   ├── event/        the sealed event hierarchy of format-spec 4.2
+│   ├── history/      an entry's versions and a group's changes, as the log tells them
 │   └── replay/       applying events in order to produce group state
 ├── format/src/main/kotlin/eu/teele/neugesplitter/format/
 │   ├── json/         envelope and payload codec, JSON restrictions, parser limits

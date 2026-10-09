@@ -26,6 +26,8 @@ import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.ui.activity.ActivityScreen
+import eu.teele.neugesplitter.ui.activity.ActivityViewModel
 import eu.teele.neugesplitter.ui.appsettings.AppSettingsScreen
 import eu.teele.neugesplitter.ui.appsettings.AppSettingsViewModel
 import eu.teele.neugesplitter.ui.backend.BackendSetupScreen
@@ -280,6 +282,22 @@ fun App(graph: AppGraph) {
                                             )
                                         )
                                     },
+                                    modifier = modifier,
+                                )
+                            Destination.ACTIVITY ->
+                                ActivityScreen(
+                                    viewModel {
+                                        ActivityViewModel(
+                                            graph.groups,
+                                            group,
+                                            graph::now,
+                                            graph.syncing::now,
+                                        )
+                                    },
+                                    onBack = back,
+                                    onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
+                                    onHistory = { stack.add(EntryHistory(key.group, it.hex)) },
+                                    onShare = { stack.add(BackendSetup(key.group)) },
                                     modifier = modifier,
                                 )
                             Destination.SETTINGS ->

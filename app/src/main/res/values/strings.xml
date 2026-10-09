@@ -157,6 +157,7 @@
 
     <!-- Group settings -->
     <string name="destination_settings">Settings</string>
+    <string name="destination_activity">Activity</string>
     <string name="none">None</string>
     <string name="default_participants">Default participants</string>
     <string name="everyone">Everyone</string>
@@ -309,4 +310,43 @@
     <string name="words_german">German word list</string>
     <string name="words_english">English word list</string>
     <string name="adapted">adapted</string>
+
+    <!-- Activity -->
+    <string name="expand">Expand</string>
+    <string name="collapse">Collapse</string>
+    <string name="happened_at">%1$s · %2$s</string>
+    <string name="happened_created">%1$s created the group</string>
+    <string name="happened_name">%1$s renamed the group</string>
+    <string name="happened_description">%1$s changed the description</string>
+    <string name="happened_emoji">%1$s changed the emoji</string>
+    <string name="happened_colour">%1$s changed the colour</string>
+    <string name="happened_participants">%1$s changed the default participants</string>
+    <string name="happened_scale">%1$s changed the decimal places</string>
+    <string name="happened_settings">%1$s changed the group settings</string>
+    <string name="happened_joined">%1$s joined the group</string>
+    <string name="happened_added">%1$s added %2$s</string>
+    <string name="happened_renamed">%1$s renamed %2$s to %3$s</string>
+    <string name="happened_removed">%1$s removed %2$s</string>
+    <string name="happened_entry_created">%1$s added \'%2$s\'</string>
+    <string name="happened_entry_edited">%1$s edited \'%2$s\'</string>
+    <string name="happened_entry_deleted">%1$s deleted \'%2$s\'</string>
+    <string name="happened_entry_restored">%1$s restored \'%2$s\'</string>
+    <string name="happened_recurring">%1$s changed a recurring entry</string>
+    <string name="sync">Sync</string>
+    <string name="sync_in_sync">In sync</string>
+    <string name="sync_pending">Changes waiting</string>
+    <string name="sync_problem">Sync problem</string>
+    <string name="sync_succeeded">Last successful: %1$s</string>
+    <string name="sync_never">Not synced yet</string>
+    <string name="sync_uploaded">All changes uploaded</string>
+    <plurals name="sync_waiting">
+        <item quantity="one">%d change waiting</item>
+        <item quantity="other">%d changes waiting</item>
+    </plurals>
+    <string name="sync_now">Sync now</string>
+    <string name="sync_locked">Secret missing</string>
+    <string name="sync_locked_text">The secret key or the passphrase has to be entered again.</string>
+    <string name="sync_halted">Sync stopped</string>
+    <string name="sync_halted_text">The storage is missing something this device already has. The group still works fully here.</string>
+    <string name="sync_local_text">Nothing is synced. Share the group to use it on other devices.</string>
 </resources>

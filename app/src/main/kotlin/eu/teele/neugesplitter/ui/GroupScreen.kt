@@ -5,7 +5,6 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
@@ -30,10 +29,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import eu.teele.neugesplitter.R
 
-/** The destinations inside a group (ui-design 1). Activity is still to come. */
+/** The destinations inside a group (ui-design 1). */
 enum class Destination(@param:DrawableRes val icon: Int, @param:StringRes val label: Int) {
     OVERVIEW(R.drawable.ic_list, R.string.destination_overview),
     PEOPLE(R.drawable.ic_people, R.string.destination_people),
+    ACTIVITY(R.drawable.ic_activity, R.string.destination_activity),
     SETTINGS(R.drawable.ic_settings, R.string.destination_settings),
 }
 
@@ -92,8 +92,7 @@ private fun GroupBar(selected: Destination, onSelect: (Destination) -> Unit, onN
                 Icon(painterResource(R.drawable.ic_add), stringResource(R.string.new_entry))
             }
         }
-        // Where Activity will go, so that the new-entry action stays in the centre.
-        Spacer(Modifier.weight(1f))
+        DestinationItem(Destination.ACTIVITY, selected, onSelect, itemColours)
         DestinationItem(Destination.SETTINGS, selected, onSelect, itemColours)
     }
 }

@@ -62,16 +62,27 @@ class GroupScreenTest {
     }
 
     @Test
-    fun `the centre action stays in the centre with settings on its right (ui-design 1)`() {
+    fun `the navigation bar switches to activity and back (ui-design 1)`() {
+        show()
+        compose.onNodeWithText("Activity").performClick()
+        compose.onNodeWithText("showing ACTIVITY").assertExists()
+        compose.onNodeWithText("Overview").performClick()
+        compose.onNodeWithText("showing OVERVIEW").assertExists()
+    }
+
+    @Test
+    fun `the centre action stays in the centre between people and activity (ui-design 1)`() {
         show()
         val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
         val action =
             compose.onNodeWithContentDescription("New entry").fetchSemanticsNode().boundsInRoot
+        val activity = compose.onNodeWithText("Activity").fetchSemanticsNode().boundsInRoot
         val settings = compose.onNodeWithText("Settings").fetchSemanticsNode().boundsInRoot
         val people = compose.onNodeWithText("People").fetchSemanticsNode().boundsInRoot
         assertEquals(root.center.x, action.center.x, 1f)
         assertTrue(people.right < action.left)
-        assertTrue(action.right < settings.left)
+        assertTrue(action.right < activity.left)
+        assertTrue(activity.right < settings.left)
     }
 
     @Test
