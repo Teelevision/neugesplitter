@@ -2,8 +2,9 @@ package eu.teele.neugesplitter.sync.reader
 
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.format.Unsupported
-import eu.teele.neugesplitter.format.json.BatchId
+import eu.teele.neugesplitter.format.json.Received
 import eu.teele.neugesplitter.sync.Compromised
+import eu.teele.neugesplitter.sync.Fetched
 import eu.teele.neugesplitter.sync.LocalLog
 import eu.teele.neugesplitter.sync.LogStore
 import eu.teele.neugesplitter.sync.ObjectNumber
@@ -26,12 +27,14 @@ class Reader(
     private val local: LocalLog,
     private val sealing: Sealing,
     private val parallel: Int = 8,
+    private val together: Int = 256,
 ) {
 
     /**
      * Applies [listed], the numbers after [head], in order, each once it is shown to follow the one
-     * before it (TR-26a). Up to [parallel] are fetched at once. Finding the closed batch's own id
-     * means a write whose answer was lost landed after all.
+     * before it (TR-26a). Up to [parallel] are fetched at once, and up to [together] applied in one
+     * go, so that the log is replayed once for them rather than once each. Finding the closed
+     * batch's own id means a write whose answer was lost landed after all.
      *
      * @return where the log stops being one that can be applied, or null once all of it is.
      * @throws StoreException if the backend could not be asked; what was applied stays.
@@ -40,18 +43,50 @@ class Reader(
         val first = after(head)
         val consecutive =
             listed.withIndex().takeWhile { (i, n) -> n.value == first.value + i }.map { it.value }
+        val own = local.closed()
+        val verified = mutableListOf<Fetched>()
         var previous = head
         for (chunk in consecutive.chunked(parallel)) {
             val fetched = coroutineScope { chunk.map { async { store.get(it) } }.awaitAll() }
             for ((number, bytes) in chunk.zip(fetched)) {
                 bytes ?: throw StoreException.Failed("object $number is listed but cannot be read")
-                val taken = local.take(sealing, number, bytes, previous, local.closed())
-                if (taken is Taken.Refused) return Upload.Halted(number, taken.halt)
+                val received =
+                    when (val opened = sealing.open(bytes, previous)) {
+                        is Opened.Refused ->
+                            return flush(verified) ?: Upload.Halted(number, opened.halt)
+                        is Opened.Read -> opened.received
+                    }
+                if (received.carried.batch == own) {
+                    flush(verified)?.let {
+                        return it
+                    }
+                    local.written(number, bytes)
+                } else {
+                    verified += Fetched(number, bytes, received)
+                    if (verified.size == together)
+                        flush(verified)?.let {
+                            return it
+                        }
+                }
                 previous = Retained(number, bytes)
             }
         }
+        flush(verified)?.let {
+            return it
+        }
         if (consecutive.size == listed.size) return null
         return Upload.Halted(ObjectNumber(first.value + consecutive.size), Halt.GAP)
+    }
+
+    /**
+     * Applies and clears [verified]; the halt at the first that contradicts the log, if one does.
+     */
+    private suspend fun flush(verified: MutableList<Fetched>): Upload.Halted? {
+        if (verified.isEmpty()) return null
+        val applied = local.received(verified)
+        val halted = verified.getOrNull(applied)?.let { Upload.Halted(it.number, Halt.MALFORMED) }
+        verified.clear()
+        return halted
     }
 }
 
@@ -59,43 +94,23 @@ class Reader(
 internal fun after(head: Retained?): ObjectNumber =
     head?.let { ObjectNumber(it.number.value + 1) } ?: ObjectNumber.ROOT
 
-/** What [take] did with an object. */
-internal sealed interface Taken {
+/** What [open] made of an object. */
+internal sealed interface Opened {
 
-    /** It is the batch this installation closed, written after all. */
-    data object Own : Taken
-
-    /** Somebody else's, applied. */
-    data object Theirs : Taken
+    class Read(val received: Received) : Opened
 
     /** It cannot be applied, and the group stops syncing there. */
-    data class Refused(val halt: Halt) : Taken
+    class Refused(val halt: Halt) : Opened
 }
 
-/**
- * Takes object [number], stored as [bytes], in after [previous]: as written if it carries the batch
- * id [own], otherwise as somebody else's.
- */
-internal suspend fun LocalLog.take(
-    sealing: Sealing,
-    number: ObjectNumber,
-    bytes: ByteArray,
-    previous: Retained?,
-    own: BatchId?,
-): Taken =
+/** [bytes] read as the object after [previous], checked to follow it (TR-26a). */
+internal fun Sealing.open(bytes: ByteArray, previous: Retained?): Opened =
     try {
-        val received = sealing.read(bytes, previous)
-        if (received.carried.batch == own) {
-            written(number, bytes)
-            Taken.Own
-        } else {
-            received(number, bytes, received)
-            Taken.Theirs
-        }
+        Opened.Read(read(bytes, previous))
     } catch (_: Compromised) {
-        Taken.Refused(Halt.COMPROMISED)
+        Opened.Refused(Halt.COMPROMISED)
     } catch (_: Unsupported) {
-        Taken.Refused(Halt.UNSUPPORTED)
+        Opened.Refused(Halt.UNSUPPORTED)
     } catch (_: Malformed) {
-        Taken.Refused(Halt.MALFORMED)
+        Opened.Refused(Halt.MALFORMED)
     }

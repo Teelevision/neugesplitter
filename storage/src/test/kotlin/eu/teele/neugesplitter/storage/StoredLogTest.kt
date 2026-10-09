@@ -6,7 +6,6 @@ import eu.teele.neugesplitter.domain.AT
 import eu.teele.neugesplitter.domain.BEN
 import eu.teele.neugesplitter.domain.GROUP
 import eu.teele.neugesplitter.domain.Log
-import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.TODAY
 import eu.teele.neugesplitter.domain.entry
 import eu.teele.neugesplitter.domain.entry.Side
@@ -22,6 +21,7 @@ import eu.teele.neugesplitter.format.json.BatchId
 import eu.teele.neugesplitter.format.json.EventJson
 import eu.teele.neugesplitter.format.json.LogObject
 import eu.teele.neugesplitter.sync.BucketStore
+import eu.teele.neugesplitter.sync.Fetched
 import eu.teele.neugesplitter.sync.ObjectNumber
 import eu.teele.neugesplitter.sync.ObjectNumber.Companion.ROOT
 import eu.teele.neugesplitter.sync.Sealing
@@ -30,7 +30,6 @@ import eu.teele.neugesplitter.sync.writer.Writer
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -78,6 +77,9 @@ class StoredLogTest {
 
     private fun objectOf(n: Int, vararg events: Event) =
         LogObject(batch(n), null, events.toList()).write()
+
+    private fun fetched(n: Int, bytes: ByteArray) =
+        Fetched(ObjectNumber(n), bytes, LogObject.receive(bytes))
 
     /** The base is object 0 on the backend and here. */
     private suspend fun synced() {
@@ -142,7 +144,7 @@ class StoredLogTest {
             """{"neugesplitter":1,"batch":"${batch(9).hex}","events":[$renamed]}"""
                 .encodeToByteArray()
 
-        log.received(ObjectNumber(1), bytes, LogObject.receive(bytes))
+        log.received(listOf(fetched(1, bytes)))
 
         val rows = database.eventRowQueries.rows(GROUP.hex).executeAsList()
         assertEquals(
@@ -163,7 +165,7 @@ class StoredLogTest {
         log.batch(batch(1))
         val bytes = objectOf(9, absolute)
 
-        log.received(ObjectNumber(1), bytes, LogObject.receive(bytes))
+        log.received(listOf(fetched(1, bytes)))
 
         val restated =
             forty.copy(
@@ -188,13 +190,66 @@ class StoredLogTest {
         runBlocking {
             synced()
             val again = Event.MemberAdded(event(4), BEN, AT, Member(ANNA, "Anna"))
-            val bytes = objectOf(9, again)
-            assertFailsWith<Malformed> {
-                log.received(ObjectNumber(1), bytes, LogObject.receive(bytes))
-            }
+
+            assertEquals(0, log.received(listOf(fetched(1, objectOf(9, again)))))
+
             assertEquals(base, groups.events(GROUP))
             assertEquals(ROOT, log.head()!!.number)
         }
+
+    @Test
+    fun `objects before a contradicting one are applied, the rest are not (format-spec 4_2)`():
+        Unit = runBlocking {
+        synced()
+        val again = Event.MemberAdded(event(4), BEN, AT, Member(ANNA, "Anna"))
+        val described = update(5, BEN, EntryChanges(description = Change.To("Dinner")))
+        val objects =
+            listOf(
+                fetched(1, objectOf(9, absolute)),
+                fetched(2, objectOf(10, again)),
+                fetched(3, objectOf(11, described)),
+            )
+
+        assertEquals(1, log.received(objects))
+
+        assertEquals(base + absolute, groups.events(GROUP))
+        assertEquals(List(base.size) { 0L } + 1L, objectNumbers())
+        assertEquals(ObjectNumber(1), log.head()!!.number)
+    }
+
+    @Test
+    fun `objects received together end as when received one by one (TR-17b)`(): Unit = runBlocking {
+        val described = update(5, BEN, EntryChanges(description = Change.To("Dinner")))
+        val objects =
+            listOf(
+                fetched(1, objectOf(9, absolute)),
+                fetched(2, objectOf(10, described)),
+                fetched(3, objectOf(11, update(6, ANNA, EntryChanges(note = Change.To("x"))))),
+            )
+        val other = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).also { Database.Schema.create(it) }
+        val singly = GroupRepository(other)
+        val one = singly.local(GROUP, { TODAY }, Dispatchers.Unconfined)
+        for ((repository, local) in listOf(groups to log, singly to one)) {
+            repository.create(base, TODAY)
+            local.batch(batch(0))
+            local.written(ROOT, baseBytes)
+            repository.append(GROUP, listOf(forty), TODAY)
+            local.batch(batch(1))
+        }
+
+        assertEquals(3, log.received(objects))
+        assertEquals(3, objects.sumOf { one.received(listOf(it)) })
+
+        val rows = { driver: JdbcSqliteDriver ->
+            Database(driver).eventRowQueries.rows(GROUP.hex).executeAsList().map {
+                Triple(it.local_order, it.json, it.object_number)
+            }
+        }
+        assertEquals(rows(driver), rows(other))
+        assertEquals(groups.events(GROUP), singly.events(GROUP))
+        assertEquals(groups.overview(GROUP, TODAY).first(), singly.overview(GROUP, TODAY).first())
+        assertEquals(ObjectNumber(3), log.head()!!.number)
+    }
 
     @Test
     fun `a writer that loses its number writes the restated update after the winner (sync-design 4)`():

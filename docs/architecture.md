@@ -137,18 +137,19 @@ points at the new predecessor, keep the batch id, and try again (TR-26c).
 that object to still be there — a backend that comes back shorter halts the
 group and is never written to (TR-40). Then, for each new object: fetch,
 decrypt, verify `prev` before anything is applied (TR-26a), parse inside the
-limits (TR-39), keep the exact bytes (TR-17), append the carried events to the
-local event log, apply them in order through domain replay, update the
-projection, and record which events came from which retained object. Finally
-push anything local the backend does not have yet.
+limits (TR-39), and keep the exact bytes (TR-17). Up to 256 verified objects are
+applied together: their events are appended to the local event log, replayed
+once through the domain, and the projection is updated, all in one transaction.
+An object whose events contradict the log stops the group there, and those
+before it stay applied. Finally push anything local the backend does not have
+yet.
 
 When sync assigns backend numbers to formerly provisional local events, or when
 it inserts remote events ahead of them, the projection does not necessarily need
-a full rebuild. Storage keeps references from events to the derived items they
-last fed, so sync can ask the domain which items and downstream consequences are
-now invalid and rebuild that slice only. The references are bookkeeping; the
-domain still decides whether a shifted event changes an entry row, occurrence,
-balance, or nothing visible at all.
+a full rebuild. The domain replays the group as it was before and as it is
+after, and only the rows of whatever the two states disagree on are rewritten.
+Whether a shifted event changes an entry row, occurrence, balance, or nothing
+visible at all is decided by the domain, not by SQL.
 
 Both paths run under one mutex per group, because a deferred background poll
 will eventually fire while a manual sync is running (TR-15).
@@ -159,7 +160,6 @@ will eventually fire while a manual sync is running (TR-15).
 | ------------------ | -------- | ----------------------------------------------------------------------- |
 | `event_row`        | no       | group, local order, canonical event JSON text, sync state, object link  |
 | `log_object`       | no       | group, number, batch id (none for a root object), exact bytes           |
-| `event_item_ref`   | no       | event-to-projection references used to find partial rebuild candidates  |
 | `acting_as`        | no       | which member this installation writes into `by` (ID-3, format-spec 4.2) |
 | `backend_settings` | no       | endpoint, bucket, prefix, region, addressing style, access key          |
 | `sync_state`       | no       | last successful sync, halt state and its reason, the last failure       |
@@ -174,9 +174,9 @@ The local event log is the installation's source of truth for a group, and the
 retained backend objects are the source of truth for restore and chain
 verification. The derived tables can be dropped and rebuilt from `event_row` at
 any time, and that is the resolution to any disagreement between them (TR-18,
-TR-18b). Day to day, partial invalidation starts from `event_item_ref`, but the
-domain decides how far the rebuild propagates (TR-18aa, TR-18c). Deleting a
-group deletes both halves (TR-20).
+TR-18b). Day to day, only what the domain's states before and after a change
+disagree on is rewritten (TR-18aa, TR-18c). Deleting a group deletes both halves
+(TR-20).
 
 Every table is created `IF NOT EXISTS`, so discarding the projection is dropping
 the derived tables and creating them again in their current shape. A change to a

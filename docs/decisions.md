@@ -80,6 +80,15 @@ are described in [sync-design.md](sync-design.md).
   is JetBrains' own, Apache 2.0, and pure Kotlin, so `:domain` stays free of
   Android; it is an implementation detail behind `Map`, not part of the domain's
   types.
+- **How are fetched objects applied?** Together, up to 256 at a time. Applying
+  objects reads and replays the group's whole log, to compare its state before
+  with the one after; doing it per object made a first join of a thousand-object
+  history do that a thousand times, together it does it four times. Each object
+  is still checked against the one before it before anything is applied
+  (TR-26a), and one that contradicts the log stops the group there with those
+  before it applied. The comparison of the two states is also why there are no
+  event-to-row references to keep: the domain's own states say which rows
+  changed (TR-18aa).
 - **Which HTTP client does `:backend-s3` use?** OkHttp. TR-27 wants exact
   control over each request, and OkHttp sends the headers it is given —
   `If-None-Match: *` included — and adds nothing that changes what a `PUT`

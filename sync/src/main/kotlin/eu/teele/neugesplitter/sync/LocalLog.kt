@@ -1,6 +1,5 @@
 package eu.teele.neugesplitter.sync
 
-import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.format.json.BatchId
 import eu.teele.neugesplitter.format.json.Received
@@ -35,17 +34,22 @@ interface LocalLog {
     suspend fun written(number: ObjectNumber, bytes: ByteArray)
 
     /**
-     * Somebody else's object [number], stored as [bytes]: its events are applied ahead of every
-     * event still waiting (TR-17b), keeping the texts it holds them in (TR-17c). A waiting
-     * `entry.updated` that no longer applies is restated; the batch keeps its id (sync-design 4).
+     * Somebody else's objects, in order: their events are applied ahead of every event still
+     * waiting (TR-17b), keeping the texts they hold them in (TR-17c). A waiting `entry.updated`
+     * that no longer applies is restated; the batch keeps its id (sync-design 4). They are applied
+     * together, so that the log is replayed once for all of them.
      *
-     * @throws Malformed if they contradict the log before them (format-spec 4.2); nothing is kept.
+     * @return how many were applied: all, or those before the first whose events contradict the log
+     *   before them (format-spec 4.2), of which nothing is kept.
      */
-    suspend fun received(number: ObjectNumber, bytes: ByteArray, received: Received)
+    suspend fun received(objects: List<Fetched>): Int
 }
 
 /** An object as the backend holds it (TR-17). */
 class Retained(val number: ObjectNumber, val bytes: ByteArray)
+
+/** Object [number], stored as [bytes], read as [received] after the object before it (TR-26a). */
+class Fetched(val number: ObjectNumber, val bytes: ByteArray, val received: Received)
 
 /** Events written together as one object, under the id that recognises it (format-spec 2.2). */
 class Batch(val id: BatchId, val events: List<Event>) {

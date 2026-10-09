@@ -7,9 +7,9 @@ import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.format.json.BatchId
 import eu.teele.neugesplitter.format.json.EventJson
-import eu.teele.neugesplitter.format.json.Received
 import eu.teele.neugesplitter.storage.projection.Projection
 import eu.teele.neugesplitter.sync.Batch
+import eu.teele.neugesplitter.sync.Fetched
 import eu.teele.neugesplitter.sync.LocalLog
 import eu.teele.neugesplitter.sync.ObjectNumber
 import eu.teele.neugesplitter.sync.Retained
@@ -26,11 +26,11 @@ internal class StoredLog(
 ) : LocalLog {
 
     private val rows = database.eventRowQueries
-    private val objects = database.logObjectQueries
+    private val retained = database.logObjectQueries
 
     override suspend fun head(): Retained? =
         withContext(context) {
-            objects
+            retained
                 .head(id.hex) { number, bytes -> Retained(ObjectNumber(number.toInt()), bytes) }
                 .executeAsOneOrNull()
         }
@@ -53,7 +53,7 @@ internal class StoredLog(
 
     override suspend fun rooted(bytes: ByteArray) {
         withContext(context) {
-            objects.retain(id.hex, ObjectNumber.ROOT.value.toLong(), null, bytes)
+            retained.retain(id.hex, ObjectNumber.ROOT.value.toLong(), null, bytes)
         }
     }
 
@@ -62,38 +62,56 @@ internal class StoredLog(
             database.transaction {
                 val batch = checkNotNull(closedBatch()) { "no batch was closed" }
                 rows.written(number.value.toLong(), id.hex, batch.id.hex)
-                objects.retain(id.hex, number.value.toLong(), batch.id.hex, bytes)
+                retained.retain(id.hex, number.value.toLong(), batch.id.hex, bytes)
             }
         }
 
-    override suspend fun received(number: ObjectNumber, bytes: ByteArray, received: Received) =
+    override suspend fun received(objects: List<Fetched>): Int =
         withContext(context) {
-            database.transaction {
+            database.transactionWithResult {
                 val (synced, waiting) =
                     rows.rows(id.hex).executeAsList().partition { it.object_number != null }
                 val written = synced.map { EventJson.read(it.json) }
                 val pending = waiting.map { EventJson.read(it.json) }
                 val from = written.takeIf { it.isNotEmpty() }?.let(Group::replay)
                 val before = pending.fold(from, ::applied)
-                val onto = received.carried.events.fold(from, ::applied)!!
-                if (onto.id != id) throw Malformed("an object belongs to group ${onto.id}")
-                val rebased = Group.rebase(pending, from, onto)
-                val after = rebased.fold(onto, Group::plus)
+                var onto = from
+                var rebased = pending
+                var taken = 0
+                for (fetched in objects) {
+                    try {
+                        val next = fetched.received.carried.events.fold(onto, ::applied)!!
+                        if (next.id != id) throw Malformed("an object belongs to group ${next.id}")
+                        rebased = Group.rebase(pending, from, next)
+                        onto = next
+                    } catch (_: Malformed) {
+                        break
+                    }
+                    taken++
+                }
+                if (taken == 0) return@transactionWithResult 0
+                val after = rebased.fold(onto!!, Group::plus)
 
-                val count = received.texts.size.toLong()
+                val applied = objects.take(taken)
+                val count = applied.sumOf { it.received.texts.size }.toLong()
                 rows.makeRoom(count, id.hex)
                 rows.settle(id.hex)
-                val first = (synced.lastOrNull()?.local_order ?: 0) + 1
-                received.texts.forEachIndexed { i, text ->
-                    rows.received(id.hex, first + i, text, number.value.toLong())
+                var order = (synced.lastOrNull()?.local_order ?: 0) + 1
+                for (fetched in applied) {
+                    val number = fetched.number.value.toLong()
+                    for (text in fetched.received.texts) {
+                        rows.received(id.hex, order++, text, number)
+                    }
+                    val batch = fetched.received.carried.batch.hex
+                    retained.retain(id.hex, number, batch, fetched.bytes)
                 }
                 waiting.forEachIndexed { i, row ->
                     if (rebased[i] != pending[i]) {
                         rows.restate(EventJson.write(rebased[i]), id.hex, row.local_order + count)
                     }
                 }
-                objects.retain(id.hex, number.value.toLong(), received.carried.batch.hex, bytes)
                 projection.write(before, after, today())
+                taken
             }
         }
 

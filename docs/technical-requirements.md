@@ -105,18 +105,19 @@ frequency, not a schedule**.
   SQL or encoded as an independent source of truth. The domain replay code is
   the only place that decides what an event means.
 - **TR-18aa** (Core): To avoid rebuilding every derived row when synced events
-  shift relative to provisional local ordering, storage MUST keep references
-  from retained events to the derived items they last contributed to. These
-  references are an invalidation aid only: they identify what may need to be
-  rebuilt, but they do not define what the events mean.
+  shift relative to provisional local ordering, storage MUST compare the group
+  state the domain replays before the change with the one after it, and rewrite
+  only the derived items on which the two differ. The comparison is an
+  invalidation aid only: it identifies what needs to be rebuilt, but it does not
+  define what the events mean.
 - **TR-18b** (Core): A migration that changes replay logic, projection schema or
   event interpretation MUST discard every derived table and rebuild it from the
   retained events before the data is used again.
 - **TR-18c** (Core): When a sync changes the effective order or grouping of
   events, the implementation SHOULD invalidate and rebuild only the affected
-  derived items and everything downstream of them, using the event references as
-  a starting set. The decision about which items are affected MUST come from the
-  domain replay code rather than from SQL rules alone.
+  derived items and everything downstream of them, as found by the comparison of
+  TR-18aa. The decision about which items are affected MUST come from the domain
+  replay code rather than from SQL rules alone.
 - **TR-19** (Core): Replay MUST be deterministic and MUST depend only on object
   number order, never on the order in which objects arrived or the times they
   were fetched.

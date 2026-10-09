@@ -176,9 +176,9 @@ TR-36) from the start, since connecting a group is what first stores them.
 
 Listing from one number below the highest object held, truncation detection and
 the halt that follows it (TR-40), verify-then-apply so the chain link is checked
-before any event is applied (TR-26a), and the partial projection invalidation
-that starts from `event_item_ref` and lets the domain decide how far a rebuild
-propagates (TR-18aa, TR-18c).
+before any event is applied (TR-26a), and the partial projection rewrite that
+compares the domain's states before and after and rewrites only what differs
+(TR-18aa, TR-18c).
 
 One mutex per group (TR-15) is required from the first line of this phase, not
 added when the first race appears — a deferred background poll firing during a

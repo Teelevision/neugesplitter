@@ -2,6 +2,7 @@ package eu.teele.neugesplitter.sync.writer
 
 import eu.teele.neugesplitter.format.json.BatchId
 import eu.teele.neugesplitter.format.json.LogObject
+import eu.teele.neugesplitter.sync.Fetched
 import eu.teele.neugesplitter.sync.LocalLog
 import eu.teele.neugesplitter.sync.LogStore
 import eu.teele.neugesplitter.sync.ObjectNumber
@@ -9,9 +10,9 @@ import eu.teele.neugesplitter.sync.Retained
 import eu.teele.neugesplitter.sync.Sealing
 import eu.teele.neugesplitter.sync.StoreException
 import eu.teele.neugesplitter.sync.Write
-import eu.teele.neugesplitter.sync.reader.Taken
+import eu.teele.neugesplitter.sync.reader.Opened
 import eu.teele.neugesplitter.sync.reader.after
-import eu.teele.neugesplitter.sync.reader.take
+import eu.teele.neugesplitter.sync.reader.open
 import java.security.SecureRandom
 
 /**
@@ -52,15 +53,19 @@ class Writer(
             val taken =
                 store.get(number)
                     ?: throw StoreException.Failed("object $number is taken but cannot be read")
-            when (val outcome = local.take(sealing, number, taken, head, batch.id)) {
-                Taken.Own -> return Upload.Written(number)
-                Taken.Theirs ->
-                    batch =
-                        checkNotNull(local.batch(fresh())) {
-                            "a closed batch is kept until written"
-                        }
-                is Taken.Refused -> return Upload.Halted(number, outcome.halt)
+            val received =
+                when (val opened = sealing.open(taken, head)) {
+                    is Opened.Refused -> return Upload.Halted(number, opened.halt)
+                    is Opened.Read -> opened.received
+                }
+            if (received.carried.batch == batch.id) {
+                local.written(number, taken)
+                return Upload.Written(number)
             }
+            if (local.received(listOf(Fetched(number, taken, received))) == 0) {
+                return Upload.Halted(number, Halt.MALFORMED)
+            }
+            batch = checkNotNull(local.batch(fresh())) { "a closed batch is kept until written" }
             head = Retained(number, taken)
         }
     }

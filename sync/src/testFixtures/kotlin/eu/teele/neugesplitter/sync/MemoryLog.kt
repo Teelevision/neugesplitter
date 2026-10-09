@@ -2,7 +2,6 @@ package eu.teele.neugesplitter.sync
 
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.format.json.BatchId
-import eu.teele.neugesplitter.format.json.Received
 
 /** A group's local log in memory, starting from [retained] objects. */
 class MemoryLog(retained: Map<ObjectNumber, ByteArray> = emptyMap()) : LocalLog {
@@ -11,6 +10,9 @@ class MemoryLog(retained: Map<ObjectNumber, ByteArray> = emptyMap()) : LocalLog 
 
     /** The events written or received, in object order. */
     val applied = mutableListOf<Event>()
+
+    /** Events refused as contradicting the log, as the domain refuses a malformed one. */
+    val contradicting = mutableSetOf<Event>()
 
     private var closedBatch: Batch? = null
     private val waiting = mutableListOf<Event>()
@@ -49,8 +51,13 @@ class MemoryLog(retained: Map<ObjectNumber, ByteArray> = emptyMap()) : LocalLog 
         closedBatch = null
     }
 
-    override suspend fun received(number: ObjectNumber, bytes: ByteArray, received: Received) {
-        objects[number] = bytes
-        applied += received.carried.events
+    override suspend fun received(objects: List<Fetched>): Int {
+        for ((i, fetched) in objects.withIndex()) {
+            val events = fetched.received.carried.events
+            if (events.any { it in contradicting }) return i
+            this.objects[fetched.number] = fetched.bytes
+            applied += events
+        }
+        return objects.size
     }
 }

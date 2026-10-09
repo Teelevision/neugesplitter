@@ -47,7 +47,7 @@ class ReaderTest {
     private fun renamed(n: Int): Event = full[2 + n]
 
     @Test
-    fun `objects are applied in order however many are fetched at once (sync-design 5)`() =
+    fun `objects are applied in order however many are fetched and applied at once (sync-design 5)`() =
         runBlocking {
             val store = BucketStore()
             store.put(0, *log.toTypedArray())
@@ -56,10 +56,25 @@ class ReaderTest {
             val local = MemoryLog()
 
             val listed = store.listFrom(ROOT)
-            assertNull(Reader(store, local, Sealing.Plain, parallel = 3).read(null, listed))
+            val reader = Reader(store, local, Sealing.Plain, parallel = 3, together = 4)
+            assertNull(reader.read(null, listed))
 
             assertEquals(log + more, local.applied)
             assertEquals((0..20).map(::number), local.objects.keys.toList())
+        }
+
+    @Test
+    fun `an object contradicting the log halts there, after what comes before it is applied`() =
+        runBlocking {
+            val store = BucketStore()
+            store.put(0, *log.toTypedArray())
+            (1..5).forEach { store.put(it, renamed(it)) }
+            val local = MemoryLog().apply { contradicting += renamed(3) }
+
+            val halted = Reader(store, local, Sealing.Plain).read(null, store.listFrom(ROOT))
+
+            assertEquals(Upload.Halted(number(3), Halt.MALFORMED), halted)
+            assertEquals(log + renamed(1) + renamed(2), local.applied)
         }
 
     @Test
