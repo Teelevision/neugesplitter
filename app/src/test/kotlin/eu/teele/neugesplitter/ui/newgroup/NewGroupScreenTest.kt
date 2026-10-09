@@ -45,8 +45,12 @@ class NewGroupScreenTest {
             AndroidSqliteDriver(Database.Schema, RuntimeEnvironment.getApplication(), null)
         )
 
-    private fun show(identifier: () -> String = { "%032x".format(++issued) }) {
-        val viewModel = NewGroupViewModel(groups, identifier, { today }, { at })
+    private fun show(
+        identifier: () -> String = { "%032x".format(++issued) },
+        sharedAlready: Boolean = false,
+    ) {
+        val viewModel =
+            NewGroupViewModel(groups, identifier, { today }, { at }, shared = sharedAlready)
         compose.setContent {
             NeugesplitterTheme {
                 NewGroupScreen(
@@ -130,6 +134,18 @@ class NewGroupScreenTest {
         compose.onNodeWithText("Create group").performClick()
         awaitCreated()
         assertNotNull(groups.load(assertNotNull(created)))
+        assertEquals(true, shared)
+    }
+
+    @Test
+    fun `a group for an empty location joining found starts out shared (BE-9)`() {
+        show(sharedAlready = true)
+        type("Name", "Trip")
+        next()
+        type("Your name", "Anna")
+        next()
+        compose.onNodeWithText("Create group").performClick()
+        awaitCreated()
         assertEquals(true, shared)
     }
 

@@ -128,6 +128,13 @@ are described in [sync-design.md](sync-design.md).
 - **How do people join a group?** Everyone configures the same backend, then
   picks who they are from the member list (BE-5, BE-6). No QR codes, no
   invitations, no key exchange.
+- **What happens to a join that is given up on?** It is deleted, history and
+  all, whether the user goes back or the process dies before a member is chosen.
+  Keeping it would leave a group on the device that nobody acts as, and fetching
+  it again costs no more than the first time.
+- **What if the location to join is empty?** The app offers to create a new
+  group there and carries the location over, so nothing is typed twice. The
+  secret key travels in memory only, never in saved navigation state.
 - **How do the other members receive the backend settings?** By whatever means
   the group already uses to talk to each other. The app offers no mechanism, and
   a one-time setup effort is acceptable for the audience this product is for

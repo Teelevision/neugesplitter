@@ -30,6 +30,7 @@ import eu.teele.neugesplitter.ui.appsettings.AppSettingsScreen
 import eu.teele.neugesplitter.ui.appsettings.AppSettingsViewModel
 import eu.teele.neugesplitter.ui.backend.BackendSetupScreen
 import eu.teele.neugesplitter.ui.backend.BackendSetupViewModel
+import eu.teele.neugesplitter.ui.backend.Location
 import eu.teele.neugesplitter.ui.detail.EntryDetailScreen
 import eu.teele.neugesplitter.ui.detail.EntryDetailViewModel
 import eu.teele.neugesplitter.ui.editor.EntryEditorScreen
@@ -38,6 +39,8 @@ import eu.teele.neugesplitter.ui.grouplist.GroupListScreen
 import eu.teele.neugesplitter.ui.grouplist.GroupListViewModel
 import eu.teele.neugesplitter.ui.history.EntryHistoryScreen
 import eu.teele.neugesplitter.ui.history.EntryHistoryViewModel
+import eu.teele.neugesplitter.ui.join.JoinScreen
+import eu.teele.neugesplitter.ui.join.JoinViewModel
 import eu.teele.neugesplitter.ui.licences.LicenceScreen
 import eu.teele.neugesplitter.ui.licences.LicencesScreen
 import eu.teele.neugesplitter.ui.newgroup.NewGroupScreen
@@ -54,6 +57,8 @@ import kotlinx.serialization.Serializable
 @Serializable data object GroupList : NavKey
 
 @Serializable data object NewGroup : NavKey
+
+@Serializable data object JoinGroup : NavKey
 
 @Serializable data object AppSettings : NavKey
 
@@ -91,6 +96,14 @@ data class EntryEditor(
 /** @property group the group's id, as hex. */
 @Serializable data class BackendSetup(val group: String) : NavKey
 
+/**
+ * An empty location joining found, for the new group to be shared at. It holds the secret key, so
+ * it stays in memory and out of the saved navigation state.
+ */
+private class Handover {
+    var location: Location? = null
+}
+
 /** Every screen, and how one leads to the next (ui-design 2). */
 @Composable
 fun App(graph: AppGraph) {
@@ -99,6 +112,7 @@ fun App(graph: AppGraph) {
     val pop = { if (stack.size > 1) stack.removeLastOrNull() }
     // An entry deleted from its detail screen, for the overview under it to offer undo for.
     var deleting by remember { mutableStateOf<String?>(null) }
+    val handover = remember { Handover() }
     val focus = LocalFocusManager.current
     NavDisplay(
         backStack = stack,
@@ -116,6 +130,7 @@ fun App(graph: AppGraph) {
                     GroupListScreen(
                         viewModel { GroupListViewModel(graph.groups, graph::today) },
                         onNewGroup = { stack.add(NewGroup) },
+                        onJoin = { stack.add(JoinGroup) },
                         onOpen = { stack.add(GroupOverview(it.hex)) },
                         onSettings = { stack.add(AppSettings) },
                     )
@@ -156,13 +171,41 @@ fun App(graph: AppGraph) {
                                 graph::identifier,
                                 graph::today,
                                 graph::now,
+                                shared = handover.location != null,
                             )
                         },
-                        onClose = { pop() },
+                        onClose = {
+                            handover.location = null
+                            pop()
+                        },
                         onCreated = { id, shared ->
+                            if (!shared) handover.location = null
                             pop()
                             stack.add(GroupOverview(id.hex))
                             if (shared) stack.add(BackendSetup(id.hex))
+                        },
+                    )
+                }
+                entry<JoinGroup> {
+                    JoinScreen(
+                        viewModel {
+                            JoinViewModel(
+                                graph.groups,
+                                graph.stores,
+                                graph.syncing,
+                                graph::identifier,
+                                graph::now,
+                            )
+                        },
+                        onClose = { pop() },
+                        onDone = {
+                            pop()
+                            stack.add(GroupOverview(it.hex))
+                        },
+                        onCreateHere = {
+                            handover.location = it
+                            pop()
+                            stack.add(NewGroup)
                         },
                     )
                 }
@@ -178,6 +221,7 @@ fun App(graph: AppGraph) {
                                 graph.stores,
                                 graph.syncing::newKey,
                                 graph.syncing::connect,
+                                prefilled = handover.location.also { handover.location = null },
                             )
                         },
                         onClose = { pop() },

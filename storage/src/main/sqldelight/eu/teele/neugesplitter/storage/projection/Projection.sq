@@ -183,7 +183,8 @@ WHERE e.group_id = ? AND e.deleted = 0 AND coalesce(o.pending, 0) = 0
 ORDER BY e.date DESC, e.position DESC, e.id DESC, p.position;
 
 -- The group list (ui-design 3): each group, how many entries it holds that count, and the settled
--- balance of the member this installation acts as in it (BA-7).
+-- balance of the member this installation acts as in it (BA-7). A group being joined, with nobody
+-- chosen to act as yet, is not this installation's yet (BE-6).
 listed:
 SELECT
     g.id,
@@ -201,7 +202,7 @@ SELECT
        )) AS entries,
     b.settled AS own
 FROM group_row g
-LEFT JOIN acting_as a ON a.group_id = g.id
+JOIN acting_as a ON a.group_id = g.id
 LEFT JOIN balance b ON b.group_id = g.id AND b.member = a.member
 ORDER BY g.name, g.id;
 

@@ -154,6 +154,16 @@ visible at all is decided by the domain, not by SQL.
 Both paths run under one mutex per group, because a deferred background poll
 will eventually fire while a manual sync is running (TR-15).
 
+**Joining a group.** The group's id is not known until the location has been
+read: an unencrypted group names itself in object 0, an encrypted one only once
+the passphrase has opened its root and object 1 decrypts. The join then fetches
+the whole history with an ordinary sync pass into a group nobody acts as yet,
+which the group list leaves out. Choosing a member writes the backend settings,
+the secrets, a `member.added` if the user is new, and `acting_as` last: that row
+is what makes the group the installation's. A join given up on is deleted at
+once, and whatever a killed process left without an `acting_as` row is deleted
+at the next start, so every group on the device has somebody to act as (BE-6).
+
 ## 5. Local storage
 
 | Table              | Derived? | Notes                                                                         |

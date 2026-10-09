@@ -205,6 +205,10 @@ class GroupRepository(private val driver: SqlDriver) {
     fun actingAs(id: GroupId): MemberId? =
         database.actingAsQueries.member(id.hex).executeAsOneOrNull()?.let(MemberId::parse)
 
+    /** The groups held in part, as a join left before choosing who to act as (BE-6). */
+    fun unclaimed(): List<GroupId> =
+        database.actingAsQueries.unclaimed().executeAsList().map(GroupId::parse)
+
     /**
      * Brings the projection to this code's version, discarding and rebuilding it if it was built by
      * another, and to [today], the installation's local date (TR-18b, RE-14). Run before reading.

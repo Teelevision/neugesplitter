@@ -21,11 +21,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -59,12 +62,14 @@ import eu.teele.neugesplitter.ui.position
 fun GroupListScreen(
     viewModel: GroupListViewModel,
     onNewGroup: () -> Unit,
+    onJoin: () -> Unit,
     onOpen: (GroupId) -> Unit,
     onSettings: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val selecting = state.selected.isNotEmpty()
     var confirming by rememberSaveable { mutableStateOf(false) }
+    var adding by rememberSaveable { mutableStateOf(false) }
 
     BackHandler(enabled = selecting) { viewModel.clearSelection() }
 
@@ -107,8 +112,26 @@ fun GroupListScreen(
         },
         floatingActionButton = {
             if (!selecting) {
-                FloatingActionButton(onClick = onNewGroup) {
-                    Icon(painterResource(R.drawable.ic_add), stringResource(R.string.new_group))
+                Box {
+                    FloatingActionButton(onClick = { adding = true }) {
+                        Icon(painterResource(R.drawable.ic_add), stringResource(R.string.new_group))
+                    }
+                    DropdownMenu(expanded = adding, onDismissRequest = { adding = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.new_group)) },
+                            onClick = {
+                                adding = false
+                                onNewGroup()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.join_existing)) },
+                            onClick = {
+                                adding = false
+                                onJoin()
+                            },
+                        )
+                    }
                 }
             }
         },
@@ -116,7 +139,7 @@ fun GroupListScreen(
         val groups = state.groups
         when {
             groups == null -> Unit
-            groups.isEmpty() -> Empty(onNewGroup, Modifier.padding(padding))
+            groups.isEmpty() -> Empty(onNewGroup, onJoin, Modifier.padding(padding))
             else ->
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(padding),
@@ -164,7 +187,7 @@ fun GroupListScreen(
 }
 
 @Composable
-private fun Empty(onNewGroup: () -> Unit, modifier: Modifier = Modifier) {
+private fun Empty(onNewGroup: () -> Unit, onJoin: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.fillMaxSize().padding(horizontal = 32.dp),
         verticalArrangement = Arrangement.Center,
@@ -194,6 +217,10 @@ private fun Empty(onNewGroup: () -> Unit, modifier: Modifier = Modifier) {
         Spacer(Modifier.height(24.dp))
         Button(onClick = onNewGroup, modifier = Modifier.fillMaxWidth().height(52.dp)) {
             Text(stringResource(R.string.new_group))
+        }
+        Spacer(Modifier.height(12.dp))
+        OutlinedButton(onClick = onJoin, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            Text(stringResource(R.string.join_existing))
         }
     }
 }

@@ -83,12 +83,15 @@ class GroupListScreenTest {
 
     private fun show(
         onNewGroup: () -> Unit = {},
+        onJoin: () -> Unit = {},
         onOpen: (GroupId) -> Unit = {},
         onSettings: () -> Unit = {},
     ) {
         val viewModel = GroupListViewModel(groups) { today }
         compose.setContent {
-            NeugesplitterTheme { GroupListScreen(viewModel, onNewGroup, onOpen, onSettings) }
+            NeugesplitterTheme {
+                GroupListScreen(viewModel, onNewGroup, onJoin, onOpen, onSettings)
+            }
         }
     }
 
@@ -110,10 +113,30 @@ class GroupListScreenTest {
     }
 
     @Test
-    fun `without groups the user is offered a new one (GR-1)`() {
+    fun `without groups the user is offered a new one or joining one (GR-1, BE-5)`() {
         var created = 0
-        show(onNewGroup = { created++ })
+        var joined = 0
+        show(onNewGroup = { created++ }, onJoin = { joined++ })
         waitForText("A group stays on this device or is shared.")
+        compose.onNodeWithText("New group").performClick()
+        compose.onNodeWithText("Join an existing group").performClick()
+        assertEquals(1, created)
+        assertEquals(1, joined)
+    }
+
+    @Test
+    fun `the add button offers a new group or joining one (GR-1, BE-5)`() {
+        seed(trip, "Trip")
+        var created = 0
+        var joined = 0
+        show(onNewGroup = { created++ }, onJoin = { joined++ })
+        waitForText("Trip")
+        compose.onNodeWithContentDescription("New group").performClick()
+        compose.onNodeWithText("Join an existing group").performClick()
+        assertEquals(1, joined)
+        compose.onNodeWithText("Join an existing group").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("New group").performClick()
         compose.onNodeWithText("New group").performClick()
         assertEquals(1, created)
     }

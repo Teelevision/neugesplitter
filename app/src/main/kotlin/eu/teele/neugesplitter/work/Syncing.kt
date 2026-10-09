@@ -1,7 +1,11 @@
 package eu.teele.neugesplitter.work
 
+import eu.teele.neugesplitter.domain.Malformed
+import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.GroupId
+import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.format.Unsupported
 import eu.teele.neugesplitter.format.crypto.AgeCodec
 import eu.teele.neugesplitter.format.crypto.GroupKey
 import eu.teele.neugesplitter.format.crypto.WrongPassphrase
@@ -14,6 +18,7 @@ import eu.teele.neugesplitter.sync.Keyring
 import eu.teele.neugesplitter.sync.LogStore
 import eu.teele.neugesplitter.sync.Sealing
 import eu.teele.neugesplitter.sync.StoreException
+import eu.teele.neugesplitter.sync.probe.locked
 import eu.teele.neugesplitter.sync.writer.Debounce
 import eu.teele.neugesplitter.sync.writer.Upload
 import java.time.Instant
@@ -62,13 +67,17 @@ class Syncing(
 ) {
     private val running = ConcurrentHashMap<GroupId, Runner>()
     private val opened = AtomicBoolean()
+    /** Fetching for a join and giving up on one take turns, so nothing fetched outlives either. */
+    private val joining = Mutex()
 
     /**
      * Starts every group shared already: what is recorded goes up, and each is polled in the
-     * background. A process started only to poll makes no request beyond the poll's own.
+     * background. A process started only to poll makes no request beyond the poll's own. What a
+     * join left before anybody was chosen is removed first (BE-6).
      */
     fun start() {
         scope.launch(context) {
+            joining.withLock { groups.unclaimed().forEach(::discard) }
             groups.backends.connected().forEach {
                 runner(it)
                 schedule(it)
@@ -145,6 +154,81 @@ class Syncing(
         running[id]?.debounce?.now()
     }
 
+    /**
+     * The group whose log follows the encrypted [root] in [store], once [passphrase] opens it; its
+     * key is held for [fetch]. Null if no group's log follows it. [passphrase] stays the caller's.
+     *
+     * @throws WrongPassphrase if [passphrase] does not open [root].
+     * @throws StoreException if the backend could not be asked.
+     */
+    suspend fun unlock(store: LogStore, root: ByteArray, passphrase: CharArray): GroupId? =
+        withContext(context) {
+            val key =
+                try {
+                    withContext(Dispatchers.Default) { codec.unlock(root, passphrase) }
+                } catch (_: Malformed) {
+                    return@withContext null
+                } catch (_: Unsupported) {
+                    return@withContext null
+                }
+            locked(store, root, Sealing.Encrypted(codec, key))?.also { keyring.hold(it, key) }
+        }
+
+    /**
+     * Fetches group [id]'s history from [store] for a join, before anybody is chosen to act as in
+     * it (SY-7, BE-6); [root] is an encrypted group's, [unlock]ed already. Until [join], it is
+     * [abandon]ed or removed at the next start.
+     *
+     * @return where the history stops being one that can be applied, keeping none of it; null once
+     *   all of it is held.
+     * @throws StoreException if the backend could not be asked; what was fetched stays for a retry.
+     */
+    suspend fun fetch(id: GroupId, store: LogStore, root: ByteArray?): Upload.Halted? =
+        withContext(context) {
+            joining.withLock {
+                val local = groups.local(id, today, context)
+                val sealing =
+                    if (root == null) Sealing.Plain
+                    else Sealing.Encrypted(codec, checkNotNull(keyring[id]) { "not unlocked" })
+                if (root != null && local.head() == null) local.rooted(root)
+                val halted = GroupSync(store, local, sealing).pass() as? Upload.Halted
+                if (halted != null) discard(id)
+                halted
+            }
+        }
+
+    /**
+     * Joins group [id], [fetch]ed already, acting as [me] after appending [events] (BE-6), and
+     * shares it through [settings] from then on. [passphrase], an encrypted group's, stays the
+     * caller's.
+     */
+    suspend fun join(
+        id: GroupId,
+        settings: BackendSettings,
+        secretKey: String,
+        passphrase: CharArray?,
+        me: MemberId,
+        events: List<Event>,
+    ) {
+        withContext(context) {
+            joining.withLock {
+                secrets.keepSecretKey(id, secretKey)
+                passphrase?.let { secrets.keepPassphrase(id, it) }
+                groups.backends.connect(id, settings)
+                if (events.isNotEmpty()) groups.append(id, events, today())
+                // Acting as somebody is what makes the group this installation's to keep.
+                groups.actAs(id, me)
+            }
+            runner(id).debounce.now()
+            schedule(id)
+        }
+    }
+
+    /** Removes what joining group [id] fetched, unless it was joined after all. */
+    fun abandon(id: GroupId) {
+        scope.launch(context) { joining.withLock { if (groups.actingAs(id) == null) discard(id) } }
+    }
+
     /** Stops syncing group [id] and forgets its secrets, as deleting it does (GR-11). */
     fun forget(id: GroupId) {
         running.remove(id)?.scope?.cancel()
@@ -160,6 +244,11 @@ class Syncing(
     }
 
     private fun runner(id: GroupId): Runner = running.computeIfAbsent(id, ::Runner)
+
+    private fun discard(id: GroupId) {
+        groups.delete(id)
+        secrets.forget(id)
+    }
 
     private suspend fun schedule(id: GroupId) {
         polls.schedule(id, groups.backends.interval(id, context).first() ?: return)

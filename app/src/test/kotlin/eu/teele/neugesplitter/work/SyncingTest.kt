@@ -35,6 +35,7 @@ import javax.crypto.AEADBadTagException
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -351,5 +352,100 @@ class SyncingTest {
         assertNull(polls.scheduled[trip])
         Thread.sleep(200)
         assertNull(bucket.at(1))
+    }
+
+    /** Group [trip] at [bucket] only, as another device shared it; its root if it is encrypted. */
+    private fun sharedElsewhere(encrypted: Boolean): ByteArray? {
+        created()
+        val syncing = syncing()
+        val newKey =
+            if (encrypted) runBlocking { syncing.newKey(passphrase.toCharArray()) } else null
+        runBlocking { syncing.connect(trip, settings, "secret", newKey) }
+        settled { it.waiting == 0L }
+        restart()
+        syncing.forget(trip)
+        groups.delete(trip)
+        return if (encrypted) bucket.at(0) else null
+    }
+
+    private fun joined(syncing: Syncing, events: List<Event>, passphrase: CharArray? = null) =
+        runBlocking {
+            syncing.join(trip, settings, "secret", passphrase, anna.id, events)
+        }
+
+    @Test
+    fun `a shared group is fetched, then joined as a new member, and shared from then on (BE-6, SY-7)`() {
+        sharedElsewhere(encrypted = false)
+        assertEquals(emptyList(), groups.events(trip))
+        val syncing = syncing()
+
+        assertNull(runBlocking { syncing.fetch(trip, bucket, null) })
+        assertEquals("Trip", groups.load(trip)?.name)
+        assertEquals(listOf(trip), groups.unclaimed())
+        assertTrue(runBlocking { groups.list(today).first() }.isEmpty())
+
+        val ben = Member(MemberId.parse(id(2)), "Ben")
+        val added = Event.MemberAdded(EventId.parse(id(0x400)), ben.id, at, ben)
+        runBlocking { syncing.join(trip, settings, "secret", null, ben.id, listOf(added)) }
+
+        settled { it.waiting == 0L && it.succeeded == at }
+        assertEquals(ben.id, groups.actingAs(trip))
+        assertEquals(emptyList(), groups.unclaimed())
+        assertEquals(listOf(added), LogObject.read(bucket.at(1)!!).events)
+        assertEquals("secret", secrets.secretKey(trip))
+        assertEquals(6.hours, polls.scheduled[trip])
+    }
+
+    @Test
+    fun `an encrypted group is unlocked with its passphrase before it is fetched (BE-6, TR-26)`() {
+        val root = sharedElsewhere(encrypted = true)!!
+        val syncing = syncing()
+
+        assertFailsWith<WrongPassphrase> {
+            runBlocking { syncing.unlock(bucket, root, "falsch".toCharArray()) }
+        }
+        assertNull(runBlocking { syncing.unlock(BucketStore(), root, passphrase.toCharArray()) })
+        assertEquals(trip, runBlocking { syncing.unlock(bucket, root, passphrase.toCharArray()) })
+        assertNull(runBlocking { syncing.fetch(trip, bucket, root) })
+        assertEquals("Trip", groups.load(trip)?.name)
+
+        joined(syncing, emptyList(), passphrase.toCharArray())
+        assertEquals(anna.id, groups.actingAs(trip))
+        assertContentEquals(passphrase.toCharArray(), secrets.passphrase(trip))
+        appended()
+        settled { it.waiting == 0L }
+        assertNotNull(bucket.at(2))
+    }
+
+    @Test
+    fun `a join given up on leaves nothing, whether abandoned or left to the next start (BE-6)`() {
+        sharedElsewhere(encrypted = false)
+        val syncing = syncing()
+        runBlocking { syncing.fetch(trip, bucket, null) }
+
+        syncing.abandon(trip)
+        runBlocking { withTimeout(5.seconds) { while (groups.load(trip) != null) delay(10) } }
+        assertEquals(emptyList(), groups.unclaimed())
+
+        runBlocking { syncing.fetch(trip, bucket, null) }
+        restart()
+        syncing().start()
+        runBlocking { withTimeout(5.seconds) { while (groups.load(trip) != null) delay(10) } }
+        assertEquals(emptyList(), groups.unclaimed())
+    }
+
+    @Test
+    fun `a join is not undone once a member is chosen`() {
+        sharedElsewhere(encrypted = false)
+        val syncing = syncing()
+        runBlocking { syncing.fetch(trip, bucket, null) }
+        joined(syncing, emptyList())
+
+        syncing.abandon(trip)
+        restart()
+        syncing().start()
+        Thread.sleep(200)
+        assertEquals("Trip", groups.load(trip)?.name)
+        assertEquals(settings, groups.backends.settings(trip))
     }
 }

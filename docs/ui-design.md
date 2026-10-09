@@ -102,7 +102,10 @@ Backend setup first (section 6), then the app reports what it found at that
 location (BE-9): a group, nothing, or something foreign. When it is a group, the
 history is fetched and the user picks who they are from the member list, or
 creates a new member (BE-6, BE-11). Nothing else — there is no invitation and no
-code to type.
+code to type. An encrypted group asks for its passphrase before anything is
+fetched, and says so on the spot when it is wrong. An empty location offers to
+create a new group there, with the location already filled in; a group already
+on the device is offered to open, and nothing is changed.
 
 ## 4. Inside a group
 

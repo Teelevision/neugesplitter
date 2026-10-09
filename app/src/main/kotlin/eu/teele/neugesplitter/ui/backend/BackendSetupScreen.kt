@@ -156,8 +156,14 @@ fun BackendSetupScreen(viewModel: BackendSetupViewModel, onClose: () -> Unit, on
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             when (state.step) {
-                SetupStep.LOCATION -> Fields(state, viewModel)
-                SetupStep.TEST -> Test(state)
+                SetupStep.LOCATION ->
+                    LocationFields(
+                        state.location,
+                        state.invalid,
+                        viewModel::location,
+                        viewModel::paste,
+                    )
+                SetupStep.TEST -> Checks(state.verdict)
                 SetupStep.CONTENTS -> WhatIsThere(state)
                 SetupStep.ENCRYPTION -> Encryption(state, viewModel)
                 SetupStep.PASSPHRASE -> Passphrase(state, viewModel)
@@ -211,9 +217,14 @@ private fun Buttons(state: BackendSetupState, viewModel: BackendSetupViewModel, 
     }
 }
 
+/** Where a backend is, pasted or typed in (ui-design 6). */
 @Composable
-private fun Fields(state: BackendSetupState, viewModel: BackendSetupViewModel) {
-    val location = state.location
+internal fun LocationFields(
+    location: Location,
+    invalid: Boolean,
+    onChange: (Location) -> Unit,
+    onPaste: (String) -> Boolean,
+) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     var nothing by rememberSaveable { mutableStateOf(false) }
@@ -241,7 +252,7 @@ private fun Fields(state: BackendSetupState, viewModel: BackendSetupViewModel) {
                     scope.launch {
                         val clip = clipboard.getClipEntry()?.clipData
                         val text = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text
-                        nothing = !viewModel.paste(text?.toString().orEmpty())
+                        nothing = !onPaste(text?.toString().orEmpty())
                     }
                 }
             ) {
@@ -261,39 +272,31 @@ private fun Fields(state: BackendSetupState, viewModel: BackendSetupViewModel) {
     }
     Field(
         location.endpoint,
-        { viewModel.location(location.copy(endpoint = it)) },
+        { onChange(location.copy(endpoint = it)) },
         R.string.setup_endpoint,
         keyboard = VERBATIM.copy(keyboardType = KeyboardType.Uri),
-        error = if (state.invalid) R.string.setup_endpoint_invalid else null,
+        error = if (invalid) R.string.setup_endpoint_invalid else null,
     )
-    Field(
-        location.bucket,
-        { viewModel.location(location.copy(bucket = it)) },
-        R.string.setup_bucket,
-    )
+    Field(location.bucket, { onChange(location.copy(bucket = it)) }, R.string.setup_bucket)
     Field(
         location.prefix,
-        { viewModel.location(location.copy(prefix = it)) },
+        { onChange(location.copy(prefix = it)) },
         R.string.setup_prefix,
         placeholder = R.string.setup_prefix_hint,
     )
     Field(
         location.accessKey,
-        { viewModel.location(location.copy(accessKey = it)) },
+        { onChange(location.copy(accessKey = it)) },
         R.string.setup_access_key,
     )
     Secret(
         location.secretKey,
-        { viewModel.location(location.copy(secretKey = it)) },
+        { onChange(location.copy(secretKey = it)) },
         R.string.setup_secret_key,
         shown,
         { shown = it },
     )
-    Field(
-        location.region,
-        { viewModel.location(location.copy(region = it)) },
-        R.string.setup_region,
-    )
+    Field(location.region, { onChange(location.copy(region = it)) }, R.string.setup_region)
     ListItem(
         headlineContent = { Text(stringResource(R.string.setup_path_style)) },
         supportingContent = { Text(stringResource(R.string.setup_path_style_hint)) },
@@ -302,7 +305,7 @@ private fun Fields(state: BackendSetupState, viewModel: BackendSetupViewModel) {
         modifier =
             Modifier.toggleable(
                 value = location.pathStyle,
-                onValueChange = { viewModel.location(location.copy(pathStyle = it)) },
+                onValueChange = { onChange(location.copy(pathStyle = it)) },
                 role = Role.Switch,
             ),
     )
@@ -332,7 +335,7 @@ private fun Field(
 
 /** Hidden until asked for, and kept out of the keyboard's learning. */
 @Composable
-private fun Secret(
+internal fun Secret(
     value: String,
     onChange: (String) -> Unit,
     label: Int,
@@ -413,9 +416,10 @@ private fun failure(e: StoreException): Line =
             Line(Mark.BAD, R.string.setup_failed, R.string.setup_failed_text)
     }
 
+/** What the checks of a location found (BE-7); a progress while they run. */
 @Composable
-private fun Test(state: BackendSetupState) {
-    val lines = lines(state.verdict)
+internal fun Checks(verdict: Verdict?) {
+    val lines = lines(verdict)
     if (lines == null) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             CircularProgressIndicator(Modifier.size(24.dp))
@@ -426,6 +430,9 @@ private fun Test(state: BackendSetupState) {
     }
     lines.forEach { CheckLine(it) }
 }
+
+/** Why the backend could not be asked, in plain language (BE-7). */
+@Composable internal fun Failure(e: StoreException) = CheckLine(failure(e))
 
 @Composable
 private fun CheckLine(line: Line) {
@@ -514,7 +521,7 @@ private fun WhatIsThere(state: BackendSetupState) {
 }
 
 @Composable
-private fun Found(@DrawableRes icon: Int, title: Int, texts: List<Int>, container: Color) {
+internal fun Found(@DrawableRes icon: Int, title: Int, texts: List<Int>, container: Color) {
     Card(
         colors = CardDefaults.cardColors(containerColor = container),
         modifier = Modifier.fillMaxWidth(),
@@ -759,5 +766,5 @@ private fun ColumnScope.Confirm(state: BackendSetupState) {
     if (state.busy) {
         CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
     }
-    state.failure?.let { CheckLine(failure(it)) }
+    state.failure?.let { Failure(it) }
 }

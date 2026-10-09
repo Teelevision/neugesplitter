@@ -63,6 +63,18 @@ data class Location(
     val plainHttp: Boolean
         get() = settings.endpoint.startsWith("http://", ignoreCase = true)
 
+    /** These fields, with those [found] names replaced. */
+    fun with(found: Pasted): Location =
+        Location(
+            endpoint = found.endpoint ?: endpoint,
+            bucket = found.bucket ?: bucket,
+            prefix = found.prefix ?: prefix,
+            region = found.region ?: region,
+            pathStyle = found.pathStyle ?: pathStyle,
+            accessKey = found.accessKey ?: accessKey,
+            secretKey = found.secretKey ?: secretKey,
+        )
+
     override fun toString(): String = "Location(redacted)"
 
     private companion object {
@@ -139,9 +151,11 @@ class BackendSetupViewModel(
     private val stores: (BackendSettings, String) -> LogStore,
     private val newKey: suspend (CharArray) -> NewKey,
     private val connect: suspend (GroupId, BackendSettings, String, NewKey?) -> Boolean,
+    /** A location typed in already, as when joining found it empty. */
+    prefilled: Location? = null,
 ) : ViewModel() {
 
-    private val mutable = MutableStateFlow(BackendSetupState())
+    private val mutable = MutableStateFlow(BackendSetupState(location = prefilled ?: Location()))
     val state: StateFlow<BackendSetupState> = mutable.asStateFlow()
 
     /** What an attacker tries first (TR-25b). */
@@ -185,22 +199,7 @@ class BackendSetupViewModel(
     fun paste(text: String): Boolean {
         val found = pasted(text)
         if (found.empty) return false
-        mutable.update {
-            val was = it.location
-            it.copy(
-                location =
-                    Location(
-                        endpoint = found.endpoint ?: was.endpoint,
-                        bucket = found.bucket ?: was.bucket,
-                        prefix = found.prefix ?: was.prefix,
-                        region = found.region ?: was.region,
-                        pathStyle = found.pathStyle ?: was.pathStyle,
-                        accessKey = found.accessKey ?: was.accessKey,
-                        secretKey = found.secretKey ?: was.secretKey,
-                    ),
-                invalid = false,
-            )
-        }
+        mutable.update { it.copy(location = it.location.with(found), invalid = false) }
         return true
     }
 

@@ -14,6 +14,13 @@ SELECT member
 FROM acting_as
 WHERE group_id = ?;
 
+-- Joining fetches a group before anybody is chosen to act as in it.
+unclaimed:
+SELECT group_id FROM event_row
+UNION SELECT group_id FROM log_object
+UNION SELECT group_id FROM backend_settings
+EXCEPT SELECT group_id FROM acting_as;
+
 forget:
 DELETE FROM acting_as
 WHERE group_id = ?;

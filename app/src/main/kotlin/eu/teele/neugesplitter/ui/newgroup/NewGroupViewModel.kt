@@ -61,9 +61,12 @@ class NewGroupViewModel(
     private val identifier: () -> String,
     private val today: () -> EntryDate,
     private val now: () -> Instant,
+    /** Shared storage is chosen already, as when joining found an empty location. */
+    shared: Boolean = false,
 ) : ViewModel() {
 
-    private val mutable = MutableStateFlow(NewGroupState(GroupId.parse(identifier())))
+    private val mutable =
+        MutableStateFlow(NewGroupState(GroupId.parse(identifier()), shared = shared))
     val state: StateFlow<NewGroupState> = mutable.asStateFlow()
 
     fun name(text: String) = mutable.update { it.copy(name = text) }

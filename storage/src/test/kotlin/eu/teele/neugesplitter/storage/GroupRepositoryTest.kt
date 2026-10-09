@@ -291,7 +291,21 @@ class GroupRepositoryTest {
     }
 
     @Test
-    fun `the group list shows each group with the balance of the member acted as (GR-1, BA-7)`() {
+    fun `a group held without a member to act as is unclaimed, whatever part of it is held (BE-6)`() {
+        val rooted = GroupId.parse("%032x".format(0xc0a3))
+        val located = GroupId.parse("%032x".format(0xc0a4))
+        groups.create(weekend, TODAY)
+        groups.append(GROUP, household, TODAY)
+        database.logObjectQueries.retain(rooted.hex, 0, null, byteArrayOf(1))
+        connected(located)
+
+        assertEquals(setOf(GROUP, rooted, located), groups.unclaimed().toSet())
+        groups.actAs(GROUP, ANNA)
+        assertEquals(setOf(rooted, located), groups.unclaimed().toSet())
+    }
+
+    @Test
+    fun `the group list shows each group with the balance of the member acted as, and no group being joined (GR-1, BA-7, BE-6)`() {
         groups.append(GROUP, household, TODAY)
         groups.actAs(GROUP, ANNA)
         groups.append(trip, weekend.take(3), TODAY)
@@ -308,18 +322,17 @@ class GroupRepositoryTest {
                     scale = Scale.DEFAULT,
                     entries = counted.toLong(),
                     own = group.settlement(TODAY).getValue(ANNA),
-                ),
-                ListedGroup(trip, "Wochenende", null, null, Scale.DEFAULT, 0, own = null),
+                )
             ),
             runBlocking { groups.list(TODAY).first() },
         )
 
         groups.actAs(GROUP, BEN)
+        groups.actAs(trip, BEN)
 
-        assertEquals(
-            group.settlement(TODAY).getValue(BEN),
-            runBlocking { groups.list(TODAY).first() }.first().own,
-        )
+        val listed = runBlocking { groups.list(TODAY).first() }
+        assertEquals(group.settlement(TODAY).getValue(BEN), listed.first().own)
+        assertEquals(listOf(GROUP, trip), listed.map { it.id })
     }
 
     @Test

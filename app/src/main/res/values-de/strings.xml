@@ -253,6 +253,40 @@
     <string name="setup_http_text">Die Adresse beginnt mit http://. Die Zugangsdaten werden im Klartext übertragen und sind für jeden im selben Netzwerk lesbar.</string>
     <string name="setup_http_confirm">Trotzdem fortfahren</string>
 
+    <!-- Join group -->
+    <string name="join_group">Gruppe beitreten</string>
+    <string name="join_existing">Bestehender Gruppe beitreten</string>
+    <string name="join_empty">Kein Inhalt gefunden</string>
+    <string name="join_empty_text">Der konfigurierte Speicherort ist leer. Du kannst ihn für eine neue Gruppe verwenden.</string>
+    <string name="join_empty_read_only">Der konfigurierte Speicherort ist leer. Mit reinem Lesezugriff kann hier keine Gruppe angelegt werden.</string>
+    <string name="join_create_here">Hier neue Gruppe anlegen</string>
+    <string name="join_foreign">Unbekannte Daten</string>
+    <string name="join_foreign_text">Dieser Speicherort enthält bereits Daten, die nicht zu dieser App gehören. Wähle einen anderen Speicherort.</string>
+    <string name="join_held">Schon auf diesem Gerät</string>
+    <string name="join_held_text">Die Gruppe an diesem Speicherort ist schon auf diesem Gerät. Es wurde nichts verändert.</string>
+    <string name="join_open">Gruppe öffnen</string>
+    <string name="join_unreadable">Gruppe nicht lesbar</string>
+    <string name="join_unreadable_text">Der Verlauf der Gruppe an diesem Speicherort kann nicht gelesen werden. Es wurde nichts übernommen.</string>
+    <string name="join_passphrase_text">Diese Gruppe ist verschlüsselt. Gib die Passphrase ein, die du bekommen hast.</string>
+    <string name="join_unlocking">Wird entsperrt… Das dauert einige Sekunden.</string>
+    <string name="join_wrong_passphrase">Diese Passphrase öffnet die Gruppe nicht.</string>
+    <string name="join_fetching">Der Verlauf der Gruppe wird geladen…</string>
+    <string name="try_again">Erneut versuchen</string>
+    <string name="join_found">Gruppe gefunden</string>
+    <plurals name="join_members">
+        <item quantity="one">%d Mitglied</item>
+        <item quantity="other">%d Mitglieder</item>
+    </plurals>
+    <plurals name="join_entries">
+        <item quantity="one">%d Eintrag</item>
+        <item quantity="other">%d Einträge</item>
+    </plurals>
+    <string name="join_who">Wer bist du?</string>
+    <string name="join_who_text">Wähle dein Mitglied aus oder lege ein neues an.</string>
+    <string name="join_new_member">Neues Mitglied anlegen</string>
+    <string name="join_name_rejected">Dieser Name ist zu lang.</string>
+    <string name="join">Beitreten</string>
+
     <!-- App settings -->
     <string name="theme">Design</string>
     <string name="system_default">Systemstandard</string>
