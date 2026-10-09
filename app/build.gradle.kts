@@ -33,6 +33,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // A second installation beside the first, so one phone can test syncing between two.
+            if (providers.gradleProperty("second").isPresent) applicationIdSuffix = ".second"
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

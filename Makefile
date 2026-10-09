@@ -60,6 +60,10 @@ build: ## Assemble the debug apk
 install: ## Install the debug apk on the connected device
 	$(GRADLE) installDebug
 
+.PHONY: install-second
+install-second: ## Install a second debug app beside the first, to sync between two on one phone
+	$(GRADLE) installDebug -Psecond
+
 .PHONY: report
 report: ## Open the last test report
 	open domain/build/reports/tests/test/index.html
