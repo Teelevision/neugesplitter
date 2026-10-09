@@ -167,6 +167,16 @@
     <string name="encryption">Encryption</string>
     <string name="encryption_on">On (passphrase)</string>
     <string name="encryption_off">Off</string>
+    <string name="poll_interval">Check for changes</string>
+    <plurals name="poll_minutes">
+        <item quantity="one">At most every minute</item>
+        <item quantity="other">At most every %d minutes</item>
+    </plurals>
+    <plurals name="poll_hours">
+        <item quantity="one">At most every hour</item>
+        <item quantity="other">At most every %d hours</item>
+    </plurals>
+    <string name="poll_interval_note">Each check is a request to the storage, which its owner pays for. Android decides when checks run, often later than this. Your own changes are uploaded straight away.</string>
 
     <!-- Backend setup -->
     <string name="setup_title">Set up storage</string>

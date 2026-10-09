@@ -161,6 +161,12 @@ are described in [sync-design.md](sync-design.md).
 - **Who decides how often the app polls?** The user, per group (SY-13). Every
   poll is a request somebody pays for, so the trade is money as much as
   freshness, and hiding it in a default would be dishonest.
+- **Which intervals, and which by default?** Fifteen minutes, one hour, six
+  hours and a day, six hours by default. A finding-nothing poll is one list
+  request, so six hours is about 120 a month per group and installation, and
+  fifteen minutes about 2,900; opening the app polls regardless, so the slow
+  default costs freshness only for a group nobody is looking at. Moving a group
+  to another location keeps its interval.
 - **What if a backend location already holds something else?** The app inspects
   it and refuses to attach a group to a location holding a different group or
   unrelated data (BE-9). Another state of the same group is not an error — it

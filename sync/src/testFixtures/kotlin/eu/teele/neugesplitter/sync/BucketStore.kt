@@ -14,6 +14,9 @@ class BucketStore(
 
     val objects = sortedMapOf<String, ByteArray>()
 
+    /** How many times the bucket was listed, each a request somebody pays for. */
+    @Volatile var lists = 0
+
     override suspend fun createIfAbsent(number: ObjectNumber, bytes: ByteArray): Write =
         create("log/${number.name}", bytes)
 
@@ -24,6 +27,7 @@ class BucketStore(
 
     override suspend fun listFrom(first: ObjectNumber): List<ObjectNumber> {
         reach()
+        lists++
         return objects.keys
             .filter { it.startsWith("log/") }
             .mapNotNull { ObjectNumber.parse(it.removePrefix("log/")) }

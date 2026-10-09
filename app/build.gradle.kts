@@ -71,11 +71,13 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.work.runtime)
 
     testImplementation(testFixtures(project(":sync")))
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.work.testing)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.ui.test.junit4)
     // ui-test-junit4 brings Espresso 3.5, which fails on SDK 37 (InputManager.getInstance).

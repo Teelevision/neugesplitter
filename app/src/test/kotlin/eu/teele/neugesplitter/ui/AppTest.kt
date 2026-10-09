@@ -8,6 +8,9 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.work.Configuration
+import androidx.work.testing.SynchronousExecutor
+import androidx.work.testing.WorkManagerTestInitHelper
 import eu.teele.neugesplitter.AppGraph
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
@@ -17,6 +20,7 @@ import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
 import java.time.Instant
 import kotlin.test.Test
+import org.junit.Before
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -34,6 +38,13 @@ class AppTest {
     private var ids = 0
 
     private fun id(n: Int) = "%032x".format(n)
+
+    @Before
+    fun work() =
+        WorkManagerTestInitHelper.initializeTestWorkManager(
+            RuntimeEnvironment.getApplication(),
+            Configuration.Builder().setExecutor(SynchronousExecutor()).build(),
+        )
 
     private fun awaitText(text: String) =
         compose.waitUntil(5_000) {

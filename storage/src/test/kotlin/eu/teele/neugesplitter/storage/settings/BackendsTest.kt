@@ -18,8 +18,11 @@ import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -37,6 +40,23 @@ class BackendsTest {
     private val root = "an armoured identity".encodeToByteArray()
 
     private fun state() = runBlocking { backends.state(GROUP, Dispatchers.Unconfined).first() }
+
+    private fun interval() = runBlocking {
+        backends.interval(GROUP, Dispatchers.Unconfined).first()
+    }
+
+    @Test
+    fun `a group polls every six hours at most until told otherwise, also once moved (SY-13)`() {
+        assertNull(interval())
+        backends.connect(GROUP, settings)
+        assertEquals(6.hours, interval())
+
+        backends.setInterval(GROUP, 15.minutes)
+        backends.connect(GROUP, settings.copy(bucket = "elsewhere"))
+
+        assertEquals(15.minutes, interval())
+        assertFailsWith<IllegalArgumentException> { backends.setInterval(GROUP, 14.minutes) }
+    }
 
     @Test
     fun `a group's backend is kept, and its address stays out of logs (BE-2, BE-4, TR-38)`() {
@@ -133,5 +153,6 @@ class BackendsTest {
             migrated.backends.connect(GROUP, settings)
             migrated.backends.succeeded(GROUP, Instant.EPOCH)
             assertEquals(settings, migrated.backends.settings(GROUP))
+            assertEquals(6.hours, migrated.backends.interval(GROUP, Dispatchers.Unconfined).first())
         }
 }

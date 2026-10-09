@@ -15,6 +15,7 @@ import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.GroupRepository
 import java.net.URI
 import java.time.Instant
+import kotlin.time.Duration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -44,8 +45,16 @@ data class GroupSettingsState(
     val backend: Shared? = null,
 )
 
-/** Where a shared group is kept, and whether it is encrypted there (PR-11). */
-data class Shared(val host: String, val bucket: String, val encrypted: Boolean)
+/**
+ * Where a shared group is kept, whether it is encrypted there (PR-11), and the shortest wait
+ * between its background polls (SY-13).
+ */
+data class Shared(
+    val host: String,
+    val bucket: String,
+    val encrypted: Boolean,
+    val interval: Duration,
+)
 
 /** What a group is called and looks like, who entries start with, and where it is kept. */
 class GroupSettingsViewModel(
@@ -56,10 +65,16 @@ class GroupSettingsViewModel(
     private val now: () -> Instant,
     /** Stops syncing a deleted group and forgets its secrets. */
     private val forget: (GroupId) -> Unit = {},
+    /** Has a group polled at most this often (SY-13). */
+    private val setInterval: (GroupId, Duration) -> Unit = { _, _ -> },
 ) : ViewModel() {
 
     val state: StateFlow<GroupSettingsState> =
-        combine(repository.group(group), repository.backends.state(group)) { log, sync ->
+        combine(
+                repository.group(group),
+                repository.backends.state(group),
+                repository.backends.interval(group),
+            ) { log, sync, interval ->
                 if (log == null) return@combine GroupSettingsState(loaded = true)
                 val shared =
                     sync?.let {
@@ -68,6 +83,7 @@ class GroupSettingsViewModel(
                                 URI(at.endpoint).host ?: at.endpoint,
                                 at.bucket,
                                 repository.backends.root(group) != null,
+                                interval ?: return@let null,
                             )
                         }
                     }
@@ -120,6 +136,12 @@ class GroupSettingsViewModel(
         )
             return
         write(GroupChanges(defaultParticipants = Change.To(change)))
+    }
+
+    /** Polls at most every [interval] (SY-13); changes nothing for the one the group has. */
+    fun interval(interval: Duration) {
+        if (interval == state.value.backend?.interval) return
+        viewModelScope.launch(Dispatchers.IO) { setInterval(group, interval) }
     }
 
     /** Removes the group from this device (GR-11), then runs [then]. The screen has asked first. */

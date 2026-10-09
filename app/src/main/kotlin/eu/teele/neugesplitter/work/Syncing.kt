@@ -18,6 +18,7 @@ import eu.teele.neugesplitter.sync.writer.Debounce
 import eu.teele.neugesplitter.sync.writer.Upload
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -29,14 +30,18 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
  * Every shared group's sync while the app runs: a pass shortly after local changes stop, bounded
- * (TR-14, SY-14), or at once when asked (TR-13). How each pass ended is recorded for SY-6, and one
- * that could not reach the backend goes again after a while.
+ * (TR-14, SY-14), at once when asked (TR-13), and in the background at most as often as the group
+ * asks (TR-9, SY-13). How each pass ended is recorded for SY-6, and one that could not reach the
+ * backend goes again after a while.
  */
 class Syncing(
     private val groups: GroupRepository,
@@ -48,6 +53,7 @@ class Syncing(
     private val now: () -> Instant,
     /** The backend at a location, given its secret key. */
     private val stores: (BackendSettings, String) -> LogStore,
+    private val polls: Polls,
     private val quiet: Duration = 5.seconds,
     private val bound: Duration = 30.seconds,
     /** The first wait before a pass that could not reach the backend goes again; it doubles. */
@@ -55,10 +61,41 @@ class Syncing(
     private val context: CoroutineContext = Dispatchers.IO,
 ) {
     private val running = ConcurrentHashMap<GroupId, Runner>()
+    private val opened = AtomicBoolean()
 
-    /** Starts every group shared already, each with a pass to fetch what others wrote meanwhile. */
+    /**
+     * Starts every group shared already: what is recorded goes up, and each is polled in the
+     * background. A process started only to poll makes no request beyond the poll's own.
+     */
     fun start() {
+        scope.launch(context) {
+            groups.backends.connected().forEach {
+                runner(it)
+                schedule(it)
+            }
+        }
+    }
+
+    /** Fetches what others wrote meanwhile into every shared group, once per process (SY-2). */
+    fun opened() {
+        if (opened.getAndSet(true)) return
         scope.launch(context) { groups.backends.connected().forEach { runner(it).debounce.now() } }
+    }
+
+    /**
+     * Runs a pass over group [id] and returns once it has ended, as a background poll does (TR-9).
+     * A group no longer shared is polled no more.
+     */
+    suspend fun poll(id: GroupId) =
+        withContext(context) {
+            if (groups.backends.settings(id) == null) return@withContext polls.cancel(id)
+            runner(id).pass()
+        }
+
+    /** Has group [id] polled at most every [interval] from now on (SY-13). */
+    fun interval(id: GroupId, interval: Duration) {
+        groups.backends.setInterval(id, interval)
+        polls.schedule(id, interval)
     }
 
     /**
@@ -99,6 +136,7 @@ class Syncing(
             secrets.keepSecretKey(id, secretKey)
             groups.backends.connect(id, settings)
             runner(id).debounce.now()
+            schedule(id)
             true
         }
 
@@ -110,16 +148,22 @@ class Syncing(
     /** Stops syncing group [id] and forgets its secrets, as deleting it does (GR-11). */
     fun forget(id: GroupId) {
         running.remove(id)?.scope?.cancel()
+        polls.cancel(id)
         secrets.forget(id)
     }
 
     /** [forget]s every group (PR-9). */
     fun forgetAll() {
         running.keys.toList().forEach { running.remove(it)?.scope?.cancel() }
+        polls.cancelAll()
         secrets.forgetAll()
     }
 
     private fun runner(id: GroupId): Runner = running.computeIfAbsent(id, ::Runner)
+
+    private suspend fun schedule(id: GroupId) {
+        polls.schedule(id, groups.backends.interval(id, context).first() ?: return)
+    }
 
     private inner class Runner(private val id: GroupId) {
 
@@ -130,6 +174,7 @@ class Syncing(
                     context
             )
         val debounce = Debounce(scope, quiet, bound) { pass() }
+        private val lock = Mutex()
         private var sync: GroupSync? = null
         private var again: Job? = null
         private var failures = 0
@@ -145,7 +190,10 @@ class Syncing(
             }
         }
 
-        private suspend fun pass() {
+        /** One at a time, so that a poll and a manual sync share one [GroupSync] (TR-15). */
+        suspend fun pass() = lock.withLock { attempt() }
+
+        private suspend fun attempt() {
             again?.cancel()
             val sync = sync ?: built() ?: return groups.backends.failed(id, Failure.LOCKED)
             this.sync = sync

@@ -33,6 +33,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -51,6 +53,7 @@ class GroupSettingsScreenTest {
     private var ids = 0
     private var deleted = false
     private var backend = 0
+    private val intervals = mutableListOf<Duration>()
 
     private fun id(n: Int) = "%032x".format(n)
 
@@ -73,7 +76,17 @@ class GroupSettingsScreenTest {
         groups.create(created, today)
         before()
         val viewModel =
-            GroupSettingsViewModel(groups, trip, { id(0x100 + ids++) }, { today }, { at })
+            GroupSettingsViewModel(
+                groups,
+                trip,
+                { id(0x100 + ids++) },
+                { today },
+                { at },
+                setInterval = { id, interval ->
+                    intervals += interval
+                    groups.backends.setInterval(id, interval)
+                },
+            )
         compose.setContent {
             NeugesplitterTheme {
                 GroupSettingsScreen(
@@ -275,6 +288,25 @@ class GroupSettingsScreenTest {
         compose.onNodeWithText("Only on this device").assertDoesNotExist()
         open("Shared storage (S3)")
         assertEquals(1, backend)
+    }
+
+    @Test
+    fun `a shared group polls at most as often as chosen, which says what it costs (SY-13, TR-10)`() {
+        show {
+            groups.backends.connect(
+                trip,
+                BackendSettings("https://s3.example", "splits", "", "auto", false, "AK"),
+            )
+        }
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Check for changes"))
+        compose.onNodeWithText("At most every 6 hours").assertExists()
+
+        open("Check for changes")
+        compose.onNodeWithText("which its owner pays for", substring = true).assertExists()
+        compose.onNodeWithText("At most every 15 minutes").performClick()
+
+        awaitText("At most every 15 minutes")
+        assertEquals(listOf(15.minutes), intervals)
     }
 
     @Test

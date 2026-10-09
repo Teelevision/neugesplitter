@@ -44,14 +44,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.ui.ChoiceDialog
 import eu.teele.neugesplitter.ui.ColourPicker
 import eu.teele.neugesplitter.ui.EmojiPicker
 import eu.teele.neugesplitter.ui.InlineEditor
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 private enum class Dialog {
     PARTICIPANTS,
+    INTERVAL,
     DELETE,
 }
+
+/** What a group may poll at most every (SY-13); the shortest is Android's own (TR-10). */
+private val INTERVALS = listOf(15.minutes, 1.hours, 6.hours, 24.hours)
 
 /** A row edited in place of itself. */
 private enum class Field {
@@ -198,6 +206,13 @@ fun GroupSettingsScreen(
                         ),
                     )
                 }
+                item(key = "interval") {
+                    SettingRow(
+                        stringResource(R.string.poll_interval),
+                        atMostEvery(backend.interval),
+                        onClick = { dialog = Dialog.INTERVAL },
+                    )
+                }
             }
             item(key = "delete") {
                 SettingRow(
@@ -222,6 +237,20 @@ fun GroupSettingsScreen(
                 },
                 onCancel = close,
             )
+        Dialog.INTERVAL ->
+            state.backend?.let { backend ->
+                ChoiceDialog(
+                    R.string.poll_interval,
+                    INTERVALS.map { it to atMostEvery(it) },
+                    backend.interval,
+                    onChoose = {
+                        viewModel.interval(it)
+                        close()
+                    },
+                    onCancel = close,
+                    note = stringResource(R.string.poll_interval_note),
+                )
+            }
         Dialog.DELETE ->
             AlertDialog(
                 onDismissRequest = close,
@@ -254,6 +283,15 @@ private fun participants(state: GroupSettingsState): String {
     val chosen = state.defaultParticipants ?: return stringResource(R.string.everyone)
     val names = state.members.filter { it.id in chosen }.joinToString(", ") { it.name }
     return names.ifEmpty { stringResource(R.string.none) }
+}
+
+/** A poll interval as the bound it is, not a promise (TR-10). */
+@Composable
+private fun atMostEvery(interval: Duration): String {
+    val hours = interval.inWholeHours.toInt()
+    if (interval == hours.hours) return pluralStringResource(R.plurals.poll_hours, hours, hours)
+    val minutes = interval.inWholeMinutes.toInt()
+    return pluralStringResource(R.plurals.poll_minutes, minutes, minutes)
 }
 
 /** A label and its value; a row with no [onClick] only informs. */

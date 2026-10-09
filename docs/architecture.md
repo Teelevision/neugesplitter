@@ -156,15 +156,15 @@ will eventually fire while a manual sync is running (TR-15).
 
 ## 5. Local storage
 
-| Table              | Derived? | Notes                                                                   |
-| ------------------ | -------- | ----------------------------------------------------------------------- |
-| `event_row`        | no       | group, local order, canonical event JSON text, sync state, object link  |
-| `log_object`       | no       | group, number, batch id (none for a root object), exact bytes           |
-| `acting_as`        | no       | which member this installation writes into `by` (ID-3, format-spec 4.2) |
-| `backend_settings` | no       | endpoint, bucket, prefix, region, addressing style, access key          |
-| `sync_state`       | no       | last successful sync, halt state and its reason, the last failure       |
-| `projection_state` | no       | the projection version the derived tables were built by (TR-18b)        |
-| everything else    | yes      | `group_row`, `member`, `entry`, `side`, `occurrence`, `balance`         |
+| Table              | Derived? | Notes                                                                         |
+| ------------------ | -------- | ----------------------------------------------------------------------------- |
+| `event_row`        | no       | group, local order, canonical event JSON text, sync state, object link        |
+| `log_object`       | no       | group, number, batch id (none for a root object), exact bytes                 |
+| `acting_as`        | no       | which member this installation writes into `by` (ID-3, format-spec 4.2)       |
+| `backend_settings` | no       | endpoint, bucket, prefix, region, addressing style, access key, poll interval |
+| `sync_state`       | no       | last successful sync, halt state and its reason, the last failure             |
+| `projection_state` | no       | the projection version the derived tables were built by (TR-18b)              |
+| everything else    | yes      | `group_row`, `member`, `entry`, `side`, `occurrence`, `balance`               |
 
 `group_row` is named so only because `GROUP` is an SQL keyword. Occurrences sit
 in `entry` like any other entry, and `occurrence` says which series and due date
@@ -199,6 +199,15 @@ never on the path of reading an object (TR-26). Background polling goes through
 WorkManager and tolerates arbitrary deferral; manual sync calls the same code
 directly rather than scheduling it (TR-13). No foreground service, no
 battery-optimisation exemption (TR-11).
+
+Each shared group has one unique periodic work request, named after the group,
+with its interval as the period and a network constraint. Connecting, changing
+the interval and every process start enqueue it again, replacing what was there;
+forgetting the group cancels it, and a poll for a group no longer shared cancels
+itself. Starting the process sets up each group's sync and schedule but asks the
+backend nothing; the pass for what others wrote meanwhile runs once the app is
+opened, so a process WorkManager starts for a poll makes exactly one list
+request per group.
 
 ## 7. UI
 

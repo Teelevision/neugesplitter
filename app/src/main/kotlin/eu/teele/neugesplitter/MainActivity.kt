@@ -18,6 +18,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val graph = (application as Neugesplitter).graph
+        graph.syncing.opened()
         setContent {
             val theme by graph.preferences.theme.collectAsStateWithLifecycle()
             val dark =

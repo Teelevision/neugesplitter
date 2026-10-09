@@ -165,6 +165,16 @@
     <string name="encryption">Verschlüsselung</string>
     <string name="encryption_on">Aktiv (Passphrase)</string>
     <string name="encryption_off">Aus</string>
+    <string name="poll_interval">Auf Änderungen prüfen</string>
+    <plurals name="poll_minutes">
+        <item quantity="one">Höchstens jede Minute</item>
+        <item quantity="other">Höchstens alle %d Minuten</item>
+    </plurals>
+    <plurals name="poll_hours">
+        <item quantity="one">Höchstens stündlich</item>
+        <item quantity="other">Höchstens alle %d Stunden</item>
+    </plurals>
+    <string name="poll_interval_note">Jede Prüfung ist eine Anfrage an den Speicher, die dessen Inhaber bezahlt. Wann geprüft wird, entscheidet Android, oft später als eingestellt. Deine eigenen Änderungen werden sofort hochgeladen.</string>
 
     <!-- Backend setup -->
     <string name="setup_title">Speicher einrichten</string>

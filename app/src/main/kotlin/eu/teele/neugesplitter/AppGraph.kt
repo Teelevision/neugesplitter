@@ -17,6 +17,7 @@ import eu.teele.neugesplitter.storage.settings.SecretsDatabase
 import eu.teele.neugesplitter.sync.Keyring
 import eu.teele.neugesplitter.sync.LogStore
 import eu.teele.neugesplitter.work.Syncing
+import eu.teele.neugesplitter.work.WorkPolls
 import java.security.SecureRandom
 import java.time.Instant
 import java.time.LocalDate
@@ -68,6 +69,7 @@ class AppGraph(context: Context) {
             today = ::today,
             now = ::now,
             stores = stores,
+            polls = WorkPolls(context),
         )
 
     private val random = SecureRandom()

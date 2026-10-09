@@ -247,6 +247,7 @@ fun App(graph: AppGraph) {
                                             graph::today,
                                             graph::now,
                                             graph.syncing::forget,
+                                            graph.syncing::interval,
                                         )
                                     },
                                     onBack = { pop() },

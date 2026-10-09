@@ -30,6 +30,7 @@ import eu.teele.neugesplitter.sync.ObjectNumber
 import eu.teele.neugesplitter.sync.Retained
 import eu.teele.neugesplitter.sync.Sealing
 import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 import javax.crypto.AEADBadTagException
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -38,7 +39,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -105,6 +109,25 @@ class SyncingTest {
 
     private val codec = FastCodec()
 
+    /** What is scheduled, by group. */
+    private class FakePolls : Polls {
+        val scheduled = ConcurrentHashMap<GroupId, Duration>()
+
+        override fun schedule(id: GroupId, interval: Duration) {
+            scheduled[id] = interval
+        }
+
+        override fun cancel(id: GroupId) {
+            scheduled.remove(id)
+        }
+
+        override fun cancelAll() {
+            scheduled.clear()
+        }
+    }
+
+    private val polls = FakePolls()
+
     private fun syncing(keyring: Keyring = Keyring(codec), store: BucketStore = bucket) =
         Syncing(
             groups,
@@ -115,6 +138,7 @@ class SyncingTest {
             { today },
             { at },
             { _, _ -> store },
+            polls,
             quiet = 20.milliseconds,
             bound = 100.milliseconds,
             retry = 50.milliseconds,
@@ -245,7 +269,7 @@ class SyncingTest {
     }
 
     @Test
-    fun `a started group fetches what others wrote meanwhile (SY-2, SY-9)`() {
+    fun `an opened app fetches what others wrote meanwhile, once per process (SY-2, SY-9)`() {
         created()
         runBlocking { syncing().connect(trip, settings, "secret") }
         settled { it.waiting == 0L }
@@ -255,13 +279,66 @@ class SyncingTest {
         val theirs = Event.GroupUpdated(EventId.parse(id(0x200)), anna.id, at, renamed)
         bucket.objects["log/0000001"] =
             LogObject(BatchId.parse(id(0x300)), null, listOf(theirs)).write()
-        syncing().start()
+        val lists = bucket.lists
+        val syncing = syncing()
+        syncing.start()
+        syncing.opened()
 
         runBlocking { withTimeout(5.seconds) { while (theirs !in groups.events(trip)) delay(10) } }
+        syncing.opened()
+        Thread.sleep(200)
+        assertEquals(lists + 1, bucket.lists)
     }
 
     @Test
-    fun `forgetting a group stops its sync and its secrets (GR-11)`() {
+    fun `a started process polls in the background and asks the backend nothing itself (TR-9, SY-13)`() {
+        created()
+        val syncing = syncing()
+        runBlocking { syncing.connect(trip, settings, "secret") }
+        settled { it.waiting == 0L }
+        assertEquals(6.hours, polls.scheduled[trip])
+        restart()
+        polls.cancelAll()
+
+        val lists = bucket.lists
+        syncing().start()
+
+        Thread.sleep(200)
+        assertEquals(6.hours, polls.scheduled[trip])
+        assertEquals(lists, bucket.lists)
+    }
+
+    @Test
+    fun `a poll returns once its pass has ended, and a changed interval is scheduled (TR-9, SY-13)`() {
+        created()
+        val syncing = syncing()
+        runBlocking { syncing.connect(trip, settings, "secret") }
+        settled { it.waiting == 0L }
+
+        val renamed = GroupChanges(description = Change.To("Elsewhere"))
+        val theirs = Event.GroupUpdated(EventId.parse(id(0x200)), anna.id, at, renamed)
+        bucket.objects["log/0000001"] =
+            LogObject(BatchId.parse(id(0x300)), null, listOf(theirs)).write()
+        runBlocking { syncing.poll(trip) }
+        assertTrue(theirs in groups.events(trip))
+
+        syncing.interval(trip, 15.minutes)
+        assertEquals(15.minutes, polls.scheduled[trip])
+        assertEquals(15.minutes, runBlocking { groups.backends.interval(trip).first() })
+    }
+
+    @Test
+    fun `a poll for a group no longer shared cancels itself`() {
+        polls.schedule(trip, 6.hours)
+
+        runBlocking { syncing().poll(trip) }
+
+        assertNull(polls.scheduled[trip])
+        assertNull(runBlocking { groups.backends.state(trip).first() })
+    }
+
+    @Test
+    fun `forgetting a group stops its sync, its polls and its secrets (GR-11)`() {
         created()
         val syncing = syncing()
         runBlocking { syncing.connect(trip, settings, "secret") }
@@ -271,6 +348,7 @@ class SyncingTest {
         appended()
 
         assertNull(secrets.secretKey(trip))
+        assertNull(polls.scheduled[trip])
         Thread.sleep(200)
         assertNull(bucket.at(1))
     }

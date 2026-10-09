@@ -1,5 +1,6 @@
 -- Where each shared group's backend is and how to reach it (BE-2, BE-4): an S3-compatible location.
--- Its secret key is kept apart, in the secrets database (TR-36, TR-37).
+-- Its secret key is kept apart, in the secrets database (TR-36, TR-37). `poll_minutes` is the
+-- shortest wait between background polls (SY-13).
 CREATE TABLE IF NOT EXISTS backend_settings (
     group_id TEXT NOT NULL PRIMARY KEY,
     endpoint TEXT NOT NULL,
@@ -7,18 +8,33 @@ CREATE TABLE IF NOT EXISTS backend_settings (
     prefix TEXT NOT NULL,
     region TEXT NOT NULL,
     path_style INTEGER NOT NULL,
-    access_key TEXT NOT NULL
+    access_key TEXT NOT NULL,
+    poll_minutes INTEGER NOT NULL DEFAULT 360
 );
 
+-- Moving a group keeps how often it polls.
 connect:
-INSERT OR REPLACE INTO backend_settings (
+INSERT INTO backend_settings (
     group_id, endpoint, bucket, prefix, region, path_style, access_key
 )
-VALUES (?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (group_id) DO UPDATE
+SET endpoint = excluded.endpoint, bucket = excluded.bucket, prefix = excluded.prefix,
+    region = excluded.region, path_style = excluded.path_style, access_key = excluded.access_key;
 
 settings:
 SELECT endpoint, bucket, prefix, region, path_style, access_key
 FROM backend_settings
+WHERE group_id = ?;
+
+interval:
+SELECT poll_minutes
+FROM backend_settings
+WHERE group_id = ?;
+
+setInterval:
+UPDATE backend_settings
+SET poll_minutes = ?
 WHERE group_id = ?;
 
 connected:

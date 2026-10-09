@@ -9,6 +9,8 @@ import eu.teele.neugesplitter.sync.writer.Halt
 import eu.teele.neugesplitter.sync.writer.Upload
 import java.time.Instant
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -45,6 +47,24 @@ class Backends internal constructor(private val database: Database) {
 
     /** Every group shared through a backend. */
     fun connected(): List<GroupId> = settings.connected().executeAsList().map(GroupId::parse)
+
+    /**
+     * The shortest wait between group [id]'s background polls (SY-13), again whenever it changes;
+     * null while it has no backend.
+     */
+    fun interval(id: GroupId, context: CoroutineContext = Dispatchers.IO): Flow<Duration?> =
+        settings
+            .interval(id.hex)
+            .asFlow()
+            .map { it.executeAsOneOrNull()?.minutes }
+            .distinctUntilChanged()
+            .flowOn(context)
+
+    /** Has group [id] wait at least [interval] between background polls (SY-13, TR-10). */
+    fun setInterval(id: GroupId, interval: Duration) {
+        require(interval >= SHORTEST_INTERVAL) { "Android polls no more often than this" }
+        settings.setInterval(interval.inWholeMinutes, id.hex)
+    }
 
     /** An encrypted group's root object, which its key is unlocked from; null for any other. */
     fun root(id: GroupId): ByteArray? = database.logObjectQueries.root(id.hex).executeAsOneOrNull()
@@ -95,6 +115,11 @@ class Backends internal constructor(private val database: Database) {
             }
             .distinctUntilChanged()
             .flowOn(context)
+    }
+
+    companion object {
+        /** The shortest interval Android runs periodic work at (TR-10). */
+        val SHORTEST_INTERVAL: Duration = 15.minutes
     }
 }
 
