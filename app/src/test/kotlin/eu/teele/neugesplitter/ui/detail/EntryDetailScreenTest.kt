@@ -23,10 +23,13 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.ui.receive
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -128,6 +131,17 @@ class EntryDetailScreenTest {
         assertEquals(2, compose.onAllNodesWithText("100.00").fetchSemanticsNodes().size)
         assertEquals(3, compose.onAllNodesWithText("33.33").fetchSemanticsNodes().size)
         compose.onNodeWithText("Created by Anna").assertExists()
+    }
+
+    @Test
+    fun `opening an entry sees every change to it (HI-6)`() {
+        seed(dinner())
+        val change = EntryChanges(description = Change.To("Supper"))
+        groups.receive(trip, today, 1, Event.EntryUpdated(eventId(), ben.id, at, entryId, change))
+        assertEquals(1, runBlocking { groups.unseen(trip).first() }.size)
+        show()
+        waitForText("Supper")
+        compose.waitUntil(5_000) { runBlocking { groups.unseen(trip).first() }.isEmpty() }
     }
 
     @Test

@@ -11,6 +11,8 @@ import eu.teele.neugesplitter.domain.value.Scale
  * @property entries how many entries count towards its balances, pending occurrences not included.
  * @property own the settled balance of the member this installation acts as (BA-7), or null if it
  *   acts as none.
+ * @property unseen whether it holds changes from another installation not seen yet (HI-5).
+ * @property halted whether its sync has halted (SY-15).
  */
 data class ListedGroup(
     val id: GroupId,
@@ -20,4 +22,6 @@ data class ListedGroup(
     val scale: Scale,
     val entries: Long,
     val own: Amount?,
+    val unseen: Boolean,
+    val halted: Boolean,
 )

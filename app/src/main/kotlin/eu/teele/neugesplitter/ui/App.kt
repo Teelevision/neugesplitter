@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
@@ -56,6 +57,7 @@ import eu.teele.neugesplitter.ui.settings.GroupSettingsViewModel
 import eu.teele.neugesplitter.ui.sync.SyncProblemScreen
 import eu.teele.neugesplitter.ui.sync.SyncProblemViewModel
 import java.text.DecimalFormatSymbols
+import kotlinx.coroutines.flow.combine
 import kotlinx.serialization.Serializable
 
 @Serializable data object GroupList : NavKey
@@ -237,9 +239,20 @@ fun App(graph: AppGraph) {
                 }
                 entry<GroupOverview> { key ->
                     val group = GroupId.parse(key.group)
+                    val attention by
+                        remember(group) {
+                                combine(
+                                    graph.groups.unseen(group),
+                                    graph.groups.backends.state(group),
+                                ) { unseen, sync ->
+                                    unseen.isNotEmpty() || sync?.halted != null
+                                }
+                            }
+                            .collectAsStateWithLifecycle(false)
                     GroupScreen(
                         onBack = { pop() },
                         onNew = { stack.add(EntryEditor(key.group)) },
+                        attention = attention,
                     ) { destination, back, modifier ->
                         when (destination) {
                             Destination.OVERVIEW ->

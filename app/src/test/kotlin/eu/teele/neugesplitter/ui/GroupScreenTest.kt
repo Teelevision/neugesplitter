@@ -26,15 +26,39 @@ class GroupScreenTest {
     private var added = 0
     private var left = 0
 
-    private fun show() {
+    private fun show(attention: Boolean = false) {
         compose.setContent {
             NeugesplitterTheme {
-                GroupScreen(onBack = { left++ }, onNew = { added++ }) { destination, back, modifier
-                    ->
+                GroupScreen(onBack = { left++ }, onNew = { added++ }, attention = attention) {
+                    destination,
+                    back,
+                    modifier ->
                     TextButton(onClick = back, modifier) { Text("showing $destination") }
                 }
             }
         }
+    }
+
+    @Test
+    fun `activity carries no badge while nothing there needs attention (ui-design 4)`() {
+        show()
+        compose
+            .onNodeWithContentDescription("Needs attention", useUnmergedTree = true)
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun `activity carries a badge while something there needs attention (ui-design 4)`() {
+        show(attention = true)
+        val badge =
+            compose
+                .onNodeWithContentDescription("Needs attention", useUnmergedTree = true)
+                .fetchSemanticsNode()
+                .boundsInRoot
+        val action =
+            compose.onNodeWithContentDescription("New entry").fetchSemanticsNode().boundsInRoot
+        val settings = compose.onNodeWithText("Settings").fetchSemanticsNode().boundsInRoot
+        assertTrue(badge.center.x in action.right..settings.left)
     }
 
     @Test

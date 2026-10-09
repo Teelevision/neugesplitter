@@ -38,6 +38,7 @@ data class Overview(
  *   does.
  * @property repeats whether it is an occurrence of a series (RE-9).
  * @property edited whether it was changed after it was created (HI-4).
+ * @property unseen whether another installation changed it and that has not been seen yet (HI-5).
  */
 data class ListedEntry(
     val id: EntryId,
@@ -49,4 +50,5 @@ data class ListedEntry(
     val own: Amount?,
     val repeats: Boolean,
     val edited: Boolean,
+    val unseen: Boolean,
 )

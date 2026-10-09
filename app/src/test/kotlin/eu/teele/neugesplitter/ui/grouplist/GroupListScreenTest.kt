@@ -2,6 +2,7 @@ package eu.teele.neugesplitter.ui.grouplist
 
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -22,6 +23,10 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.sync.ObjectNumber
+import eu.teele.neugesplitter.sync.writer.Halt
+import eu.teele.neugesplitter.sync.writer.Upload
+import eu.teele.neugesplitter.ui.receive
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
 import java.time.Instant
 import kotlin.test.Test
@@ -139,6 +144,25 @@ class GroupListScreenTest {
         compose.onNodeWithContentDescription("New group").performClick()
         compose.onNodeWithText("New group").performClick()
         assertEquals(1, created)
+    }
+
+    @Test
+    fun `a group with unseen changes carries a dot, a halted one a warning instead (HI-5, SY-15)`() {
+        seed(trip, "Trip")
+        seed(flat, "Flat")
+        val renamed = Event.MemberRenamed(eventId(), ben.id, at, ben.id, "Benni")
+        groups.receive(trip, today, 1, renamed)
+        groups.receive(flat, today, 1, renamed.copy(id = eventId()))
+        groups.backends.halted(flat, Upload.Halted(ObjectNumber(2), Halt.GAP))
+        show()
+        waitForText("Trip")
+        compose.onNodeWithContentDescription("New").assertExists()
+        compose.onNodeWithContentDescription("Sync stopped").assertExists()
+
+        groups.seenAll(trip)
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithContentDescription("New").fetchSemanticsNodes().isEmpty()
+        }
     }
 
     @Test

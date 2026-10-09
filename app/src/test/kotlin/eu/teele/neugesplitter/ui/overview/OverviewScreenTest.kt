@@ -2,6 +2,7 @@ package eu.teele.neugesplitter.ui.overview
 
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -11,6 +12,8 @@ import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
+import eu.teele.neugesplitter.domain.event.Change
+import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
@@ -26,6 +29,7 @@ import eu.teele.neugesplitter.storage.settings.BackendSettings
 import eu.teele.neugesplitter.sync.ObjectNumber
 import eu.teele.neugesplitter.sync.writer.Halt
 import eu.teele.neugesplitter.sync.writer.Upload
+import eu.teele.neugesplitter.ui.receive
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
 import java.time.Instant
 import kotlin.test.Test
@@ -175,6 +179,32 @@ class OverviewScreenTest {
     fun `a group that syncs, or is kept only here, shows no sync banner (SY-15)`() {
         show()
         compose.onNodeWithText("Sync stopped").assertDoesNotExist()
+    }
+
+    @Test
+    fun `an entry changed elsewhere carries a dot until it is seen (HI-5)`() {
+        show {
+            val change = EntryChanges(description = Change.To("Cab"))
+            groups.receive(trip, today, 1, Event.EntryUpdated(eventId(), ben.id, at, taxi, change))
+        }
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithContentDescription("New").fetchSemanticsNodes().size == 1
+        }
+        val dot =
+            compose
+                .onNodeWithContentDescription("New", useUnmergedTree = true)
+                .fetchSemanticsNode()
+                .boundsInRoot
+        fun unmerged(text: String) =
+            compose.onNodeWithText(text, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        // Beside the description, above the line naming who paid.
+        assertTrue(dot.top >= unmerged("Cab").top)
+        assertTrue(dot.bottom <= unmerged("Paid by Ben · edited").top)
+
+        groups.seen(trip, taxi)
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithContentDescription("New").fetchSemanticsNodes().isEmpty()
+        }
     }
 
     @Test

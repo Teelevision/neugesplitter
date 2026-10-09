@@ -322,6 +322,8 @@ class GroupRepositoryTest {
                     scale = Scale.DEFAULT,
                     entries = counted.toLong(),
                     own = group.settlement(TODAY).getValue(ANNA),
+                    unseen = false,
+                    halted = false,
                 )
             ),
             runBlocking { groups.list(TODAY).first() },
@@ -374,6 +376,7 @@ class GroupRepositoryTest {
                     own = euros(60),
                     repeats = false,
                     edited = false,
+                    unseen = false,
                 ),
                 ListedEntry(
                     entryId(1),
@@ -385,6 +388,7 @@ class GroupRepositoryTest {
                     own = groceries.beneficiaries.parts(groceries.amount).getValue(ANNA),
                     repeats = false,
                     edited = true,
+                    unseen = false,
                 ),
             ),
             overview.entries.take(2),

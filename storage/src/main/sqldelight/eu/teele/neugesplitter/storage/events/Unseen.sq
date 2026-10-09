@@ -1,0 +1,45 @@
+-- The events this installation received from a backend once it acted as somebody in their group,
+-- which the user has not seen yet (HI-5). Seeing them is local to the installation (HI-8), and
+-- unlike the projection nothing here can be derived again. `local_order` is the event's row in
+-- `event_row`, which a received row keeps; `entry` is the entry the event changed, if any.
+CREATE TABLE IF NOT EXISTS unseen (
+    group_id TEXT NOT NULL,
+    local_order INTEGER NOT NULL,
+    entry TEXT,
+    PRIMARY KEY (group_id, local_order)
+);
+
+mark:
+INSERT INTO unseen (group_id, local_order, entry)
+VALUES (?, ?, ?);
+
+-- Where each unseen event sits in its group's log, counted from 0.
+positions:
+SELECT (SELECT count(*)
+        FROM event_row r
+        WHERE r.group_id = u.group_id AND r.local_order < u.local_order) AS position
+FROM unseen u
+WHERE u.group_id = ?
+ORDER BY u.local_order;
+
+seenAt:
+DELETE FROM unseen
+WHERE group_id = :group_id
+  AND local_order = (
+      SELECT local_order
+      FROM event_row
+      WHERE group_id = :group_id
+      ORDER BY local_order
+      LIMIT 1 OFFSET :position
+  );
+
+seenEntry:
+DELETE FROM unseen
+WHERE group_id = ? AND entry = ?;
+
+forget:
+DELETE FROM unseen
+WHERE group_id = ?;
+
+forgetAll:
+DELETE FROM unseen;

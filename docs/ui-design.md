@@ -181,8 +181,9 @@ Three stacked sections, each collapsible, in this order:
 2. **History**: what changed, by which member, and when (HI-2), as a reverse
    chronological list covering entries, membership and group settings. A line
    about an entry opens it, or its history once it is deleted (HI-3). Unseen
-   items are highlighted; opening one clears it (HI-5, HI-6). The overflow holds
-   **mark all as read** (HI-7).
+   items are highlighted; tapping one clears it, and opening an entry clears
+   every line about it (HI-5, HI-6). The overflow holds **mark all as read**
+   (HI-7).
 3. **Sync**: state and the time of the last _successful_ sync (SY-6, TR-12), a
    manual sync button (SY-9), and what is queued. When sync has halted, this
    section is replaced by an error card leading to the sync problem screen. A

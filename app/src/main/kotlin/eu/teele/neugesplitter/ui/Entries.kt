@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -62,6 +64,19 @@ fun sideLabels(kind: Kind): Pair<Int, Int> =
 /** "Monday, 31 August 2026", as [locale] writes it. */
 fun longDate(date: EntryDate, locale: Locale): String =
     DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale).format(date.value)
+
+/** Marks a change not seen yet (HI-5), by a shape and a label rather than colour alone (UX-6). */
+@Composable
+fun UnseenDot(modifier: Modifier = Modifier) {
+    val label = stringResource(R.string.unseen)
+    Box(
+        modifier
+            .size(8.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primary)
+            .semantics { contentDescription = label }
+    )
+}
 
 /**
  * Income and transfers carry their own icon, and income a sign, so the kind never rests on colour
@@ -117,6 +132,7 @@ fun EntryRow(entry: ListedEntry, scale: Scale, locale: Locale, modifier: Modifie
                         modifier = Modifier.padding(start = 4.dp).size(16.dp),
                     )
                 }
+                if (entry.unseen) UnseenDot(Modifier.padding(start = 8.dp))
             }
             Text(
                 meta,

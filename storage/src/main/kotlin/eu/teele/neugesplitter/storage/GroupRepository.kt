@@ -62,6 +62,33 @@ class GroupRepository(private val driver: SqlDriver) {
         database.eventRowQueries.length(id.hex).asFlow().map { events(id) }.flowOn(context)
 
     /**
+     * Where in group [id]'s log, counted from 0, each event sits that came from another
+     * installation and has not been seen here yet (HI-5, HI-8), again whenever that changes.
+     */
+    fun unseen(id: GroupId, context: CoroutineContext = Dispatchers.IO): Flow<Set<Int>> =
+        database.unseenQueries
+            .positions(id.hex)
+            .asFlow()
+            .mapToList(context)
+            .map { positions -> positions.mapTo(mutableSetOf()) { it.toInt() } }
+            .distinctUntilChanged()
+
+    /** Marks the event at [position] in group [id]'s log as seen (HI-5). */
+    fun seen(id: GroupId, position: Int) {
+        database.unseenQueries.seenAt(id.hex, position.toLong())
+    }
+
+    /** Marks every change to entry [entry] of group [id] as seen, as opening it does (HI-6). */
+    fun seen(id: GroupId, entry: EntryId) {
+        database.unseenQueries.seenEntry(id.hex, entry.hex)
+    }
+
+    /** Marks every change to group [id] as seen (HI-7). */
+    fun seenAll(id: GroupId) {
+        database.unseenQueries.forget(id.hex)
+    }
+
+    /**
      * Group [id]'s log as sync writes and receives it (TR-17b, TR-17d). What it receives is brought
      * into the projection as of [today].
      */
@@ -80,7 +107,7 @@ class GroupRepository(private val driver: SqlDriver) {
         context: CoroutineContext = Dispatchers.IO,
     ): Flow<List<ListedGroup>> =
         database.projectionQueries
-            .listed { id, name, emoji, colour, scale, entries, own ->
+            .listed { id, name, emoji, colour, scale, entries, own, unseen, halted ->
                 ListedGroup(
                     id = GroupId.parse(id),
                     name = name,
@@ -89,6 +116,8 @@ class GroupRepository(private val driver: SqlDriver) {
                     scale = Scale.of(scale.toInt()),
                     entries = entries,
                     own = own?.let(Amount::ofUnits),
+                    unseen = unseen,
+                    halted = halted,
                 )
             }
             .asFlow()
@@ -117,7 +146,8 @@ class GroupRepository(private val driver: SqlDriver) {
                 edited,
                 repeats,
                 own,
-                payer ->
+                payer,
+                unseen ->
                 ListedEntry(
                     id = EntryId.parse(entry),
                     kind = Kind.valueOf(kind.uppercase()),
@@ -128,6 +158,7 @@ class GroupRepository(private val driver: SqlDriver) {
                     own = own?.let(Amount::ofUnits),
                     repeats = repeats,
                     edited = edited != 0L,
+                    unseen = unseen,
                 )
             }
         // Either query may be told of a write first; both are read again, together, either way.
@@ -233,7 +264,8 @@ class GroupRepository(private val driver: SqlDriver) {
 
     /**
      * Removes group [id] from this installation: its log, its retained objects, its projection, the
-     * member it acts as and its backend (TR-20, GR-11). Its secrets are [Secrets.forget]'s.
+     * member it acts as, what has been seen of it and its backend (TR-20, GR-11). Its secrets are
+     * [Secrets.forget]'s.
      */
     fun delete(id: GroupId) {
         database.transaction {
@@ -242,6 +274,7 @@ class GroupRepository(private val driver: SqlDriver) {
             database.actingAsQueries.forget(id.hex)
             database.backendSettingsQueries.forget(id.hex)
             database.syncStateQueries.forget(id.hex)
+            database.unseenQueries.forget(id.hex)
             database.projectionQueries.forget(id.hex)
         }
     }
@@ -254,6 +287,7 @@ class GroupRepository(private val driver: SqlDriver) {
             database.actingAsQueries.forgetAll()
             database.backendSettingsQueries.forgetAll()
             database.syncStateQueries.forgetAll()
+            database.unseenQueries.forgetAll()
             database.projectionQueries.forgetAll()
         }
     }

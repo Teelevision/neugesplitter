@@ -164,7 +164,19 @@ private fun Details(state: NewGroupState, viewModel: NewGroupViewModel) {
     ColourPicker(state.colour, viewModel::colour)
 
     Heading(stringResource(R.string.group_preview))
-    GroupCard(ListedGroup(state.id, state.name, state.emoji, state.colour, Scale.DEFAULT, 0, null))
+    GroupCard(
+        ListedGroup(
+            state.id,
+            state.name,
+            state.emoji,
+            state.colour,
+            Scale.DEFAULT,
+            0,
+            null,
+            unseen = false,
+            halted = false,
+        )
+    )
 }
 
 @Composable

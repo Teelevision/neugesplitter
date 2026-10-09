@@ -1,0 +1,7 @@
+-- Version 4 kept no record of what the user had seen, so everything held counts as seen.
+CREATE TABLE unseen (
+    group_id TEXT NOT NULL,
+    local_order INTEGER NOT NULL,
+    entry TEXT,
+    PRIMARY KEY (group_id, local_order)
+);

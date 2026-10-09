@@ -4,6 +4,7 @@ import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.value.EntryDate
+import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.format.json.BatchId
 import eu.teele.neugesplitter.format.json.EventJson
@@ -27,6 +28,7 @@ internal class StoredLog(
 
     private val rows = database.eventRowQueries
     private val retained = database.logObjectQueries
+    private val unseen = database.unseenQueries
 
     override suspend fun head(): Retained? =
         withContext(context) {
@@ -96,10 +98,14 @@ internal class StoredLog(
                 val count = applied.sumOf { it.received.texts.size }.toLong()
                 rows.makeRoom(count, id.hex)
                 rows.settle(id.hex)
+                // What a join fetches, before anybody is acted as, is the history the user joins.
+                val joined = database.actingAsQueries.member(id.hex).executeAsOneOrNull() != null
                 var order = (synced.lastOrNull()?.local_order ?: 0) + 1
                 for (fetched in applied) {
                     val number = fetched.number.value.toLong()
-                    for (text in fetched.received.texts) {
+                    val carried = fetched.received.carried.events
+                    for ((i, text) in fetched.received.texts.withIndex()) {
+                        if (joined) unseen.mark(id.hex, order, carried[i].entry()?.hex)
                         rows.received(id.hex, order++, text, number)
                     }
                     val batch = fetched.received.carried.batch.hex
@@ -123,4 +129,12 @@ internal class StoredLog(
 
     private fun applied(state: Group?, event: Event): Group =
         state?.plus(event) ?: Group.replay(listOf(event))
+
+    private fun Event.entry(): EntryId? =
+        when (this) {
+            is Event.EntryCreated -> entry.id
+            is Event.EntryUpdated -> target
+            is Event.EntryDeleted -> target
+            else -> null
+        }
 }

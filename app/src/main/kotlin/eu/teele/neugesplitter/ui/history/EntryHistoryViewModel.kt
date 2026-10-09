@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 
 /**
@@ -30,7 +31,10 @@ data class EntryHistoryState(
     val versions: List<Version> = emptyList(),
 )
 
-/** The previous versions of one entry, and its deletion if there is one (HI-3). */
+/**
+ * The previous versions of one entry, and its deletion if there is one (HI-3); while they are
+ * shown, every change to it counts as seen (HI-6).
+ */
 class EntryHistoryViewModel(repository: GroupRepository, group: GroupId, entry: EntryId) :
     ViewModel() {
 
@@ -52,6 +56,7 @@ class EntryHistoryViewModel(repository: GroupRepository, group: GroupId, entry: 
                     )
                 }
             }
+            .onEach { if (it.versions.isNotEmpty()) repository.seen(group, entry) }
             .flowOn(Dispatchers.IO)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EntryHistoryState())
 }

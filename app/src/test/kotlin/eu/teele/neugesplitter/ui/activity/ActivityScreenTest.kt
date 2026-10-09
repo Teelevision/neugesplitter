@@ -26,6 +26,7 @@ import eu.teele.neugesplitter.storage.settings.Failure
 import eu.teele.neugesplitter.sync.ObjectNumber
 import eu.teele.neugesplitter.sync.writer.Halt
 import eu.teele.neugesplitter.sync.writer.Upload
+import eu.teele.neugesplitter.ui.receive
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
 import java.time.Instant
 import java.util.TimeZone
@@ -127,6 +128,9 @@ class ActivityScreenTest {
 
     private fun count(text: String) = compose.onAllNodesWithText(text).fetchSemanticsNodes().size
 
+    private fun unseen() =
+        compose.onAllNodesWithContentDescription("New").fetchSemanticsNodes().size
+
     private fun top(text: String) =
         compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
 
@@ -160,6 +164,44 @@ class ActivityScreenTest {
         assertEquals(listOf(taxiId, taxiId), histories)
         compose.onNodeWithText("Anna created the group · 2 hours ago").performClick()
         assertEquals(listOf(dinnerId), opened)
+    }
+
+    @Test
+    fun `changes from elsewhere stand out until their line is tapped (HI-5)`() {
+        show {
+            groups.receive(
+                trip,
+                today,
+                1,
+                Event.MemberRenamed(eventId(), ben.id, hours(1), ben.id, "Benni"),
+                Event.EntryCreated(eventId(), ben.id, hours(1), entry(taxiId, "Taxi")),
+            )
+        }
+        compose.waitUntil(5_000) { unseen() == 2 }
+        compose.onNodeWithText("Benni renamed Ben to Benni · 1 hour ago").performClick()
+        compose.waitUntil(5_000) { unseen() == 1 }
+        compose.onNodeWithText("Benni added 'Taxi' · 1 hour ago").performClick()
+        assertEquals(listOf(taxiId), opened)
+        compose.waitUntil(5_000) { unseen() == 0 }
+        compose.onNodeWithText("Benni added 'Dinner' · 1 hour ago").assertExists()
+    }
+
+    @Test
+    fun `mark all as read clears every highlight at once (HI-7)`() {
+        show {
+            groups.receive(
+                trip,
+                today,
+                1,
+                Event.MemberRenamed(eventId(), ben.id, hours(1), ben.id, "Benni"),
+                Event.EntryCreated(eventId(), ben.id, hours(1), entry(taxiId, "Taxi")),
+            )
+        }
+        compose.waitUntil(5_000) { unseen() == 2 }
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Mark all as read").performClick()
+        compose.waitUntil(5_000) { unseen() == 0 }
+        assertEquals(emptyList(), opened)
     }
 
     @Test

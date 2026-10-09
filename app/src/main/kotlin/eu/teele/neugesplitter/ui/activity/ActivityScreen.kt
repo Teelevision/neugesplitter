@@ -8,6 +8,7 @@ import android.icu.util.ULocale
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -36,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,6 +49,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -56,6 +61,7 @@ import eu.teele.neugesplitter.domain.history.Setting
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.settings.SyncState
+import eu.teele.neugesplitter.ui.UnseenDot
 import eu.teele.neugesplitter.ui.sync.SyncHaltedCard
 import eu.teele.neugesplitter.ui.sync.failed
 import java.time.Duration
@@ -67,8 +73,9 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 /**
- * What changed in a group, by whom and when (HI-2), and how its sync stands, with a manual sync
- * (SY-6, SY-9, TR-12). Each part folds away (ui-design 4).
+ * What changed in a group, by whom and when (HI-2), with what has not been seen yet highlighted
+ * (HI-5, HI-7), and how its sync stands, with a manual sync (SY-6, SY-9, TR-12). Each part folds
+ * away (ui-design 4).
  *
  * @param onOpen opens an entry a change names.
  * @param onHistory opens the history of a deleted entry a change names.
@@ -90,6 +97,7 @@ fun ActivityScreen(
     val locale = LocalConfiguration.current.locales[0]
     var history by rememberSaveable { mutableStateOf(true) }
     var sync by rememberSaveable { mutableStateOf(true) }
+    var menu by remember { mutableStateOf(false) }
 
     // Deleted while open, which only another screen can do.
     LaunchedEffect(state) { if (state.loaded && state.title == null) onBack() }
@@ -110,13 +118,30 @@ fun ActivityScreen(
                     }
                 },
                 actions = {
-                    if (state.loaded) {
-                        state.sync?.let {
-                            val (icon, label) = cloud(it)
+                    if (state.title == null) return@TopAppBar
+                    state.sync?.let {
+                        val (icon, label) = cloud(it)
+                        Icon(
+                            painterResource(icon),
+                            stringResource(label),
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                        )
+                    }
+                    Box {
+                        IconButton(onClick = { menu = true }) {
                             Icon(
-                                painterResource(icon),
-                                stringResource(label),
-                                modifier = Modifier.padding(horizontal = 12.dp),
+                                painterResource(R.drawable.ic_more_vert),
+                                stringResource(R.string.more_options),
+                            )
+                        }
+                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.mark_all_read)) },
+                                enabled = state.unseen.isNotEmpty(),
+                                onClick = {
+                                    menu = false
+                                    viewModel.readAll()
+                                },
                             )
                         }
                     }
@@ -131,9 +156,18 @@ fun ActivityScreen(
         ) {
             section("history", R.string.history, history) { history = !history }
             if (history) {
-                itemsIndexed(state.history, key = { index, _ -> "happened-$index" }) { _, happening
-                    ->
-                    HappeningRow(happening, state, locale, onOpen, onHistory)
+                itemsIndexed(state.history, key = { index, _ -> "happened-$index" }) {
+                    index,
+                    happening ->
+                    HappeningRow(
+                        happening,
+                        index in state.unseen,
+                        state,
+                        locale,
+                        { viewModel.read(index) },
+                        onOpen,
+                        onHistory,
+                    )
                 }
             }
             section("sync", R.string.sync, sync) { sync = !sync }
@@ -177,11 +211,14 @@ private fun LazyListScope.section(
     }
 }
 
+/** One change; tapping it reads it, and opens the entry it names if it names one (HI-3, HI-5). */
 @Composable
 private fun HappeningRow(
     happening: Happening,
+    unseen: Boolean,
     state: ActivityState,
     locale: Locale,
+    onRead: () -> Unit,
     onOpen: (EntryId) -> Unit,
     onHistory: (EntryId) -> Unit,
 ) {
@@ -193,13 +230,17 @@ private fun HappeningRow(
             ago(happening.at, state.now, locale),
         )
     ListItem(
-        headlineContent = { Text(text) },
+        headlineContent = { Text(text, fontWeight = if (unseen) FontWeight.SemiBold else null) },
+        trailingContent = if (unseen) ({ UnseenDot() }) else null,
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier =
-            if (entry == null) Modifier
+            if (entry == null && !unseen) Modifier
             else
                 Modifier.clickable {
-                    if (entry in state.deleted) onHistory(entry) else onOpen(entry)
+                    if (unseen) onRead()
+                    if (entry != null) {
+                        if (entry in state.deleted) onHistory(entry) else onOpen(entry)
+                    }
                 },
     )
 }

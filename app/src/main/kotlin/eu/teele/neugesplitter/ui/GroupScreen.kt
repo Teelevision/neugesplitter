@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
@@ -27,6 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import eu.teele.neugesplitter.R
 
 /** The destinations inside a group (ui-design 1). */
@@ -43,6 +47,8 @@ enum class Destination(@param:DrawableRes val icon: Int, @param:StringRes val la
  * before it does.
  *
  * @param onBack leaves the group, from the overview.
+ * @param attention whether Activity holds something to look at: unseen changes or a halted sync
+ *   (ui-design 4).
  * @param content the destination, given what its back arrow does; it must apply the modifier it is
  *   given.
  */
@@ -50,6 +56,7 @@ enum class Destination(@param:DrawableRes val icon: Int, @param:StringRes val la
 fun GroupScreen(
     onBack: () -> Unit,
     onNew: () -> Unit,
+    attention: Boolean,
     content: @Composable (Destination, () -> Unit, Modifier) -> Unit,
 ) {
     var destination by rememberSaveable { mutableStateOf(Destination.OVERVIEW) }
@@ -62,7 +69,7 @@ fun GroupScreen(
         }
     }
     Scaffold(
-        bottomBar = { GroupBar(destination, { destination = it }, onNew) },
+        bottomBar = { GroupBar(destination, { destination = it }, onNew, attention) },
         contentWindowInsets = WindowInsets(0),
     ) { padding ->
         content(destination, back, Modifier.padding(padding).consumeWindowInsets(padding))
@@ -70,7 +77,12 @@ fun GroupScreen(
 }
 
 @Composable
-private fun GroupBar(selected: Destination, onSelect: (Destination) -> Unit, onNew: () -> Unit) {
+private fun GroupBar(
+    selected: Destination,
+    onSelect: (Destination) -> Unit,
+    onNew: () -> Unit,
+    attention: Boolean,
+) {
     val colours = MaterialTheme.colorScheme
     // Marked by hue rather than brightness, which this palette cannot separate (ui-design 8).
     val itemColours =
@@ -92,7 +104,7 @@ private fun GroupBar(selected: Destination, onSelect: (Destination) -> Unit, onN
                 Icon(painterResource(R.drawable.ic_add), stringResource(R.string.new_entry))
             }
         }
-        DestinationItem(Destination.ACTIVITY, selected, onSelect, itemColours)
+        DestinationItem(Destination.ACTIVITY, selected, onSelect, itemColours, attention)
         DestinationItem(Destination.SETTINGS, selected, onSelect, itemColours)
     }
 }
@@ -103,11 +115,23 @@ private fun RowScope.DestinationItem(
     selected: Destination,
     onSelect: (Destination) -> Unit,
     colours: NavigationBarItemColors,
+    badged: Boolean = false,
 ) {
     NavigationBarItem(
         selected = destination == selected,
         onClick = { onSelect(destination) },
-        icon = { Icon(painterResource(destination.icon), contentDescription = null) },
+        icon = {
+            BadgedBox(
+                badge = {
+                    if (badged) {
+                        val label = stringResource(R.string.needs_attention)
+                        Badge(Modifier.semantics { contentDescription = label })
+                    }
+                }
+            ) {
+                Icon(painterResource(destination.icon), contentDescription = null)
+            }
+        },
         label = { Text(stringResource(destination.label)) },
         colors = colours,
     )

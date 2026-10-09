@@ -160,7 +160,8 @@ LEFT JOIN balance b ON b.group_id = g.id AND b.member = a.member
 WHERE g.id = ?;
 
 -- The overview's entries, newest first, one row per payer in the order they were entered: every
--- entry that counts, with the part of it that falls to the member this installation acts as.
+-- entry that counts, with the part of it that falls to the member this installation acts as, and
+-- whether a change to it has not been seen yet (HI-5).
 entries:
 SELECT
     e.id,
@@ -173,7 +174,8 @@ SELECT
     (SELECT s.part FROM side s
      WHERE s.group_id = e.group_id AND s.entry = e.id
        AND s.role = 'beneficiaries' AND s.member = a.member) AS own,
-    m.name AS payer
+    m.name AS payer,
+    EXISTS (SELECT 1 FROM unseen u WHERE u.group_id = e.group_id AND u.entry = e.id) AS unseen
 FROM entry e
 JOIN side p ON p.group_id = e.group_id AND p.entry = e.id AND p.role = 'payers'
 JOIN member m ON m.group_id = p.group_id AND m.id = p.member
@@ -182,9 +184,10 @@ LEFT JOIN acting_as a ON a.group_id = e.group_id
 WHERE e.group_id = ? AND e.deleted = 0 AND coalesce(o.pending, 0) = 0
 ORDER BY e.date DESC, e.position DESC, e.id DESC, p.position;
 
--- The group list (ui-design 3): each group, how many entries it holds that count, and the settled
--- balance of the member this installation acts as in it (BA-7). A group being joined, with nobody
--- chosen to act as yet, is not this installation's yet (BE-6).
+-- The group list (ui-design 3): each group, how many entries it holds that count, the settled
+-- balance of the member this installation acts as in it (BA-7), whether it holds changes not seen
+-- yet (HI-5) and whether its sync has halted (SY-15). A group being joined, with nobody chosen to
+-- act as yet, is not this installation's yet (BE-6).
 listed:
 SELECT
     g.id,
@@ -200,7 +203,9 @@ SELECT
            SELECT 1 FROM occurrence o
            WHERE o.group_id = e.group_id AND o.entry = e.id AND o.pending = 1
        )) AS entries,
-    b.settled AS own
+    b.settled AS own,
+    EXISTS (SELECT 1 FROM unseen u WHERE u.group_id = g.id) AS unseen,
+    EXISTS (SELECT 1 FROM sync_state y WHERE y.group_id = g.id AND y.halt IS NOT NULL) AS halted
 FROM group_row g
 JOIN acting_as a ON a.group_id = g.id
 LEFT JOIN balance b ON b.group_id = g.id AND b.member = a.member

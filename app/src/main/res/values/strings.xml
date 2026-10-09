@@ -314,6 +314,9 @@
     <!-- Activity -->
     <string name="expand">Expand</string>
     <string name="collapse">Collapse</string>
+    <string name="unseen">New</string>
+    <string name="mark_all_read">Mark all as read</string>
+    <string name="needs_attention">Needs attention</string>
     <string name="happened_at">%1$s · %2$s</string>
     <string name="happened_created">%1$s created the group</string>
     <string name="happened_name">%1$s renamed the group</string>

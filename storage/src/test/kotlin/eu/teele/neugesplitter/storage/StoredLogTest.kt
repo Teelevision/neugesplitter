@@ -25,6 +25,7 @@ import eu.teele.neugesplitter.sync.Fetched
 import eu.teele.neugesplitter.sync.ObjectNumber
 import eu.teele.neugesplitter.sync.ObjectNumber.Companion.ROOT
 import eu.teele.neugesplitter.sync.Sealing
+import eu.teele.neugesplitter.sync.writer.Halt
 import eu.teele.neugesplitter.sync.writer.Upload
 import eu.teele.neugesplitter.sync.writer.Writer
 import kotlin.test.Test
@@ -155,6 +156,56 @@ class StoredLogTest {
         assertEquals(ObjectNumber(1), log.head()!!.number)
         assertEquals("Benni", groups.load(GROUP)!!.members.getValue(BEN).name)
         assertEquals(listOf<Event>(forty), log.batch(batch(1))!!.events)
+    }
+
+    @Test
+    fun `what is received is unseen until its line, its entry or all of it is seen (HI-5, HI-6, HI-7)`():
+        Unit = runBlocking {
+        synced()
+        groups.append(GROUP, listOf(forty), TODAY)
+        val renamed = Event.MemberRenamed(event(3), BEN, AT, BEN, "Benni")
+        val received = base.size
+
+        log.received(listOf(fetched(1, objectOf(9, absolute)), fetched(2, objectOf(10, renamed))))
+
+        assertEquals(setOf(received, received + 1), groups.unseen(GROUP).first())
+        assertEquals(true, groups.overview(GROUP, TODAY).first()!!.entries.single().unseen)
+        assertEquals(true, groups.list(TODAY).first().single().unseen)
+
+        groups.seen(GROUP, entryId(1))
+        assertEquals(setOf(received + 1), groups.unseen(GROUP).first())
+        assertEquals(false, groups.overview(GROUP, TODAY).first()!!.entries.single().unseen)
+
+        groups.seen(GROUP, received + 1)
+        assertEquals(emptySet(), groups.unseen(GROUP).first())
+        assertEquals(false, groups.list(TODAY).first().single().unseen)
+
+        val described = update(5, BEN, EntryChanges(description = Change.To("Dinner")))
+        log.received(listOf(fetched(3, objectOf(11, described))))
+        assertEquals(setOf(received + 2), groups.unseen(GROUP).first())
+        groups.seenAll(GROUP)
+        assertEquals(emptySet(), groups.unseen(GROUP).first())
+    }
+
+    @Test
+    fun `the history a join fetches is seen already (HI-5, BE-6)`(): Unit = runBlocking {
+        log.received(listOf(fetched(0, baseBytes)))
+        assertEquals(emptySet(), groups.unseen(GROUP).first())
+
+        groups.actAs(GROUP, ANNA)
+        log.received(listOf(fetched(1, objectOf(9, absolute))))
+        assertEquals(setOf(base.size), groups.unseen(GROUP).first())
+
+        groups.delete(GROUP)
+        assertEquals(0, database.unseenQueries.positions(GROUP.hex).executeAsList().size)
+    }
+
+    @Test
+    fun `a halted group is listed as such (SY-15)`(): Unit = runBlocking {
+        synced()
+        assertEquals(false, groups.list(TODAY).first().single().halted)
+        groups.backends.halted(GROUP, Upload.Halted(ObjectNumber(1), Halt.GAP))
+        assertEquals(true, groups.list(TODAY).first().single().halted)
     }
 
     @Test

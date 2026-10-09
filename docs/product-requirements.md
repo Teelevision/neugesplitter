@@ -218,10 +218,12 @@ of everyone entering the same backend settings.
   including its previous versions and its deletion.
 - **HI-4** (Core): The current entry list MUST show who created an entry and
   indicate that it was modified after creation.
-- **HI-5** (Later): Changes made by other members that the user has not yet seen
-  MUST be highlighted — in the group list, in the entry list and on the affected
-  entries. This includes new, edited and deleted entries as well as membership
-  changes.
+- **HI-5** (Core): Changes that came from another installation — another
+  member's, or the user's own on a second device — and that the user has not yet
+  seen MUST be highlighted: in the group list, in the entry list and on the
+  affected entries. This includes new, edited and deleted entries as well as
+  membership changes. What a group held when this installation joined it counts
+  as seen.
 - **HI-6** (Core): Opening an entry or its history MUST clear the highlight for
   that entry.
 - **HI-7** (Core): The user MUST be able to mark all outstanding changes in a

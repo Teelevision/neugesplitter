@@ -20,12 +20,15 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.ui.receive
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
 import java.time.Instant
 import java.util.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -86,12 +89,14 @@ class EntryHistoryScreenTest {
     private fun deleted(by: Member, hours: Long) =
         Event.EntryDeleted(eventId(), by.id, at.plusSeconds(hours * 3600), entryId)
 
-    private fun show(vararg written: Event) {
+    /** [written] here, then [received] from elsewhere. */
+    private fun show(vararg written: Event, received: List<Event> = emptyList()) {
         groups.create(
             Group.create(trip, "Trip", null, null, null, listOf(anna, ben, clara), at, ::eventId),
             today,
         )
         groups.append(trip, written.toList(), today)
+        if (received.isNotEmpty()) groups.receive(trip, today, 1, *received.toTypedArray())
         val viewModel = EntryHistoryViewModel(groups, trip, entryId)
         compose.setContent {
             NeugesplitterTheme { EntryHistoryScreen(viewModel, onBack = { backs++ }) }
@@ -106,6 +111,15 @@ class EntryHistoryScreenTest {
 
     private fun top(text: String) =
         compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
+
+    @Test
+    fun `opening an entry's history sees every change to it (HI-6)`() {
+        show(
+            created(),
+            received = listOf(edited(ben, 1, EntryChanges(description = Change.To("Supper")))),
+        )
+        compose.waitUntil(5_000) { runBlocking { groups.unseen(trip).first() }.isEmpty() }
+    }
 
     @Test
     fun `a new entry shows who created it, when, and the entry as recorded (HI-3)`() {

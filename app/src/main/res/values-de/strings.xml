@@ -309,6 +309,9 @@
     <!-- Activity -->
     <string name="expand">Ausklappen</string>
     <string name="collapse">Einklappen</string>
+    <string name="unseen">Neu</string>
+    <string name="mark_all_read">Alle als gelesen markieren</string>
+    <string name="needs_attention">Braucht Aufmerksamkeit</string>
     <string name="happened_at">%1$s · %2$s</string>
     <string name="happened_created">%1$s hat die Gruppe erstellt</string>
     <string name="happened_name">%1$s hat den Gruppennamen geändert</string>
