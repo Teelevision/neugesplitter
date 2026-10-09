@@ -42,17 +42,30 @@ enum class Destination(@param:DrawableRes val icon: Int, @param:StringRes val la
  * (ui-design 1). Switching destinations never leaves the group, and back returns to the overview
  * before it does.
  *
- * @param content the destination, which must apply the modifier it is given.
+ * @param onBack leaves the group, from the overview.
+ * @param content the destination, given what its back arrow does; it must apply the modifier it is
+ *   given.
  */
 @Composable
-fun GroupScreen(onNew: () -> Unit, content: @Composable (Destination, Modifier) -> Unit) {
+fun GroupScreen(
+    onBack: () -> Unit,
+    onNew: () -> Unit,
+    content: @Composable (Destination, () -> Unit, Modifier) -> Unit,
+) {
     var destination by rememberSaveable { mutableStateOf(Destination.OVERVIEW) }
     BackHandler(destination != Destination.OVERVIEW) { destination = Destination.OVERVIEW }
+    val back = {
+        if (destination == Destination.OVERVIEW) {
+            onBack()
+        } else {
+            destination = Destination.OVERVIEW
+        }
+    }
     Scaffold(
         bottomBar = { GroupBar(destination, { destination = it }, onNew) },
         contentWindowInsets = WindowInsets(0),
     ) { padding ->
-        content(destination, Modifier.padding(padding).consumeWindowInsets(padding))
+        content(destination, back, Modifier.padding(padding).consumeWindowInsets(padding))
     }
 }
 

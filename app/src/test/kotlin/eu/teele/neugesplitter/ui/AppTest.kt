@@ -5,9 +5,11 @@ import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.test.espresso.Espresso
 import androidx.work.Configuration
 import androidx.work.testing.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
@@ -52,8 +54,7 @@ class AppTest {
             compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
         }
 
-    @Test
-    fun `deleting a group from its settings returns to the group list (GR-11)`() {
+    private fun trip() {
         val anna = Member(MemberId.parse(id(1)), "Anna")
         val created =
             Group.create(
@@ -68,6 +69,37 @@ class AppTest {
                 EventId.parse(id(0x100 + ids++))
             }
         graph.groups.create(created, graph.today())
+    }
+
+    @Test
+    fun `back from a group's settings returns to its overview, then to the group list (ui-design 1)`() {
+        trip()
+        compose.setContent { NeugesplitterTheme { App(graph) } }
+
+        awaitText("Trip")
+        compose.onNodeWithText("Trip").performClick()
+        awaitText("Settings")
+        compose.onNodeWithText("Settings").performClick()
+        awaitText("Delete group from this device")
+        Espresso.pressBack()
+        compose.waitForIdle()
+        compose.onNodeWithText("Overview").assertExists()
+        compose.onNodeWithText("Delete group from this device").assertDoesNotExist()
+
+        compose.onNodeWithText("People").performClick()
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithText("Overview").assertExists()
+
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Overview").fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithText("Trip").assertExists()
+    }
+
+    @Test
+    fun `deleting a group from its settings returns to the group list (GR-11)`() {
+        trip()
         compose.setContent { NeugesplitterTheme { App(graph) } }
 
         awaitText("Trip")

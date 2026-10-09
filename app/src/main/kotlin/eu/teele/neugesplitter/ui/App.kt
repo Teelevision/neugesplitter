@@ -230,9 +230,10 @@ fun App(graph: AppGraph) {
                 }
                 entry<GroupOverview> { key ->
                     val group = GroupId.parse(key.group)
-                    GroupScreen(onNew = { stack.add(EntryEditor(key.group)) }) {
-                        destination,
-                        modifier ->
+                    GroupScreen(
+                        onBack = { pop() },
+                        onNew = { stack.add(EntryEditor(key.group)) },
+                    ) { destination, back, modifier ->
                         when (destination) {
                             Destination.OVERVIEW ->
                                 OverviewScreen(
@@ -248,7 +249,7 @@ fun App(graph: AppGraph) {
                                     },
                                     deleteRequested = deleting?.let(EntryId::parse),
                                     onDeleteTaken = { deleting = null },
-                                    onBack = { pop() },
+                                    onBack = back,
                                     onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
                                     onEdit = { stack.add(EntryEditor(key.group, it.hex)) },
                                     onDuplicate = {
@@ -268,7 +269,7 @@ fun App(graph: AppGraph) {
                                             graph::now,
                                         )
                                     },
-                                    onBack = { pop() },
+                                    onBack = back,
                                     onRecord = {
                                         stack.add(
                                             EntryEditor(
@@ -294,7 +295,7 @@ fun App(graph: AppGraph) {
                                             graph.syncing::interval,
                                         )
                                     },
-                                    onBack = { pop() },
+                                    onBack = back,
                                     onBackend = { stack.add(BackendSetup(key.group)) },
                                     onDeleted = { while (stack.size > 1) pop() },
                                     modifier = modifier,

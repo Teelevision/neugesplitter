@@ -36,9 +36,10 @@ unseen changes (HI-5, HI-7), pending recurring suggestions (RE-10) and sync
 state (SY-6) all need somewhere to live, and scattering them across the other
 three would hide them.
 
-Switching destinations never leaves the group. Everything else — editors,
-details, setup — is pushed over the bar as a full screen or opened as a bottom
-sheet, and the bar is hidden while it is up.
+Switching destinations never leaves the group, and back — the arrow or the
+system gesture — returns to Overview before it leaves for the group list.
+Everything else — editors, details, setup — is pushed over the bar as a full
+screen or opened as a bottom sheet, and the bar is hidden while it is up.
 
 ## 2. Screen inventory
 

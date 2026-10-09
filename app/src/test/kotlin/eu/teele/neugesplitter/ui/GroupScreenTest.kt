@@ -1,6 +1,7 @@
 package eu.teele.neugesplitter.ui
 
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -23,12 +24,14 @@ class GroupScreenTest {
     @get:Rule val compose = createComposeRule()
 
     private var added = 0
+    private var left = 0
 
     private fun show() {
         compose.setContent {
             NeugesplitterTheme {
-                GroupScreen(onNew = { added++ }) { destination, modifier ->
-                    Text("showing $destination", modifier)
+                GroupScreen(onBack = { left++ }, onNew = { added++ }) { destination, back, modifier
+                    ->
+                    TextButton(onClick = back, modifier) { Text("showing $destination") }
                 }
             }
         }
@@ -96,5 +99,16 @@ class GroupScreenTest {
         Espresso.pressBack()
         compose.waitForIdle()
         compose.onNodeWithText("showing OVERVIEW").assertExists()
+    }
+
+    @Test
+    fun `a destination's back arrow returns to the overview, and the overview's leaves (ui-design 1)`() {
+        show()
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("showing SETTINGS").performClick()
+        compose.onNodeWithText("showing OVERVIEW").assertExists()
+        assertEquals(0, left)
+        compose.onNodeWithText("showing OVERVIEW").performClick()
+        assertEquals(1, left)
     }
 }
