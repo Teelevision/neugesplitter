@@ -54,6 +54,7 @@ class ActivityScreenTest {
     private val histories = mutableListOf<EntryId>()
     private val synced = mutableListOf<GroupId>()
     private var shares = 0
+    private var problems = 0
 
     private fun id(n: Int) = "%032x".format(n)
 
@@ -108,6 +109,7 @@ class ActivityScreenTest {
                     onOpen = { opened += it },
                     onHistory = { histories += it },
                     onShare = { shares++ },
+                    onSyncProblem = { problems++ },
                 )
             }
         }
@@ -195,14 +197,15 @@ class ActivityScreenTest {
     }
 
     @Test
-    fun `a halted group says sync stopped and offers no manual sync (SY-15)`() {
+    fun `a halted group says sync stopped, leads to why, and offers no manual sync (SY-15)`() {
         show {
             share()
             groups.backends.halted(trip, Upload.Halted(ObjectNumber(3), Halt.GAP))
         }
-        compose.onNodeWithText("Sync stopped").assertExists()
         compose.onNodeWithContentDescription("Sync problem").assertExists()
         assertEquals(0, count("Sync now"))
+        compose.onNodeWithText("Sync stopped").performClick()
+        assertEquals(1, problems)
     }
 
     @Test

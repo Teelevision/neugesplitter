@@ -88,7 +88,7 @@ frequency, not a schedule**.
   an event that has not been written yet (TR-17b) is the one exception. SQLite's
   JSON support MAY be used for indexing and queries, but the durable source of
   truth remains the stored JSON text.
-- **TR-17a** (Core): Restoring a missing object MUST upload the retained bytes
+- **TR-17a** (Later): Restoring a missing object MUST upload the retained bytes
   unchanged. An implementation MUST NOT re-serialise or re-encrypt on the way,
   because either would break the chain link the next object already carries
   (format-spec 5.3).
@@ -235,7 +235,7 @@ unsatisfying.
   the installation already holds, MUST halt syncing for that group and MUST be
   reported (SY-15, threat model TM-1). It MUST NOT be treated as an empty sync,
   and the app MUST NOT write to a backend in that state.
-- **TR-40a** (Core): Restoring MUST be an explicit action, MUST upload the
+- **TR-40a** (Later): Restoring MUST be an explicit action, MUST upload the
   retained bytes under their original numbers (TR-17a) through the ordinary
   conditional write path, and MUST re-verify the whole log before syncing
   resumes.

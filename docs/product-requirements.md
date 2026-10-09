@@ -368,7 +368,7 @@ of everyone entering the same backend settings.
 - **SY-10** (Optional): The app MUST be able to notify the user locally about
   changes received from other installations and about pending recurring
   suggestions.
-- **SY-11** (Core): Every installation holds the complete history, so if a
+- **SY-11** (Later): Every installation holds the complete history, so if a
   backend loses data, an installation MUST be able to restore it — by putting
   the objects back exactly as they were, so that the other installations see the
   history they already had.
@@ -388,9 +388,10 @@ of everyone entering the same backend settings.
 - **SY-15** (Core): If a backend has lost something an installation already
   holds, the app MUST stop syncing that group and MUST say so plainly. The group
   MUST stay fully usable locally. Getting it back is then the user's decision:
-  the app MUST offer to restore what is missing from its own copy (SY-11), and
-  MUST say when a repair can only be made with the storage provider's own tools.
-  Syncing resumes once the backend agrees with the installation again.
+  once SY-11 is built, the app MUST offer to restore what is missing from its
+  own copy, and it MUST say when a repair can only be made with the storage
+  provider's own tools. Syncing resumes once the backend agrees with the
+  installation again.
 
 ### 4.11 Privacy and Security
 

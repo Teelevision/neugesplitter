@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
@@ -32,11 +33,13 @@ import kotlinx.coroutines.launch
  * @property overview null once loaded only if this device no longer holds the group.
  * @property deleting the entry deleted but not yet written as deleted, which the overview leaves
  *   out while its undo is offered (HI-1).
+ * @property halted whether the group stopped syncing (SY-15).
  */
 data class OverviewState(
     val loaded: Boolean = false,
     val overview: Overview? = null,
     val deleting: EntryId? = null,
+    val halted: Boolean = false,
 )
 
 /**
@@ -74,11 +77,15 @@ class OverviewViewModel(
                     .flowOn(Dispatchers.IO)
         }
 
+    private val halted: Flow<Boolean> =
+        repository.backends.state(group).map { it?.halted != null }.distinctUntilChanged()
+
     val state: StateFlow<OverviewState> =
-        combine(repository.overview(group, today()), deleting, ownWithout) {
+        combine(repository.overview(group, today()), deleting, ownWithout, halted) {
                 overview,
                 deleting,
-                without ->
+                without,
+                halted ->
                 OverviewState(
                     loaded = true,
                     overview =
@@ -89,6 +96,7 @@ class OverviewViewModel(
                             entries = overview.entries.filterNot { it.id == deleting },
                         ),
                     deleting = deleting,
+                    halted = halted,
                 )
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), OverviewState())

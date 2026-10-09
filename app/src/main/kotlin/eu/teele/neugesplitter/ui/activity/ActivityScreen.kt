@@ -29,7 +29,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -56,8 +55,9 @@ import eu.teele.neugesplitter.domain.history.Revision
 import eu.teele.neugesplitter.domain.history.Setting
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.MemberId
-import eu.teele.neugesplitter.storage.settings.Failure
 import eu.teele.neugesplitter.storage.settings.SyncState
+import eu.teele.neugesplitter.ui.sync.SyncHaltedCard
+import eu.teele.neugesplitter.ui.sync.failed
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -73,6 +73,7 @@ import java.util.Locale
  * @param onOpen opens an entry a change names.
  * @param onHistory opens the history of a deleted entry a change names.
  * @param onShare starts sharing a group kept only on this device.
+ * @param onSyncProblem opens why the group stopped syncing.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +83,7 @@ fun ActivityScreen(
     onOpen: (EntryId) -> Unit,
     onHistory: (EntryId) -> Unit,
     onShare: () -> Unit,
+    onSyncProblem: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -137,7 +139,7 @@ fun ActivityScreen(
             section("sync", R.string.sync, sync) { sync = !sync }
             if (sync) {
                 item(key = "sync-state") {
-                    Sync(state.sync, state.now, locale, viewModel::sync, onShare)
+                    Sync(state.sync, state.now, locale, viewModel::sync, onShare, onSyncProblem)
                 }
             }
         }
@@ -252,6 +254,7 @@ private fun Sync(
     locale: Locale,
     onSync: () -> Unit,
     onShare: () -> Unit,
+    onSyncProblem: () -> Unit,
 ) {
     val colours = MaterialTheme.colorScheme
     Column(
@@ -267,22 +270,7 @@ private fun Sync(
                 Text(stringResource(R.string.sync_local_text), color = colours.onSurfaceVariant)
                 OutlinedButton(onClick = onShare) { Text(stringResource(R.string.storage_set_up)) }
             }
-            // Repairing it is the sync problem screen's (SY-15).
-            sync.halted != null ->
-                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(16.dp)) {
-                        Icon(painterResource(R.drawable.ic_warning), null, tint = colours.error)
-                        Spacer(Modifier.width(16.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                stringResource(R.string.sync_halted),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = colours.error,
-                            )
-                            Text(stringResource(R.string.sync_halted_text))
-                        }
-                    }
-                }
+            sync.halted != null -> SyncHaltedCard(onSyncProblem)
             else -> {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -328,16 +316,6 @@ private fun cloud(sync: SyncState): Pair<Int, Int> =
             R.drawable.ic_cloud_off to R.string.sync_problem
         sync.waiting > 0 -> R.drawable.ic_cloud_upload to R.string.sync_pending
         else -> R.drawable.ic_cloud_done to R.string.sync_in_sync
-    }
-
-/** What a failed pass is reported as, title and explanation (BE-7). */
-private fun failed(failure: Failure): Pair<Int, Int> =
-    when (failure) {
-        Failure.UNREACHABLE -> R.string.setup_unreachable to R.string.setup_unreachable_text
-        Failure.DENIED -> R.string.setup_denied to R.string.setup_denied_text
-        Failure.MISSING -> R.string.setup_missing to R.string.setup_missing_text
-        Failure.FAILED -> R.string.setup_failed to R.string.setup_failed_text
-        Failure.LOCKED -> R.string.sync_locked to R.string.sync_locked_text
     }
 
 /**

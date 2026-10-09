@@ -342,6 +342,21 @@
     <string name="sync_locked">Zugangsdaten fehlen</string>
     <string name="sync_locked_text">Der Secret Key oder die Passphrase muss neu eingegeben werden.</string>
     <string name="sync_halted">Synchronisierung angehalten</string>
-    <string name="sync_halted_text">Dem Speicher fehlt etwas, das dieses Gerät schon hat. Hier funktioniert die Gruppe weiter vollständig.</string>
+    <string name="sync_halted_text">Auf diesem Gerät funktioniert die Gruppe weiter vollständig. Sieh nach, was passiert ist.</string>
     <string name="sync_local_text">Es wird nichts synchronisiert. Teile die Gruppe, um sie auf anderen Geräten zu nutzen.</string>
+
+    <!-- Sync problem -->
+    <string name="halt_truncated">Dem Speicher fehlt ein Teil des Verlaufs, den dieses Gerät schon hat.</string>
+    <string name="halt_gap">Dem Speicher fehlt ein Teil des Verlaufs, den dieses Gerät noch nicht erhalten hat.</string>
+    <string name="halt_compromised">Ein Teil des Verlaufs im Speicher schließt nicht an den Rest an. Er wurde vielleicht verändert oder ersetzt.</string>
+    <string name="halt_malformed">Ein Teil des Verlaufs im Speicher ist beschädigt und kann nicht gelesen werden.</string>
+    <string name="halt_unsupported">Eine neuere Version der App hat in diese Gruppe geschrieben.</string>
+    <string name="halt_usable">Auf diesem Gerät funktioniert die Gruppe weiter vollständig. Änderungen hier bleiben erhalten und werden hochgeladen, sobald die Synchronisierung weiterläuft.</string>
+    <string name="halt_repair_provider">Die App kann das nicht reparieren. Die Werkzeuge des Speicheranbieters können es, zum Beispiel indem sie den Speicherort aus einer Sicherung wiederherstellen. Die Synchronisierung läuft weiter, sobald der Speicher wieder zu diesem Gerät passt.</string>
+    <string name="halt_repair_update">Aktualisiere die App, dann läuft die Synchronisierung weiter.</string>
+    <string name="halt_object">Angehalten bei Objekt %1$s</string>
+    <string name="check_again">Erneut prüfen</string>
+    <string name="sync_resumed">Synchronisierung läuft wieder</string>
+    <string name="sync_resumed_text">Der Speicher passt wieder zu diesem Gerät.</string>
+    <string name="done">Fertig</string>
 </resources>

@@ -22,6 +22,10 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.storage.settings.BackendSettings
+import eu.teele.neugesplitter.sync.ObjectNumber
+import eu.teele.neugesplitter.sync.writer.Halt
+import eu.teele.neugesplitter.sync.writer.Upload
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
 import java.time.Instant
 import kotlin.test.Test
@@ -65,6 +69,7 @@ class OverviewScreenTest {
     private var history: EntryId? = null
     private var back = 0
     private var taken = 0
+    private var problems = 0
 
     private fun eventId() = EventId.parse(id(0x100 + events++))
 
@@ -88,7 +93,11 @@ class OverviewScreenTest {
         )
 
     /** Anna's group, with her dinner today and Ben's taxi the day before, unless [empty]. */
-    private fun show(empty: Boolean = false, deleteRequested: EntryId? = null) {
+    private fun show(
+        empty: Boolean = false,
+        deleteRequested: EntryId? = null,
+        before: () -> Unit = {},
+    ) {
         groups.create(
             Group.create(trip, "Trip", null, "⛺", null, listOf(anna, ben), at, ::eventId),
             today,
@@ -102,6 +111,7 @@ class OverviewScreenTest {
                 today,
             )
         }
+        before()
         val viewModel =
             OverviewViewModel(
                 groups,
@@ -122,6 +132,7 @@ class OverviewScreenTest {
                     { edited = it },
                     { duplicated = it },
                     { history = it },
+                    { problems++ },
                 )
             }
         }
@@ -141,6 +152,30 @@ class OverviewScreenTest {
     }
 
     private fun stored() = groups.load(trip)!!.entries.keys
+
+    @Test
+    fun `a group that stopped syncing says so under the header and leads to why (SY-15)`() {
+        show {
+            groups.backends.connect(
+                trip,
+                BackendSettings("https://s3.example", "splits", "", "auto", false, "AK"),
+            )
+            groups.backends.halted(trip, Upload.Halted(ObjectNumber(3), Halt.TRUNCATED))
+        }
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Sync stopped").fetchSemanticsNodes().isNotEmpty()
+        }
+        assertTrue(top("42.00") < top("Sync stopped"))
+        assertTrue(top("Sync stopped") < top("Dinner"))
+        compose.onNodeWithText("Sync stopped").performClick()
+        assertEquals(1, problems)
+    }
+
+    @Test
+    fun `a group that syncs, or is kept only here, shows no sync banner (SY-15)`() {
+        show()
+        compose.onNodeWithText("Sync stopped").assertDoesNotExist()
+    }
 
     @Test
     fun `the header shows the total and where the user stands (BA-7)`() {

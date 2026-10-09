@@ -64,6 +64,7 @@ import eu.teele.neugesplitter.ui.EntryRow
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.longDate
 import eu.teele.neugesplitter.ui.position
+import eu.teele.neugesplitter.ui.sync.SyncHaltedCard
 import eu.teele.neugesplitter.ui.theme.groupColour
 import java.util.Locale
 
@@ -81,6 +82,7 @@ fun OverviewScreen(
     onEdit: (EntryId) -> Unit,
     onDuplicate: (EntryId) -> Unit,
     onHistory: (EntryId) -> Unit,
+    onSyncProblem: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -137,9 +139,11 @@ fun OverviewScreen(
         if (overview != null) {
             Entries(
                 overview,
+                state.halted,
                 onOpen = onOpen,
                 onMenu = { menu = it },
                 onDelete = viewModel::delete,
+                onSyncProblem = onSyncProblem,
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         }
@@ -188,15 +192,25 @@ private fun SheetAction(@DrawableRes icon: Int, @StringRes label: Int, onClick: 
 @Composable
 private fun Entries(
     overview: Overview,
+    halted: Boolean,
     onOpen: (EntryId) -> Unit,
     onMenu: (ListedEntry) -> Unit,
     onDelete: (EntryId) -> Unit,
+    onSyncProblem: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val days = overview.entries.groupBy { it.date }
     LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 16.dp)) {
         item(key = "header") { Header(overview, locale) }
+        if (halted) {
+            item(key = "halted") {
+                SyncHaltedCard(
+                    onSyncProblem,
+                    Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                )
+            }
+        }
         if (days.isEmpty()) {
             item(key = "empty") {
                 Text(

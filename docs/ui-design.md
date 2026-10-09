@@ -117,7 +117,8 @@ The default destination and the one the user sees most.
 A header shows the group's total spending — one number, not a dashboard;
 per-member and per-category statistics are BA-8 and come later — and, next to
 it, the user's own position ("you owe 12.30", BA-7). If suggestions are pending,
-a banner sits directly under the header (RE-10).
+a banner sits directly under the header (RE-10). A group whose sync has halted
+shows an error banner there, which opens the sync problem screen (SY-15).
 
 Below that, entries newest first, grouped under date headers. Each row carries:
 
@@ -320,12 +321,15 @@ and the backend copy is worthless to everyone, including us (PR-12).
 
 ### Sync problem
 
-Reached from the halted-sync banner (SY-15). It states what happened in one
-sentence — the backend is missing something this device already has — confirms
-that the group is still fully usable here, and offers **restore from this
-device** as an explicit action (SY-11). When the app cannot repair it, it says
-so and names what the storage provider's own tools would have to do. Nothing on
-this screen happens automatically.
+Reached from the halted-sync banner under the Overview header, and from the
+halted card in Activity (SY-15). It states what happened in one sentence — the
+backend is missing something this device already has, or holds something that
+cannot be applied — confirms that the group is still fully usable here, and
+names the object it stopped at. The repair it names is the storage provider's
+own tools, or for an object a newer version wrote, an update. **Check again**
+runs a pass; once the backend agrees, the screen says that syncing resumed.
+**Restore from this device** (SY-11) joins it when restoring is built. Nothing
+on this screen happens automatically.
 
 ## 7. Gestures, in one place
 

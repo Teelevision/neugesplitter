@@ -53,6 +53,8 @@ import eu.teele.neugesplitter.ui.people.PeopleScreen
 import eu.teele.neugesplitter.ui.people.PeopleViewModel
 import eu.teele.neugesplitter.ui.settings.GroupSettingsScreen
 import eu.teele.neugesplitter.ui.settings.GroupSettingsViewModel
+import eu.teele.neugesplitter.ui.sync.SyncProblemScreen
+import eu.teele.neugesplitter.ui.sync.SyncProblemViewModel
 import java.text.DecimalFormatSymbols
 import kotlinx.serialization.Serializable
 
@@ -97,6 +99,9 @@ data class EntryEditor(
 
 /** @property group the group's id, as hex. */
 @Serializable data class BackendSetup(val group: String) : NavKey
+
+/** @property group the group's id, as hex. */
+@Serializable data class SyncProblem(val group: String) : NavKey
 
 /**
  * An empty location joining found, for the new group to be shared at. It holds the secret key, so
@@ -258,6 +263,7 @@ fun App(graph: AppGraph) {
                                         stack.add(EntryEditor(key.group, it.hex, duplicate = true))
                                     },
                                     onHistory = { stack.add(EntryHistory(key.group, it.hex)) },
+                                    onSyncProblem = { stack.add(SyncProblem(key.group)) },
                                     modifier = modifier,
                                 )
                             Destination.PEOPLE ->
@@ -298,6 +304,7 @@ fun App(graph: AppGraph) {
                                     onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
                                     onHistory = { stack.add(EntryHistory(key.group, it.hex)) },
                                     onShare = { stack.add(BackendSetup(key.group)) },
+                                    onSyncProblem = { stack.add(SyncProblem(key.group)) },
                                     modifier = modifier,
                                 )
                             Destination.SETTINGS ->
@@ -372,6 +379,18 @@ fun App(graph: AppGraph) {
                                 graph.groups,
                                 GroupId.parse(key.group),
                                 EntryId.parse(key.entry),
+                            )
+                        },
+                        onBack = { pop() },
+                    )
+                }
+                entry<SyncProblem> { key ->
+                    SyncProblemScreen(
+                        viewModel {
+                            SyncProblemViewModel(
+                                graph.groups,
+                                GroupId.parse(key.group),
+                                graph.syncing::now,
                             )
                         },
                         onBack = { pop() },

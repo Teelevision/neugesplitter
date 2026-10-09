@@ -241,7 +241,10 @@ are described in [sync-design.md](sync-design.md).
   the app cannot repair, because its credential has no delete permission on
   purpose; somebody empties the location with the provider's own tools, or the
   group moves to a fresh prefix (sync-design section 7). The extra disk is the
-  price of being able to recover at all without a server.
+  price of being able to recover at all without a server. Restoring from the app
+  is Later (SY-11, TR-40a): the first release halts, explains and points at the
+  provider's tools, and keeps the bytes so that a later version can restore from
+  them.
 - **Are orphaned attachments collected?** No. An attachment is uploaded before
   the event referencing it, so an abandoned entry can leave one behind, and
   nothing deletes it — the credential cannot, and a sweep could never be sure no

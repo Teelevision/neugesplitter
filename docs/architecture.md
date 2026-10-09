@@ -80,7 +80,7 @@ neugesplitter/
 │   ├── GroupSync.kt  one group's passes, one at a time, and publishing its root object
 │   ├── writer/       batching, the bounded debounce, conditional write, batch-id recovery
 │   ├── reader/       listing, truncation detection, verify-then-apply
-│   ├── restore/      explicit restore from retained bytes
+│   ├── restore/      explicit restore from retained bytes (Later, SY-11)
 │   └── probe/        backend acceptance check, and what a location already holds
 ├── backend-s3/src/main/kotlin/eu/teele/neugesplitter/backend/s3/
 ├── storage/src/main/kotlin/eu/teele/neugesplitter/storage/

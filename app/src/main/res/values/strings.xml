@@ -347,6 +347,21 @@
     <string name="sync_locked">Secret missing</string>
     <string name="sync_locked_text">The secret key or the passphrase has to be entered again.</string>
     <string name="sync_halted">Sync stopped</string>
-    <string name="sync_halted_text">The storage is missing something this device already has. The group still works fully here.</string>
+    <string name="sync_halted_text">The group still works fully on this device. See what happened.</string>
     <string name="sync_local_text">Nothing is synced. Share the group to use it on other devices.</string>
+
+    <!-- Sync problem -->
+    <string name="halt_truncated">The storage no longer holds part of the history this device already has.</string>
+    <string name="halt_gap">The storage is missing part of the history that this device has not received yet.</string>
+    <string name="halt_compromised">Part of the history in the storage does not follow on from the rest. It may have been changed or replaced.</string>
+    <string name="halt_malformed">Part of the history in the storage is damaged and cannot be read.</string>
+    <string name="halt_unsupported">A newer version of the app wrote to this group.</string>
+    <string name="halt_usable">The group still works fully on this device. Changes made here are kept and uploaded once syncing resumes.</string>
+    <string name="halt_repair_provider">The app cannot repair this. The storage provider\'s own tools can, for example by restoring the location from a backup. Syncing resumes once the storage agrees with this device again.</string>
+    <string name="halt_repair_update">Update the app, and syncing resumes.</string>
+    <string name="halt_object">Stopped at object %1$s</string>
+    <string name="check_again">Check again</string>
+    <string name="sync_resumed">Syncing again</string>
+    <string name="sync_resumed_text">The storage agrees with this device again.</string>
+    <string name="done">Done</string>
 </resources>

@@ -185,9 +185,11 @@ added when the first race appears — a deferred background poll firing during a
 manual sync is the normal case, not an edge one. WorkManager polling and its
 schedule (TR-9, TR-14) follow.
 
-The screens: Join group and its three outcomes, the sync problem states
-repairable and unrepairable, the sync-halted banner, and Activity with its
-unread marking.
+The screens: Join group and its three outcomes, the sync problem screen, the
+sync-halted banner, and Activity with its unread marking. Restoring a backend
+from this device (SY-11, TR-40a) is Later; until then the sync problem screen
+says what happened and names the provider's tools as the repair, and syncing
+resumes by itself once the backend agrees again.
 
 A second device becomes the test rig here and stays one. Everything in this
 phase is either invisible or wrong on a single installation.
