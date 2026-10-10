@@ -268,7 +268,7 @@ fun GroupCard(
                 Text(
                     group.name,
                     style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 summary(group)?.let {
@@ -276,7 +276,7 @@ fun GroupCard(
                         it,
                         style = MaterialTheme.typography.bodyMedium,
                         color = colours.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }

@@ -39,6 +39,7 @@ import eu.teele.neugesplitter.domain.recurrence.Interval
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.ui.longDate
+import eu.teele.neugesplitter.ui.theme.largeText
 import java.time.DayOfWeek
 import java.time.format.TextStyle as DateStyle
 import java.time.temporal.WeekFields
@@ -138,13 +139,30 @@ fun RecurrenceSheet(
                 modifier = padded,
             )
             if (choosesStart) {
-                Row(padded, verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.recurrence_start),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedButton(onClick = { picking = true }) { Text(longDate(date, locale)) }
+                val label =
+                    @Composable { modifier: Modifier ->
+                        Text(
+                            stringResource(R.string.recurrence_start),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = modifier,
+                        )
+                    }
+                val start =
+                    @Composable {
+                        OutlinedButton(onClick = { picking = true }) {
+                            Text(longDate(date, locale))
+                        }
+                    }
+                if (largeText()) {
+                    Column(padded) {
+                        label(Modifier)
+                        start()
+                    }
+                } else {
+                    Row(padded, verticalAlignment = Alignment.CenterVertically) {
+                        label(Modifier.weight(1f))
+                        start()
+                    }
                 }
             }
             Column(padded, verticalArrangement = Arrangement.spacedBy(8.dp)) {

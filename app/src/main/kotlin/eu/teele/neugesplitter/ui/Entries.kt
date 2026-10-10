@@ -30,6 +30,7 @@ import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.storage.ListedEntry
+import eu.teele.neugesplitter.ui.theme.largeText
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
@@ -80,11 +81,13 @@ fun UnseenDot(modifier: Modifier = Modifier) {
 
 /**
  * Income and transfers carry their own icon, and income a sign, so the kind never rests on colour
- * alone (UX-6). Names truncate before the amount does (ui-design 9).
+ * alone (UX-6). Names truncate before the amount does (ui-design 9), and at a large text size the
+ * amounts move below them.
  */
 @Composable
 fun EntryRow(entry: ListedEntry, scale: Scale, locale: Locale, modifier: Modifier = Modifier) {
     val colours = MaterialTheme.colorScheme
+    val stacked = largeText()
     val by =
         when (entry.kind) {
             Kind.EXPENSE -> R.string.entry_paid_by
@@ -120,7 +123,7 @@ fun EntryRow(entry: ListedEntry, scale: Scale, locale: Locale, modifier: Modifie
                 Text(
                     entry.description,
                     style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
+                    maxLines = if (stacked) 2 else 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
@@ -138,24 +141,35 @@ fun EntryRow(entry: ListedEntry, scale: Scale, locale: Locale, modifier: Modifie
                 meta,
                 style = MaterialTheme.typography.bodyMedium,
                 color = colours.onSurfaceVariant,
-                maxLines = 1,
+                maxLines = if (stacked) 2 else 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (stacked) EntryAmounts(entry, scale, locale, Alignment.Start)
         }
-        Column(horizontalAlignment = Alignment.End) {
-            val amount = formatted(entry.amount, scale, locale)
+        if (!stacked) EntryAmounts(entry, scale, locale, Alignment.End)
+    }
+}
+
+@Composable
+private fun EntryAmounts(
+    entry: ListedEntry,
+    scale: Scale,
+    locale: Locale,
+    alignment: Alignment.Horizontal,
+) {
+    Column(horizontalAlignment = alignment) {
+        val amount = formatted(entry.amount, scale, locale)
+        Text(
+            if (entry.kind == Kind.INCOME) "+$amount" else amount,
+            style = MaterialTheme.typography.titleMedium.merge(TABULAR),
+        )
+        val own = entry.own
+        if (own != null && !own.isZero && entry.kind != Kind.TRANSFER) {
             Text(
-                if (entry.kind == Kind.INCOME) "+$amount" else amount,
-                style = MaterialTheme.typography.titleMedium.merge(TABULAR),
+                stringResource(R.string.entry_own_share, formatted(own, scale, locale)),
+                style = MaterialTheme.typography.bodySmall.merge(TABULAR),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            val own = entry.own
-            if (own != null && !own.isZero && entry.kind != Kind.TRANSFER) {
-                Text(
-                    stringResource(R.string.entry_own_share, formatted(own, scale, locale)),
-                    style = MaterialTheme.typography.bodySmall.merge(TABULAR),
-                    color = colours.onSurfaceVariant,
-                )
-            }
         }
     }
 }

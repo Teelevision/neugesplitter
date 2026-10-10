@@ -64,6 +64,10 @@ install: ## Install the debug apk on the connected device
 install-second: ## Install a second debug app beside the first, to sync between two on one phone
 	$(GRADLE) installDebug -Psecond
 
+.PHONY: screenshots
+screenshots: ## Record the screens in German at three text sizes, into app/build/outputs/roborazzi
+	$(GRADLE) :app:testDebugUnitTest --tests '*.ScreenshotTest' -Pscreenshots --rerun
+
 .PHONY: report
 report: ## Open the last test report
 	open domain/build/reports/tests/test/index.html

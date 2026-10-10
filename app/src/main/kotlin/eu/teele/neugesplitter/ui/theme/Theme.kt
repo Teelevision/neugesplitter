@@ -5,7 +5,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import eu.teele.neugesplitter.domain.value.Colour
 
 /** The brand palette of ui-design 8 and docs/ui/tokens; never the wallpaper's. */
@@ -104,3 +106,9 @@ fun groupColour(colour: Colour?): Color =
 fun NeugesplitterTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = if (dark) Dark else Light, content = content)
 }
+
+/**
+ * Whether the user's text size leaves no room for a name and an amount side by side, so rows stack
+ * them instead of cutting the name to a letter or two (UX-6, ui-design 9).
+ */
+@Composable @ReadOnlyComposable fun largeText(): Boolean = LocalDensity.current.fontScale > 1.2f

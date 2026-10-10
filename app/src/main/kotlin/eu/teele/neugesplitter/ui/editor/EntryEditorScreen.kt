@@ -85,6 +85,7 @@ import eu.teele.neugesplitter.ui.split.Mismatch
 import eu.teele.neugesplitter.ui.split.SplitSheet
 import eu.teele.neugesplitter.ui.split.part
 import eu.teele.neugesplitter.ui.split.schemeLabel
+import eu.teele.neugesplitter.ui.theme.largeText
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Locale
@@ -362,9 +363,10 @@ private fun Kinds(selected: Kind, onSelect: (Kind) -> Unit) =
 
 /**
  * The look shared by the kind bar and the split bar. [compact] drops the check mark and the label
- * padding, which on 360dp leave four segments too little room for a word like "Angepasst".
+ * padding, which on 360dp leave four segments too little room for a word like "Angepasst". At a
+ * large text size no segment has room for its word, so the options become chips that wrap.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun <T> Segments(
     options: List<T>,
@@ -373,6 +375,27 @@ internal fun <T> Segments(
     onSelect: (T) -> Unit,
     compact: Boolean = false,
 ) {
+    if (largeText()) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (option in options) {
+                FilterChip(
+                    selected = option == selected,
+                    onClick = { onSelect(option) },
+                    label = { Text(stringResource(label(option))) },
+                    leadingIcon =
+                        if (option == selected) {
+                            {
+                                Icon(
+                                    painterResource(R.drawable.ic_check),
+                                    contentDescription = null,
+                                )
+                            }
+                        } else null,
+                )
+            }
+        }
+        return
+    }
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
         options.forEachIndexed { index, option ->
             val shape = SegmentedButtonDefaults.itemShape(index, options.size)

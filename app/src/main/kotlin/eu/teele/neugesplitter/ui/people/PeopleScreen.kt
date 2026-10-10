@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -60,6 +61,7 @@ import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.ui.InlineEditor
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.sync.GroupTitle
+import eu.teele.neugesplitter.ui.theme.largeText
 import java.util.Locale
 
 private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
@@ -263,27 +265,23 @@ private fun Heading(label: Int) {
 
 /**
  * A member and their balance. Being owed and owing differ in words as well as in colour (UX-6), and
- * a removed member is greyed (GR-9).
+ * a removed member is greyed (GR-9). At a large text size the balance moves below the name.
  */
 @Composable
 private fun PersonRow(person: Person, scale: Scale, locale: Locale, modifier: Modifier) {
     val colours = MaterialTheme.colorScheme
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .alpha(if (person.removed) 0.6f else 1f),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
-            if (person.me) stringResource(R.string.member_you, person.name) else person.name,
-            style = MaterialTheme.typography.titleMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+    val stacked = largeText()
+    val name =
+        @Composable { nameModifier: Modifier ->
+            Text(
+                if (person.me) stringResource(R.string.member_you, person.name) else person.name,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = if (stacked) 2 else 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = nameModifier,
+            )
+        }
+    val balance: @Composable RowScope.() -> Unit = {
         if (person.removed) {
             Text(
                 stringResource(R.string.member_removed),
@@ -323,6 +321,30 @@ private fun PersonRow(person: Person, scale: Scale, locale: Locale, modifier: Mo
                     .background(container)
                     .padding(horizontal = 12.dp, vertical = 6.dp),
         )
+    }
+    val row =
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .alpha(if (person.removed) 0.6f else 1f)
+    if (stacked) {
+        Column(row, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            name(Modifier)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                content = balance,
+            )
+        }
+    } else {
+        Row(
+            row,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            name(Modifier.weight(1f))
+            balance()
+        }
     }
 }
 

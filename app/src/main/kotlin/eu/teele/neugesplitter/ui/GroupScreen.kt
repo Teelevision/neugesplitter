@@ -8,11 +8,13 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -27,10 +29,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.em
 import eu.teele.neugesplitter.R
 
 /** The destinations inside a group (ui-design 1). */
@@ -137,7 +141,24 @@ private fun RowScope.DestinationItem(
                 Icon(painterResource(destination.icon), contentDescription = null)
             }
         },
-        label = { Text(stringResource(destination.label)) },
+        label = {
+            // A label shrinks where it would otherwise be cut off or break mid-word, as
+            // "Einstellungen" does even at the normal text size on a 360dp phone, but by no more
+            // than a fifth below normal (UX-5, UX-6). Sizes in sp scale with the text size
+            // themselves, so the floor divides it back out, and the spacing is in em so that it
+            // shrinks along with the letters.
+            val size = LocalTextStyle.current.fontSize
+            Text(
+                stringResource(destination.label),
+                maxLines = 1,
+                letterSpacing = 0.04.em,
+                autoSize =
+                    TextAutoSize.StepBased(
+                        minFontSize = size / LocalDensity.current.fontScale * 0.8f,
+                        maxFontSize = size,
+                    ),
+            )
+        },
         colors = colours,
     )
 }

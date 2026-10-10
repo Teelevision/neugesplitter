@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -74,6 +75,7 @@ import eu.teele.neugesplitter.ui.sync.SyncHaltedCard
 import eu.teele.neugesplitter.ui.sync.ago
 import eu.teele.neugesplitter.ui.sync.failed
 import eu.teele.neugesplitter.ui.theme.groupColour
+import eu.teele.neugesplitter.ui.theme.largeText
 import java.time.Instant
 import java.util.Locale
 
@@ -344,16 +346,14 @@ private fun Header(overview: Overview, locale: Locale) {
 @Composable
 private fun SuggestionsBanner(count: Int, onActivity: () -> Unit, modifier: Modifier = Modifier) {
     val colours = MaterialTheme.colorScheme
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(colours.secondaryContainer)
-                .clickable(onClick = onActivity)
-                .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    val banner =
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(colours.secondaryContainer)
+            .clickable(onClick = onActivity)
+            .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp)
+    val message: @Composable RowScope.() -> Unit = {
         Icon(
             painterResource(R.drawable.ic_repeat),
             contentDescription = null,
@@ -366,7 +366,25 @@ private fun SuggestionsBanner(count: Int, onActivity: () -> Unit, modifier: Modi
             color = colours.onSecondaryContainer,
             modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
         )
-        TextButton(onClick = onActivity) { Text(stringResource(R.string.suggestions_review)) }
+    }
+    val review =
+        @Composable {
+            TextButton(onClick = onActivity) { Text(stringResource(R.string.suggestions_review)) }
+        }
+    if (largeText()) {
+        Column(banner, horizontalAlignment = Alignment.End) {
+            Row(
+                Modifier.padding(top = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                content = message,
+            )
+            review()
+        }
+    } else {
+        Row(banner, verticalAlignment = Alignment.CenterVertically) {
+            message()
+            review()
+        }
     }
 }
 

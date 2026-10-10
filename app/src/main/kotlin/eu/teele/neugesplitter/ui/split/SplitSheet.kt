@@ -18,6 +18,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -54,6 +55,7 @@ import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.ui.calculator.CalculatorSheet
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.signed
+import eu.teele.neugesplitter.ui.theme.largeText
 import java.text.DecimalFormatSymbols
 import java.util.Locale
 
@@ -91,6 +93,7 @@ fun SplitSheet(
     val order = members.map { it.id }
     val parts = amount?.let { split.parts(order, it) }
     val figures = TextStyle(fontFeatureSettings = "tnum")
+    val stacked = largeText()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -104,55 +107,106 @@ fun SplitSheet(
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
-            PrimaryTabRow(
-                selectedTabIndex = split.scheme.ordinal,
-                containerColor = Color.Transparent,
-            ) {
-                for (scheme in Scheme.entries) {
-                    Tab(
-                        selected = scheme == split.scheme,
-                        onClick = { split = split.copy(scheme = scheme) },
-                        text = { Text(stringResource(schemeLabel(scheme)), maxLines = 1) },
-                    )
+            val tabs =
+                @Composable {
+                    for (scheme in Scheme.entries) {
+                        // The text slot pads 16dp each side, which clips "Angepasst" even at 100%
+                        // on 360dp, so the label fills the tab instead.
+                        Tab(
+                            selected = scheme == split.scheme,
+                            onClick = { split = split.copy(scheme = scheme) },
+                            modifier = Modifier.heightIn(min = 48.dp),
+                        ) {
+                            Text(
+                                stringResource(schemeLabel(scheme)),
+                                style = MaterialTheme.typography.titleSmall,
+                                maxLines = 1,
+                                modifier =
+                                    Modifier.padding(horizontal = if (stacked) 16.dp else 4.dp),
+                            )
+                        }
+                    }
                 }
+            // At a large text size four tabs no longer fit across, so they scroll instead.
+            if (stacked) {
+                PrimaryScrollableTabRow(
+                    selectedTabIndex = split.scheme.ordinal,
+                    containerColor = Color.Transparent,
+                    edgePadding = 24.dp,
+                    tabs = tabs,
+                )
+            } else {
+                PrimaryTabRow(
+                    selectedTabIndex = split.scheme.ordinal,
+                    containerColor = Color.Transparent,
+                    tabs = tabs,
+                )
             }
             members.forEachIndexed { index, member ->
                 val stepping = split.scheme == Scheme.SHARES
                 val imeAction = if (index == members.lastIndex) ImeAction.Done else ImeAction.Next
-                Row(
-                    modifier =
-                        Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 24.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    // The stepper takes room the names and parts would otherwise have on 360dp.
-                    horizontalArrangement = Arrangement.spacedBy(if (stepping) 8.dp else 16.dp),
-                ) {
-                    Text(
-                        member.name,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (stepping) {
-                        SharesStepper(
-                            member = member,
-                            value = split.input(member.id),
-                            imeAction = imeAction,
-                            onChange = { onTyped(member.id, it) },
-                        )
-                    } else if (split.scheme != Scheme.EQUAL) {
-                        CalculatorField(
-                            split.input(member.id),
-                            stringResource(R.string.split_value, member.name),
-                            figures,
-                            onOpen = { calculating = member.id },
+                val name =
+                    @Composable { modifier: Modifier ->
+                        Text(
+                            member.name,
+                            maxLines = if (stacked) 2 else 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = modifier,
                         )
                     }
-                    Text(
-                        parts?.get(member.id)?.let { part(it, scale, locale) }.orEmpty(),
-                        style = MaterialTheme.typography.bodyLarge.merge(figures),
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.width(if (stepping) 80.dp else 96.dp),
-                    )
+                val input =
+                    @Composable {
+                        if (stepping) {
+                            SharesStepper(
+                                member = member,
+                                value = split.input(member.id),
+                                imeAction = imeAction,
+                                onChange = { onTyped(member.id, it) },
+                            )
+                        } else if (split.scheme != Scheme.EQUAL) {
+                            CalculatorField(
+                                split.input(member.id),
+                                stringResource(R.string.split_value, member.name),
+                                figures,
+                                onOpen = { calculating = member.id },
+                            )
+                        }
+                    }
+                val share =
+                    @Composable { modifier: Modifier ->
+                        Text(
+                            parts?.get(member.id)?.let { part(it, scale, locale) }.orEmpty(),
+                            style = MaterialTheme.typography.bodyLarge.merge(figures),
+                            textAlign = TextAlign.End,
+                            modifier = modifier,
+                        )
+                    }
+                if (stacked || split.scheme != Scheme.EQUAL) {
+                    // Beside an input the name gets cut even at 100% on 360dp, and at a large
+                    // text size always, so it takes a line of its own.
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp)) {
+                        name(Modifier)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            input()
+                            share(Modifier.weight(1f))
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                                .padding(horizontal = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        name(Modifier.weight(1f))
+                        share(Modifier.width(96.dp))
+                    }
                 }
             }
             Row(

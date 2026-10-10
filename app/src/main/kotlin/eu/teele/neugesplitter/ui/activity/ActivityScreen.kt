@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -226,6 +228,7 @@ private fun LazyListScope.section(
 }
 
 /** A suggested occurrence, with what can be done about it (RE-4). */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SuggestionRow(
     suggestion: Suggestion,
@@ -243,16 +246,19 @@ private fun SuggestionRow(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 72.dp, end = 16.dp),
         )
-        Row(
+        // At a large text size the three do not fit on one line, and confirming wraps to the next.
+        FlowRow(
             modifier = Modifier.fillMaxWidth().padding(start = 60.dp, end = 16.dp, bottom = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             TextButton(onClick = onDecline) { Text(stringResource(R.string.suggestion_decline)) }
             TextButton(onClick = onEdit) { Text(stringResource(R.string.edit)) }
-            Spacer(Modifier.weight(1f))
-            FilledTonalButton(onClick = onConfirm) {
-                Text(stringResource(R.string.suggestion_confirm))
+            // Takes the rest of its line, on this one or the next, and sits at its end.
+            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                FilledTonalButton(onClick = onConfirm) {
+                    Text(stringResource(R.string.suggestion_confirm))
+                }
             }
         }
     }

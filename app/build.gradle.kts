@@ -15,6 +15,10 @@ kotlin { jvmToolchain(17) }
 tasks.withType<Test>().configureEach {
     javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
     jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+    // `make screenshots` records the screenshot tour; every other run skips it.
+    if (providers.gradleProperty("screenshots").isPresent) {
+        systemProperty("roborazzi.test.record", "true")
+    }
 }
 
 android {
@@ -81,6 +85,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
     testImplementation(libs.androidx.work.testing)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.ui.test.junit4)

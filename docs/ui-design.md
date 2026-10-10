@@ -538,6 +538,11 @@ destination labels are always shown and never reduced to icons (UX-6).
   before they truncate amounts.
 - German strings run roughly a third longer than English, and every label has to
   survive that without reflowing the layout (UX-5).
+- From about 120% text (UX-6), rows put the name above the amount instead of
+  cutting it, segmented buttons become a wrapping row of chips, the split tabs
+  scroll, and the navigation labels shrink before they would clip, never below
+  four fifths of their size at 100%. A split member with an input has its name
+  on its own line at any size.
 
 ## 10. Not in the first version
 
