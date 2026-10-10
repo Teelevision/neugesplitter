@@ -7,11 +7,13 @@ import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.event.GroupChanges
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.recurrence.Interval
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.storage.settings.SyncState
 import java.net.URI
@@ -34,6 +36,8 @@ import kotlinx.coroutines.withContext
  * @property defaultParticipants who a new entry starts with, without the removed; null for everyone
  *   (SP-8).
  * @property sync how the group's sync stands; null for a group kept only on this device.
+ * @property series the recurring series that run, and below them those that stopped (RE-7), by
+ *   description.
  */
 data class GroupSettingsState(
     val loaded: Boolean = false,
@@ -46,6 +50,16 @@ data class GroupSettingsState(
     val defaultParticipants: List<MemberId>? = null,
     val backend: Shared? = null,
     val sync: SyncState? = null,
+    val series: List<SeriesSummary> = emptyList(),
+    val stopped: List<SeriesSummary> = emptyList(),
+)
+
+/** A series as the settings list it: what it is, how it repeats, and a stop ahead if it has one. */
+data class SeriesSummary(
+    val id: SeriesId,
+    val description: String,
+    val interval: Interval,
+    val stop: EntryDate?,
 )
 
 /**
@@ -90,7 +104,7 @@ class GroupSettingsViewModel(
                             )
                         }
                     }
-                settings(log).copy(backend = shared, sync = sync)
+                settings(log, today()).copy(backend = shared, sync = sync)
             }
             .flowOn(Dispatchers.IO)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupSettingsState())
@@ -167,8 +181,22 @@ class GroupSettingsViewModel(
     }
 }
 
-private fun settings(group: Group) =
-    GroupSettingsState(
+private fun settings(group: Group, today: EntryDate): GroupSettingsState {
+    val (running, stopped) =
+        group.series.values
+            .filterNot { it.deleted }
+            .mapNotNull { series ->
+                val segment = series.current(today) ?: return@mapNotNull null
+                SeriesSummary(
+                    series.id,
+                    segment.template.description,
+                    segment.interval,
+                    series.stop(today),
+                )
+            }
+            .sortedBy { it.description.lowercase() }
+            .partition { it.stop == null || it.stop > today }
+    return GroupSettingsState(
         loaded = true,
         title = listOfNotNull(group.emoji, group.name).joinToString(" "),
         name = group.name,
@@ -177,4 +205,7 @@ private fun settings(group: Group) =
         colour = group.colour,
         members = group.members.values.filter { it.id !in group.removed },
         defaultParticipants = group.defaultParticipants?.filter { it !in group.removed },
+        series = running,
+        stopped = stopped,
     )
+}

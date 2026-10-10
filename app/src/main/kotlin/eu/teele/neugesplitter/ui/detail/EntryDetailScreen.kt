@@ -21,6 +21,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.ui.editor.recurrenceText
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.kindIcon
@@ -63,6 +65,8 @@ fun EntryDetailScreen(
     onDuplicate: () -> Unit,
     onHistory: () -> Unit,
     onDelete: () -> Unit,
+    /** Opens the series an occurrence came from (RE-9). */
+    onSeries: (SeriesId) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val detail = state.detail
@@ -106,7 +110,7 @@ fun EntryDetailScreen(
                                 },
                             )
                             // An occurrence has no versions of its own to list (HI-3).
-                            if (!detail.occurrence) {
+                            if (detail.series == null) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.history)) },
                                     onClick = {
@@ -122,13 +126,13 @@ fun EntryDetailScreen(
         }
     ) { padding ->
         if (detail != null) {
-            Content(detail, Modifier.fillMaxSize().padding(padding))
+            Content(detail, onSeries, Modifier.fillMaxSize().padding(padding))
         }
     }
 }
 
 @Composable
-private fun Content(detail: Detail, modifier: Modifier = Modifier) {
+private fun Content(detail: Detail, onSeries: (SeriesId) -> Unit, modifier: Modifier = Modifier) {
     val locale = LocalConfiguration.current.locales[0]
     val entry = detail.entry
     val (payersLabel, beneficiariesLabel) = sideLabels(entry.kind)
@@ -167,24 +171,30 @@ private fun Content(detail: Detail, modifier: Modifier = Modifier) {
         Parts(stringResource(payersLabel), detail.payers, detail.scale, locale)
         Parts(stringResource(beneficiariesLabel), detail.beneficiaries, detail.scale, locale)
         HorizontalDivider()
-        if (detail.occurrence) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    painterResource(R.drawable.ic_repeat),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
-                )
-                Text(
-                    listOfNotNull(
-                            stringResource(R.string.entry_repeats),
-                            detail.recurrence?.let { recurrenceText(it.interval, locale) },
-                        )
-                        .joinToString(" · "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
+        val series = detail.series
+        if (series != null) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        painterResource(R.drawable.ic_repeat),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        listOfNotNull(
+                                stringResource(R.string.entry_repeats),
+                                detail.recurrence?.let { recurrenceText(it.interval, locale) },
+                            )
+                            .joinToString(" · "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+                TextButton(onClick = { onSeries(series) }) {
+                    Text(stringResource(R.string.series_open))
+                }
             }
         }
         val made =

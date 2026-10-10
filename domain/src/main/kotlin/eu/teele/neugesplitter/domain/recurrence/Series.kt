@@ -53,6 +53,39 @@ data class Series(
         segments.sortedBy { it.first }.lastOrNull { it.first <= on }?.second
 
     /**
+     * Where this series stops, as it stands on [today]: the first day of the stop in force, or else
+     * of the next one ahead; null if none. A pause and an end are the same thing (RE-7).
+     */
+    fun stop(today: EntryDate): EntryDate? {
+        val effective = effective()
+        val dates = effective.keys.toList()
+        val now = dates.indexOfLast { it <= today }
+        if (now >= 0 && effective.getValue(dates[now]) == null) {
+            return dates.take(now + 1).takeLastWhile { effective.getValue(it) == null }.first()
+        }
+        return dates.drop(now + 1).firstOrNull { effective.getValue(it) == null }
+    }
+
+    /**
+     * How resuming on [today] goes on: from today, or from the stop if that is still ahead, with
+     * the segment in force before the stop; null if there is no stop (RE-7).
+     */
+    fun resumption(today: EntryDate): Pair<EntryDate, Segment>? {
+        val stop = stop(today) ?: return null
+        val segment = effective().filterKeys { it < stop }.values.filterNotNull().lastOrNull()
+        return segment?.let { maxOf(today, stop) to it }
+    }
+
+    /** What this series does on [today], or did last before it stopped, or does once it starts. */
+    fun current(today: EntryDate): Segment? =
+        segment(today)
+            ?: resumption(today)?.second
+            ?: effective().values.firstNotNullOfOrNull { it }
+
+    /** Each date a segment begins on, with the one in force from it: the later in the log. */
+    private fun effective(): Map<EntryDate, Segment?> = segments.sortedBy { it.first }.toMap()
+
+    /**
      * Every occurrence due on or before [today], the installation's local date (RE-14), in order of
      * due date. An amended one stands even where nothing is due any more (format-spec 4.2).
      */

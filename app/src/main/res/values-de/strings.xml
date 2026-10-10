@@ -126,6 +126,24 @@
         <item quantity="other">%d Vorschläge warten</item>
     </plurals>
     <string name="suggestions_review">Ansehen</string>
+    <!-- Recurring series -->
+    <string name="series_list">Wiederkehrende Serien</string>
+    <string name="series_none">Noch keine. Beim Hinzufügen eines Eintrags „Wiederholen“ einschalten.</string>
+    <plurals name="series_stopped_count">
+        <item quantity="one">%d beendet</item>
+        <item quantity="other">%d beendet</item>
+    </plurals>
+    <string name="series_open">Zur Serie</string>
+    <string name="series_running">Läuft</string>
+    <string name="series_starts">Beginnt am %1$s</string>
+    <string name="series_stops">Endet ab %1$s</string>
+    <string name="series_stopped">Beendet seit %1$s</string>
+    <string name="series_pause">Pausieren</string>
+    <string name="series_resume">Fortsetzen</string>
+    <string name="series_stop_from">Ab einem Datum beenden</string>
+    <string name="series_entries">Ihre Einträge</string>
+    <string name="series_delete_title">Diese Serie löschen?</string>
+    <string name="series_delete_text">Die Serie und alle Einträge, die sie erzeugt hat, auch vergangene, werden entfernt. Um Vergangenes zu behalten, beende sie stattdessen.</string>
 
     <!-- Entry history -->
     <string name="history">Verlauf</string>

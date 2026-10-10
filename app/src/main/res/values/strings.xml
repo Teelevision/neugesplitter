@@ -128,6 +128,24 @@
         <item quantity="other">%d suggestions are waiting</item>
     </plurals>
     <string name="suggestions_review">Review</string>
+    <!-- Recurring series -->
+    <string name="series_list">Recurring series</string>
+    <string name="series_none">None yet. Switch on Repeats when adding an entry.</string>
+    <plurals name="series_stopped_count">
+        <item quantity="one">%d stopped</item>
+        <item quantity="other">%d stopped</item>
+    </plurals>
+    <string name="series_open">Open its series</string>
+    <string name="series_running">Running</string>
+    <string name="series_starts">Starts on %1$s</string>
+    <string name="series_stops">Stops from %1$s</string>
+    <string name="series_stopped">Stopped since %1$s</string>
+    <string name="series_pause">Pause</string>
+    <string name="series_resume">Resume</string>
+    <string name="series_stop_from">Stop from a date</string>
+    <string name="series_entries">Its entries</string>
+    <string name="series_delete_title">Delete this series?</string>
+    <string name="series_delete_text">The series and every entry it produced, past ones included, are removed. To keep what already happened, stop it instead.</string>
 
     <!-- Entry history -->
     <string name="history">History</string>

@@ -111,6 +111,7 @@ class EntryDetailScreenTest {
                     onDuplicate = { calls += "duplicate" },
                     onHistory = { calls += "history" },
                     onDelete = { calls += "delete" },
+                    onSeries = { calls += "series ${it.hex}" },
                 )
             }
         }
@@ -136,6 +137,7 @@ class EntryDetailScreenTest {
         assertEquals(2, compose.onAllNodesWithText("100.00").fetchSemanticsNodes().size)
         assertEquals(3, compose.onAllNodesWithText("33.33").fetchSemanticsNodes().size)
         compose.onNodeWithText("Created by Anna").assertExists()
+        compose.onNodeWithText("Open its series").assertDoesNotExist()
     }
 
     @Test
@@ -190,7 +192,7 @@ class EntryDetailScreenTest {
     }
 
     @Test
-    fun `an occurrence shows how its series repeats and has no history of its own (RE-9)`() {
+    fun `an occurrence shows how its series repeats, leads to it, and has no history of its own (RE-9)`() {
         seed()
         val rent = SeriesId.parse(id(20))
         val first = EntryDate.parse("2026-10-01")
@@ -205,6 +207,8 @@ class EntryDetailScreenTest {
         waitForText("Dinner")
         compose.onNodeWithText("Thursday, October 1, 2026").assertExists()
         compose.onNodeWithText("Recurring · Every month on the 1st and 15th").assertExists()
+        compose.onNodeWithText("Open its series").performClick()
+        assertEquals(listOf("series ${rent.hex}"), calls)
         compose.onNodeWithContentDescription("More options").performClick()
         compose.onNodeWithText("Duplicate").assertExists()
         compose.onNodeWithText("History").assertDoesNotExist()

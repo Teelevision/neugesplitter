@@ -27,6 +27,7 @@ import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.ui.activity.ActivityScreen
 import eu.teele.neugesplitter.ui.activity.ActivityViewModel
 import eu.teele.neugesplitter.ui.appsettings.AppSettingsScreen
@@ -52,6 +53,8 @@ import eu.teele.neugesplitter.ui.overview.OverviewScreen
 import eu.teele.neugesplitter.ui.overview.OverviewViewModel
 import eu.teele.neugesplitter.ui.people.PeopleScreen
 import eu.teele.neugesplitter.ui.people.PeopleViewModel
+import eu.teele.neugesplitter.ui.series.SeriesScreen
+import eu.teele.neugesplitter.ui.series.SeriesViewModel
 import eu.teele.neugesplitter.ui.settings.GroupSettingsScreen
 import eu.teele.neugesplitter.ui.settings.GroupSettingsViewModel
 import eu.teele.neugesplitter.ui.sync.SyncProblemScreen
@@ -98,6 +101,9 @@ data class EntryEditor(
 @Serializable data class EntryDetail(val group: String, val entry: String) : NavKey
 
 @Serializable data class EntryHistory(val group: String, val entry: String) : NavKey
+
+/** Ids are hex. */
+@Serializable data class RecurringSeries(val group: String, val series: String) : NavKey
 
 /** @property group the group's id, as hex. */
 @Serializable data class BackendSetup(val group: String) : NavKey
@@ -340,6 +346,7 @@ fun App(graph: AppGraph) {
                                     },
                                     onBack = back,
                                     onBackend = { stack.add(BackendSetup(key.group)) },
+                                    onSeries = { stack.add(RecurringSeries(key.group, it.hex)) },
                                     onDeleted = { while (stack.size > 1) pop() },
                                     modifier = modifier,
                                 )
@@ -389,6 +396,23 @@ fun App(graph: AppGraph) {
                             pop()
                             deleting = key.entry
                         },
+                        onSeries = { stack.add(RecurringSeries(key.group, it.hex)) },
+                    )
+                }
+                entry<RecurringSeries> { key ->
+                    SeriesScreen(
+                        viewModel {
+                            SeriesViewModel(
+                                graph.groups,
+                                GroupId.parse(key.group),
+                                SeriesId.parse(key.series),
+                                graph::identifier,
+                                graph::today,
+                                graph::now,
+                            )
+                        },
+                        onBack = { pop() },
+                        onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
                     )
                 }
                 entry<EntryHistory> { key ->

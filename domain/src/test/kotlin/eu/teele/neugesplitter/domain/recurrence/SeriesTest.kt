@@ -135,6 +135,39 @@ class SeriesTest {
     }
 
     @Test
+    fun `a stop in force is dated from its first day, and resuming goes on from today (RE-7)`() {
+        val log =
+            threePeople()
+                .start(RENT, "2026-05-01", monthly(900))
+                .end(RENT, "2026-06-15")
+                .end(RENT, "2026-07-15")
+        val series = log.replay().series.getValue(RENT)
+        assertEquals(date("2026-06-15"), series.stop(TODAY))
+        assertEquals(TODAY to monthly(900), series.resumption(TODAY))
+        assertEquals(monthly(900), series.current(TODAY))
+        val running = threePeople().start(RENT, "2026-05-01", monthly(900)).replay()
+        assertEquals(null, running.series.getValue(RENT).stop(TODAY))
+    }
+
+    @Test
+    fun `a stop ahead is the next one, and resuming takes it back (RE-7)`() {
+        val log =
+            threePeople()
+                .start(RENT, "2026-05-01", monthly(900))
+                .amend(RENT, "2026-08-01", monthly(1200))
+                .end(RENT, "2026-09-01")
+        val series = log.replay().series.getValue(RENT)
+        assertEquals(date("2026-09-01"), series.stop(TODAY))
+        val (from, segment) = series.resumption(TODAY)!!
+        assertEquals(date("2026-09-01") to monthly(1200), from to segment)
+
+        log.amend(RENT, from.toString(), segment)
+        val resumed = log.replay().series.getValue(RENT)
+        assertEquals(null, resumed.stop(TODAY))
+        assertEquals(5, resumed.occurrences(date("2026-09-01")).size)
+    }
+
+    @Test
     fun `of two segments from the same date the later in the log is in force (format-spec 4_2)`() {
         val log =
             threePeople()

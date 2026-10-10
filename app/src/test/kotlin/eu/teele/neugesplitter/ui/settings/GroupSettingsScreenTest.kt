@@ -14,15 +14,23 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import eu.teele.neugesplitter.domain.entry.Kind
+import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.event.Change
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.event.GroupChanges
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.recurrence.Interval
+import eu.teele.neugesplitter.domain.recurrence.Mode
+import eu.teele.neugesplitter.domain.recurrence.Segment
+import eu.teele.neugesplitter.domain.recurrence.Template
+import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.storage.settings.BackendSettings
@@ -54,6 +62,7 @@ class GroupSettingsScreenTest {
     private var deleted = false
     private var backend = 0
     private val intervals = mutableListOf<Duration>()
+    private val seriesOpened = mutableListOf<SeriesId>()
 
     private fun id(n: Int) = "%032x".format(n)
 
@@ -94,6 +103,7 @@ class GroupSettingsScreenTest {
                     onBack = {},
                     onDeleted = { deleted = true },
                     onBackend = { backend++ },
+                    onSeries = { seriesOpened += it },
                 )
             }
         }
@@ -142,6 +152,75 @@ class GroupSettingsScreenTest {
     private fun count() = groups.events(trip).size
 
     private fun lastChange() = (groups.events(trip).last() as Event.GroupUpdated).group
+
+    private fun scrollTo(text: String) =
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(text))
+
+    private fun monthly(description: String) =
+        Segment(
+            Interval.MonthlyOn(setOf(1)),
+            Mode.AUTOMATIC,
+            Template(
+                Kind.EXPENSE,
+                description,
+                Amount.ofUnits(10_000_000_000L),
+                Side.Equal(listOf(anna.id)),
+                Side.Equal(listOf(anna.id, ben.id)),
+            ),
+        )
+
+    @Test
+    fun `running series are listed, and stopped ones fold away below them (RE-7)`() {
+        val rent = SeriesId.parse(id(20))
+        val cleaning = SeriesId.parse(id(21))
+        show {
+            val events =
+                listOf(
+                    Event.SeriesCreated(
+                        eventId(),
+                        anna.id,
+                        at,
+                        rent,
+                        date("2026-09-01"),
+                        monthly("Rent"),
+                    ),
+                    Event.SeriesCreated(
+                        eventId(),
+                        anna.id,
+                        at,
+                        cleaning,
+                        date("2026-08-01"),
+                        monthly("Cleaning"),
+                    ),
+                    Event.SeriesEnded(eventId(), anna.id, at, cleaning, date("2026-10-01")),
+                    Event.SeriesEnded(eventId(), anna.id, at, rent, date("2026-12-01")),
+                )
+            groups.append(trip, events, today)
+        }
+        scrollTo("1 stopped")
+        compose
+            .onNodeWithText("Every month on the 1st · Stops from Tuesday, December 1, 2026")
+            .assertExists()
+        compose.onNodeWithText("Cleaning").assertDoesNotExist()
+
+        open("1 stopped")
+        scrollTo("Cleaning")
+        compose
+            .onNodeWithText("Every month on the 1st · Stopped since Thursday, October 1, 2026")
+            .assertExists()
+        open("Cleaning")
+        open("Rent")
+        assertEquals(listOf(cleaning, rent), seriesOpened)
+    }
+
+    @Test
+    fun `without a series the list says how one is made (RE-1)`() {
+        show()
+        scrollTo("Recurring series")
+        compose.onNodeWithText("None yet. Switch on Repeats when adding an entry.").assertExists()
+    }
+
+    private fun date(text: String) = EntryDate.parse(text)
 
     @Test
     fun `renaming stores only the name, trimmed, and the same name writes nothing (GR-2)`() {

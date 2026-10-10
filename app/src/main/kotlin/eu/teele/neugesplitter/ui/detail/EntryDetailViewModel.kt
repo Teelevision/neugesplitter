@@ -10,6 +10,7 @@ import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.ui.editor.Recurrence
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +25,7 @@ import kotlinx.coroutines.flow.stateIn
 data class Part(val name: String, val amount: Amount)
 
 /**
- * @property occurrence whether the entry came from a series (RE-9).
+ * @property series the series the entry came from, if it did (RE-9).
  * @property recurrence how that series repeats on the occurrence's due date; null where it no
  *   longer does.
  */
@@ -35,7 +36,7 @@ data class Detail(
     val beneficiaries: List<Part>,
     val author: String?,
     val edited: Boolean,
-    val occurrence: Boolean = false,
+    val series: SeriesId? = null,
     val recurrence: Recurrence? = null,
 )
 
@@ -76,7 +77,7 @@ class EntryDetailViewModel(
             beneficiaries = parts(entry.beneficiaries),
             author = authorship?.let { members[it.by]?.name },
             edited = authorship?.edited == true,
-            occurrence = occurrence != null,
+            series = occurrence?.series,
             recurrence =
                 occurrence
                     ?.let { series[it.series]?.segment(it.due) }

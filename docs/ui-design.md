@@ -215,8 +215,9 @@ Plain list, grouped:
 
 - **Group**: name, description, emoji, colour (GR-2)
 - **Entries**: default participants for new entries (SP-8)
-- **Recurring series**: the list of series, each openable to pause, resume, stop
-  from a date, or delete (RE-6, RE-7)
+- **Recurring series**: those that run, each with how it repeats and a stop
+  ahead if it has one, and under them the stopped ones, folded away. Each opens
+  its series (RE-7)
 - **Backend**: current backend summary, sync interval (SY-13), edit or configure
   (BE-2, BE-15), and the encryption state (PR-11). A local group shows that it
   is local and a row that starts backend setup.
@@ -300,6 +301,25 @@ deletion if there is one (HI-3). Opening this screen clears the entry's unseen
 highlight (HI-6). An entry from a series says how the series repeats and links
 to it (RE-9); it has no history of its own, and deleting it deletes only that
 occurrence (RE-15).
+
+### Recurring series
+
+What the series produces as it stands today, or last stood before it stopped:
+description, who pays, the amount, the rule read back with automatic or
+suggested, and whether it runs, starts later, stops from a date, or stopped
+(RE-7, RE-9). Below that its actions:
+
+- **Pause** stops it from tomorrow, so that today's occurrence stands.
+- **Resume**, in place of pause while it is stopped or about to be, goes on from
+  today, or from the stop if that is still ahead, as it was before the stop.
+  What fell due while it was stopped is not made up.
+- **Stop from a date** takes any date; what it produced before stands.
+- **Delete** asks first, and says that every entry it produced goes with it and
+  that stopping keeps them.
+
+Under the actions, the entries it produced, newest first, each opening its
+detail. A pause and a stop are the same event, so the screen does not tell them
+apart (event-model 6).
 
 ## 6. Backend setup
 
