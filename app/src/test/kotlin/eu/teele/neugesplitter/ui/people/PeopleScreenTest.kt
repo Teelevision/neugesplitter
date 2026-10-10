@@ -29,6 +29,7 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.storage.settings.BackendSettings
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
 import java.time.Instant
 import kotlin.test.Test
@@ -68,7 +69,7 @@ class PeopleScreenTest {
     private fun eventId() = EventId.parse(id(0x100 + events++))
 
     /** Anna's group, acted in as Anna, after Anna paid [paid] for all three of them. */
-    private fun show(paid: Amount?, onRecord: (Transfer) -> Unit = {}) {
+    private fun show(paid: Amount?, onRecord: (Transfer) -> Unit = {}, shared: Boolean = false) {
         val created =
             Group.create(trip, "Trip", null, "⛺", null, listOf(anna, ben, clara), at, ::eventId)
         groups.create(created, today)
@@ -84,6 +85,12 @@ class PeopleScreenTest {
                     beneficiaries = Side.Equal(listOf(anna.id, ben.id, clara.id)),
                 )
             groups.append(trip, listOf(Event.EntryCreated(eventId(), anna.id, at, dinner)), today)
+        }
+        if (shared) {
+            groups.backends.connect(
+                trip,
+                BackendSettings("https://s3.example", "splits", "", "auto", false, "AK"),
+            )
         }
         val viewModel = PeopleViewModel(groups, trip, { id(0x100 + events++) }, { today }, { at })
         compose.setContent { NeugesplitterTheme { PeopleScreen(viewModel, {}, onRecord) } }
@@ -109,8 +116,20 @@ class PeopleScreenTest {
         compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
 
     @Test
+    fun `a shared group's title follows how its sync stands, a local one's stands alone (SY-6)`() {
+        show(paid = null, shared = true)
+        val cloud = compose.onNodeWithContentDescription("Changes waiting")
+        assertTrue(
+            cloud.fetchSemanticsNode().boundsInRoot.right <=
+                compose.onNodeWithText("⛺ Trip").fetchSemanticsNode().boundsInRoot.left
+        )
+    }
+
+    @Test
     fun `members show what they are owed or owe, in the order they were added (BA-1)`() {
         show(paid = cents(3000))
+        compose.onNodeWithContentDescription("In sync").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Changes waiting").assertDoesNotExist()
         compose.onNodeWithText("is owed 20.00").assertExists()
         assertEquals(2, compose.onAllNodesWithText("owes 10.00").fetchSemanticsNodes().size)
         assertTrue(top("Anna (you)") < top("Ben"))

@@ -10,6 +10,7 @@ import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.storage.Overview
+import eu.teele.neugesplitter.storage.settings.SyncState
 import java.time.Instant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +20,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
@@ -33,13 +33,16 @@ import kotlinx.coroutines.launch
  * @property overview null once loaded only if this device no longer holds the group.
  * @property deleting the entry deleted but not yet written as deleted, which the overview leaves
  *   out while its undo is offered (HI-1).
- * @property halted whether the group stopped syncing (SY-15).
+ * @property sync how the group's sync stands (SY-6, SY-15); null for a group kept only on this
+ *   device.
+ * @property now when this state was read, which relative times count back from.
  */
 data class OverviewState(
     val loaded: Boolean = false,
     val overview: Overview? = null,
     val deleting: EntryId? = null,
-    val halted: Boolean = false,
+    val sync: SyncState? = null,
+    val now: Instant = Instant.EPOCH,
 )
 
 /**
@@ -77,15 +80,13 @@ class OverviewViewModel(
                     .flowOn(Dispatchers.IO)
         }
 
-    private val halted: Flow<Boolean> =
-        repository.backends.state(group).map { it?.halted != null }.distinctUntilChanged()
-
     val state: StateFlow<OverviewState> =
-        combine(repository.overview(group, today()), deleting, ownWithout, halted) {
-                overview,
+        combine(
+                repository.overview(group, today()),
                 deleting,
-                without,
-                halted ->
+                ownWithout,
+                repository.backends.state(group),
+            ) { overview, deleting, without, sync ->
                 OverviewState(
                     loaded = true,
                     overview =
@@ -96,7 +97,8 @@ class OverviewViewModel(
                             entries = overview.entries.filterNot { it.id == deleting },
                         ),
                     deleting = deleting,
-                    halted = halted,
+                    sync = sync,
+                    now = now(),
                 )
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), OverviewState())

@@ -253,7 +253,7 @@ fun App(graph: AppGraph) {
                         onBack = { pop() },
                         onNew = { stack.add(EntryEditor(key.group)) },
                         attention = attention,
-                    ) { destination, back, modifier ->
+                    ) { destination, back, go, modifier ->
                         when (destination) {
                             Destination.OVERVIEW ->
                                 OverviewScreen(
@@ -277,6 +277,7 @@ fun App(graph: AppGraph) {
                                     },
                                     onHistory = { stack.add(EntryHistory(key.group, it.hex)) },
                                     onSyncProblem = { stack.add(SyncProblem(key.group)) },
+                                    onActivity = { go(Destination.ACTIVITY) },
                                     modifier = modifier,
                                 )
                             Destination.PEOPLE ->

@@ -49,15 +49,15 @@ enum class Destination(@param:DrawableRes val icon: Int, @param:StringRes val la
  * @param onBack leaves the group, from the overview.
  * @param attention whether Activity holds something to look at: unseen changes or a halted sync
  *   (ui-design 4).
- * @param content the destination, given what its back arrow does; it must apply the modifier it is
- *   given.
+ * @param content the destination, given what its back arrow does and how to switch to another; it
+ *   must apply the modifier it is given.
  */
 @Composable
 fun GroupScreen(
     onBack: () -> Unit,
     onNew: () -> Unit,
     attention: Boolean,
-    content: @Composable (Destination, () -> Unit, Modifier) -> Unit,
+    content: @Composable (Destination, () -> Unit, (Destination) -> Unit, Modifier) -> Unit,
 ) {
     var destination by rememberSaveable { mutableStateOf(Destination.OVERVIEW) }
     BackHandler(destination != Destination.OVERVIEW) { destination = Destination.OVERVIEW }
@@ -72,7 +72,12 @@ fun GroupScreen(
         bottomBar = { GroupBar(destination, { destination = it }, onNew, attention) },
         contentWindowInsets = WindowInsets(0),
     ) { padding ->
-        content(destination, back, Modifier.padding(padding).consumeWindowInsets(padding))
+        content(
+            destination,
+            back,
+            { destination = it },
+            Modifier.padding(padding).consumeWindowInsets(padding),
+        )
     }
 }
 

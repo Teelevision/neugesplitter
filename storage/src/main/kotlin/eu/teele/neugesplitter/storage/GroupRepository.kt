@@ -17,8 +17,14 @@ import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.format.json.EventJson
 import eu.teele.neugesplitter.storage.projection.Projection
 import eu.teele.neugesplitter.storage.settings.Backends
+import eu.teele.neugesplitter.storage.settings.Failure
 import eu.teele.neugesplitter.storage.settings.Secrets
+import eu.teele.neugesplitter.storage.settings.SyncState
 import eu.teele.neugesplitter.sync.LocalLog
+import eu.teele.neugesplitter.sync.ObjectNumber
+import eu.teele.neugesplitter.sync.writer.Halt
+import eu.teele.neugesplitter.sync.writer.Upload
+import java.time.Instant
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -107,7 +113,21 @@ class GroupRepository(private val driver: SqlDriver) {
         context: CoroutineContext = Dispatchers.IO,
     ): Flow<List<ListedGroup>> =
         database.projectionQueries
-            .listed { id, name, emoji, colour, scale, entries, own, unseen, halted ->
+            .listed {
+                id,
+                name,
+                emoji,
+                colour,
+                scale,
+                entries,
+                own,
+                unseen,
+                shared,
+                succeeded,
+                haltedAt,
+                halt,
+                failure,
+                waiting ->
                 ListedGroup(
                     id = GroupId.parse(id),
                     name = name,
@@ -117,7 +137,21 @@ class GroupRepository(private val driver: SqlDriver) {
                     entries = entries,
                     own = own?.let(Amount::ofUnits),
                     unseen = unseen,
-                    halted = halted,
+                    sync =
+                        if (!shared) null
+                        else
+                            SyncState(
+                                succeeded = succeeded?.let(Instant::ofEpochMilli),
+                                halted =
+                                    haltedAt?.let {
+                                        Upload.Halted(
+                                            ObjectNumber(it.toInt()),
+                                            Halt.valueOf(halt!!),
+                                        )
+                                    },
+                                failure = failure?.let(Failure::valueOf),
+                                waiting = waiting,
+                            ),
                 )
             }
             .asFlow()

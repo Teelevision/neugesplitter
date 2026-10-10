@@ -283,6 +283,7 @@ class GroupSettingsScreenTest {
             )
         }
         compose.onNode(hasScrollAction()).performScrollToNode(hasText("Encryption"))
+        compose.onNodeWithContentDescription("Changes waiting").assertExists()
         compose.onNodeWithText("S3 · s3.example · splits").assertExists()
         compose.onNodeWithText("Off").assertExists()
         compose.onNodeWithText("Only on this device").assertDoesNotExist()

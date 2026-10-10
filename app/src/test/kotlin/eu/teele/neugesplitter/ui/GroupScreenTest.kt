@@ -1,5 +1,6 @@
 package eu.teele.neugesplitter.ui
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -32,8 +33,12 @@ class GroupScreenTest {
                 GroupScreen(onBack = { left++ }, onNew = { added++ }, attention = attention) {
                     destination,
                     back,
+                    go,
                     modifier ->
-                    TextButton(onClick = back, modifier) { Text("showing $destination") }
+                    Column(modifier) {
+                        TextButton(onClick = back) { Text("showing $destination") }
+                        TextButton(onClick = { go(Destination.ACTIVITY) }) { Text("to activity") }
+                    }
                 }
             }
         }
@@ -65,6 +70,15 @@ class GroupScreenTest {
     fun `the group opens on its overview (ui-design 1)`() {
         show()
         compose.onNodeWithText("showing OVERVIEW").assertExists()
+    }
+
+    @Test
+    fun `a destination can switch to another, and back returns to the overview (ui-design 4)`() {
+        show()
+        compose.onNodeWithText("to activity").performClick()
+        compose.onNodeWithText("showing ACTIVITY").performClick()
+        compose.onNodeWithText("showing OVERVIEW").assertExists()
+        assertEquals(0, left)
     }
 
     @Test

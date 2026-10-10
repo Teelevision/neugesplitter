@@ -244,22 +244,21 @@ class ActivityScreenTest {
             share()
             groups.backends.halted(trip, Upload.Halted(ObjectNumber(3), Halt.GAP))
         }
-        compose.onNodeWithContentDescription("Sync problem").assertExists()
+        compose.onNodeWithContentDescription("Sync stopped").assertExists()
         assertEquals(0, count("Sync now"))
         compose.onNodeWithText("Sync stopped").performClick()
         assertEquals(1, problems)
     }
 
     @Test
-    fun `each section folds away and back (ui-design 4)`() {
+    fun `how sync stands comes before the history, which folds away and back (ui-design 4)`() {
         show()
         val dinner = "Ben added 'Dinner' · 1 hour ago"
-        compose.onAllNodesWithContentDescription("Collapse")[0].performClick()
+        assertTrue(top("Only on this device") < top("History"))
+        compose.onNodeWithContentDescription("Collapse").performClick()
         assertEquals(0, count(dinner))
         compose.onNodeWithText("Only on this device").assertExists()
-        compose.onAllNodesWithContentDescription("Collapse")[0].performClick()
-        assertEquals(0, count("Only on this device"))
-        compose.onAllNodesWithContentDescription("Expand")[0].performClick()
+        compose.onNodeWithContentDescription("Expand").performClick()
         assertEquals(1, count(dinner))
     }
 }

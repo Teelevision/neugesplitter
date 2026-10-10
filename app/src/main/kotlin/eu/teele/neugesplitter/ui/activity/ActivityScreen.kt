@@ -1,11 +1,7 @@
 package eu.teele.neugesplitter.ui.activity
 
-import android.icu.text.RelativeDateTimeFormatter
-import android.icu.text.RelativeDateTimeFormatter.AbsoluteUnit
-import android.icu.text.RelativeDateTimeFormatter.Direction
-import android.icu.text.RelativeDateTimeFormatter.RelativeUnit
-import android.icu.util.ULocale
 import androidx.annotation.StringRes
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,12 +27,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,13 +43,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
@@ -62,19 +61,16 @@ import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.settings.SyncState
 import eu.teele.neugesplitter.ui.UnseenDot
-import eu.teele.neugesplitter.ui.sync.SyncHaltedCard
+import eu.teele.neugesplitter.ui.sync.GroupTitle
+import eu.teele.neugesplitter.ui.sync.ago
 import eu.teele.neugesplitter.ui.sync.failed
-import java.time.Duration
+import eu.teele.neugesplitter.ui.sync.troubled
 import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
-import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 /**
- * What changed in a group, by whom and when (HI-2), with what has not been seen yet highlighted
- * (HI-5, HI-7), and how its sync stands, with a manual sync (SY-6, SY-9, TR-12). Each part folds
+ * How a group's sync stands, with a manual sync (SY-6, SY-9, TR-12), above what changed in it, by
+ * whom and when (HI-2), with what has not been seen yet highlighted (HI-5, HI-7). The history folds
  * away (ui-design 4).
  *
  * @param onOpen opens an entry a change names.
@@ -96,7 +92,6 @@ fun ActivityScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val locale = LocalConfiguration.current.locales[0]
     var history by rememberSaveable { mutableStateOf(true) }
-    var sync by rememberSaveable { mutableStateOf(true) }
     var menu by remember { mutableStateOf(false) }
 
     // Deleted while open, which only another screen can do.
@@ -106,9 +101,7 @@ fun ActivityScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = {
-                    Text(state.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                },
+                title = { GroupTitle(state.title.orEmpty(), state.sync) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -119,14 +112,6 @@ fun ActivityScreen(
                 },
                 actions = {
                     if (state.title == null) return@TopAppBar
-                    state.sync?.let {
-                        val (icon, label) = cloud(it)
-                        Icon(
-                            painterResource(icon),
-                            stringResource(label),
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                        )
-                    }
                     Box {
                         IconButton(onClick = { menu = true }) {
                             Icon(
@@ -154,6 +139,9 @@ fun ActivityScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(bottom = 16.dp),
         ) {
+            item(key = "sync") {
+                SyncCard(state.sync, state.now, locale, viewModel::sync, onShare, onSyncProblem)
+            }
             section("history", R.string.history, history) { history = !history }
             if (history) {
                 itemsIndexed(state.history, key = { index, _ -> "happened-$index" }) {
@@ -168,12 +156,6 @@ fun ActivityScreen(
                         onOpen,
                         onHistory,
                     )
-                }
-            }
-            section("sync", R.string.sync, sync) { sync = !sync }
-            if (sync) {
-                item(key = "sync-state") {
-                    Sync(state.sync, state.now, locale, viewModel::sync, onShare, onSyncProblem)
                 }
             }
         }
@@ -287,9 +269,13 @@ private fun sentence(happening: Happening, names: Map<MemberId, String>): String
     }
 }
 
-/** How the group's sync stands (SY-6), or that it is kept only here; null [sync] is the latter. */
+/**
+ * How the group's sync stands (SY-6), or that it is kept only here, which a null [sync] is, on a
+ * card coloured by which: primary while it syncs, error once it fails or halts (SY-15), neutral
+ * when kept here. A halted group's card opens why.
+ */
 @Composable
-private fun Sync(
+private fun SyncCard(
     sync: SyncState?,
     now: Instant,
     locale: Locale,
@@ -298,88 +284,71 @@ private fun Sync(
     onSyncProblem: () -> Unit,
 ) {
     val colours = MaterialTheme.colorScheme
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
+    val (container, content) =
         when {
-            sync == null -> {
+            sync == null -> colours.surfaceContainerHigh to colours.onSurface
+            sync.troubled -> colours.errorContainer to colours.onErrorContainer
+            else -> colours.primaryContainer to colours.onPrimaryContainer
+        }
+    CompositionLocalProvider(LocalContentColor provides content) {
+        Column(
+            modifier =
+                Modifier.padding(16.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(container)
+                    .then(
+                        if (sync?.halted != null) Modifier.clickable(onClick = onSyncProblem)
+                        else Modifier
+                    )
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (sync == null) {
                 Text(
                     stringResource(R.string.storage_local),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Text(stringResource(R.string.sync_local_text), color = colours.onSurfaceVariant)
+                Text(stringResource(R.string.sync_local_text))
                 OutlinedButton(onClick = onShare) { Text(stringResource(R.string.storage_set_up)) }
+                return@Column
             }
-            sync.halted != null -> SyncHaltedCard(onSyncProblem)
-            else -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        painterResource(
-                            if (sync.failure == null) R.drawable.ic_check else R.drawable.ic_warning
-                        ),
-                        null,
-                        tint = if (sync.failure == null) colours.primary else colours.error,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        sync.succeeded?.let {
-                            stringResource(R.string.sync_succeeded, ago(it, now, locale))
-                        } ?: stringResource(R.string.sync_never),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                sync.failure?.let { failure ->
-                    val (title, text) = failed(failure)
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(stringResource(title), color = colours.error)
-                        Text(stringResource(text), color = colours.onSurfaceVariant)
-                    }
-                }
-                Text(
-                    if (sync.waiting > 0) {
-                        val waiting = sync.waiting.toInt()
-                        pluralStringResource(R.plurals.sync_waiting, waiting, waiting)
-                    } else stringResource(R.string.sync_uploaded),
-                    color = colours.onSurfaceVariant,
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // The top bar already says how it stands to a screen reader.
+                Icon(
+                    painterResource(
+                        if (sync.troubled) R.drawable.ic_warning else R.drawable.ic_check
+                    ),
+                    null,
+                    modifier = Modifier.size(20.dp),
                 )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    sync.succeeded?.let {
+                        stringResource(R.string.sync_succeeded, ago(it, now, locale))
+                    } ?: stringResource(R.string.sync_never),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            val explained =
+                sync.halted?.let { R.string.sync_halted to R.string.sync_halted_text }
+                    ?: sync.failure?.let(::failed)
+            explained?.let { (title, text) ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(title), fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(text))
+                }
+            }
+            Text(
+                if (sync.waiting > 0) {
+                    val waiting = sync.waiting.toInt()
+                    pluralStringResource(R.plurals.sync_waiting, waiting, waiting)
+                } else stringResource(R.string.sync_uploaded)
+            )
+            // A halted group's way on is on the screen that says why (SY-15).
+            if (sync.halted == null) {
                 FilledTonalButton(onClick = onSync) { Text(stringResource(R.string.sync_now)) }
             }
         }
-    }
-}
-
-/** The icon and its label for how [sync] stands, for the top bar. */
-private fun cloud(sync: SyncState): Pair<Int, Int> =
-    when {
-        sync.halted != null || sync.failure != null ->
-            R.drawable.ic_cloud_off to R.string.sync_problem
-        sync.waiting > 0 -> R.drawable.ic_cloud_upload to R.string.sync_pending
-        else -> R.drawable.ic_cloud_done to R.string.sync_in_sync
-    }
-
-/**
- * How long before [now] [at] was, as [locale] says it: minutes, hours, yesterday, days, then the
- * date.
- */
-private fun ago(at: Instant, now: Instant, locale: Locale): String {
-    val formatter = RelativeDateTimeFormatter.getInstance(ULocale.forLocale(locale))
-    val zone = ZoneId.systemDefault()
-    val elapsed = Duration.between(at, now)
-    val days =
-        ChronoUnit.DAYS.between(at.atZone(zone).toLocalDate(), now.atZone(zone).toLocalDate())
-    return when {
-        elapsed.toMinutes() < 1 -> formatter.format(Direction.PLAIN, AbsoluteUnit.NOW)
-        elapsed.toHours() < 1 ->
-            formatter.format(elapsed.toMinutes().toDouble(), Direction.LAST, RelativeUnit.MINUTES)
-        days < 1 ->
-            formatter.format(elapsed.toHours().toDouble(), Direction.LAST, RelativeUnit.HOURS)
-        days == 1L -> formatter.format(Direction.LAST, AbsoluteUnit.DAY)
-        days < 7 -> formatter.format(days.toDouble(), Direction.LAST, RelativeUnit.DAYS)
-        else ->
-            DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-                .withLocale(locale)
-                .format(at.atZone(zone))
     }
 }

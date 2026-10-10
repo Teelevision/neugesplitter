@@ -69,9 +69,11 @@ screen or opened as a bottom sheet, and the bar is hidden while it is up.
 ### Group list
 
 The root. One card or row per group, showing its emoji and colour (GR-2), its
-name, the user's own position in it ("you are owed 42.50", BA-7) and a compact
-sync indicator (SY-6). A group with unseen changes carries a dot (HI-5); a group
-whose sync has halted carries an error marker rather than a dot (SY-15).
+name, the user's own position in it ("you are owed 42.50", BA-7) and, for a
+shared group, the same sync icon its own top bars show, at the trailing end
+(SY-6), in the error colour once its passes fail or it has halted (SY-15). A
+group with unseen changes carries a dot before that icon (HI-5). A group kept
+only on this device shows no icon.
 
 - FAB opens a small menu: **new group** or **join an existing group**.
 - Tap opens the group at its Overview.
@@ -110,15 +112,22 @@ on the device is offered to open, and nothing is changed.
 
 ## 4. Inside a group
 
+All four destinations show the group's emoji and name in their top bar, after
+the sync state as a cloud icon: done, uploading while changes wait, crossed out
+in the error colour on a failure or a halt, and absent for a local group (SY-6).
+
 ### Overview
 
 The default destination and the one the user sees most.
 
 A header shows the group's total spending — one number, not a dashboard;
 per-member and per-category statistics are BA-8 and come later — and, next to
-it, the user's own position ("you owe 12.30", BA-7). If suggestions are pending,
-a banner sits directly under the header (RE-10). A group whose sync has halted
-shows an error banner there, which opens the sync problem screen (SY-15).
+it, the user's own position ("you owe 12.30", BA-7). Under it, a shared group
+says in one line how its sync stands: when a pass last succeeded, or why the
+last ones failed ("Not reachable") in the error colour (SY-6, TR-12). The line
+opens Activity. If suggestions are pending, a banner sits directly under the
+header (RE-10). A group whose sync has halted shows an error banner there
+instead of the line, which opens the sync problem screen (SY-15).
 
 Below that, entries newest first, grouped under date headers. Each row carries:
 
@@ -173,24 +182,25 @@ An "add member" row sits at the end of the list (GR-5).
 
 ### Activity
 
-Three stacked sections, each collapsible, in this order:
+How sync stands comes first, because the history can grow long, and the rest is
+stacked in collapsible sections below it:
 
-1. **Pending suggestions** (RE-4, RE-10): each with confirm, edit and confirm,
+1. **Sync**: a rounded card like the Overview header, coloured by how sync
+   stands — primary while it works, error once passes fail or it has halted,
+   neutral for a group kept only here. It holds the time of the last
+   _successful_ sync (SY-6, TR-12), why the last passes failed if they did, what
+   is queued, and a manual sync button (SY-9). When sync has halted, it says so
+   instead of offering the button, and leads to the sync problem screen. A group
+   kept only on this device says so here and offers to share it (BE-1).
+2. **Pending suggestions** (RE-4, RE-10): each with confirm, edit and confirm,
    or decline; declining does not stop the series and the screen says so once
    (RE-5).
-2. **History**: what changed, by which member, and when (HI-2), as a reverse
+3. **History**: what changed, by which member, and when (HI-2), as a reverse
    chronological list covering entries, membership and group settings. A line
    about an entry opens it, or its history once it is deleted (HI-3). Unseen
    items are highlighted; tapping one clears it, and opening an entry clears
    every line about it (HI-5, HI-6). The overflow holds **mark all as read**
    (HI-7).
-3. **Sync**: state and the time of the last _successful_ sync (SY-6, TR-12), a
-   manual sync button (SY-9), and what is queued. When sync has halted, this
-   section is replaced by an error card leading to the sync problem screen. A
-   group kept only on this device says so here and offers to share it (BE-1).
-
-The top bar shows the sync state as a cloud icon: done, uploading while changes
-wait, crossed out on a failure or a halt, and absent for a local group.
 
 The navigation bar's Activity icon carries a badge while anything above is
 pending.

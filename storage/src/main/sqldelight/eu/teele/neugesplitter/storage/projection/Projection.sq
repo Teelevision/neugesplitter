@@ -186,8 +186,8 @@ ORDER BY e.date DESC, e.position DESC, e.id DESC, p.position;
 
 -- The group list (ui-design 3): each group, how many entries it holds that count, the settled
 -- balance of the member this installation acts as in it (BA-7), whether it holds changes not seen
--- yet (HI-5) and whether its sync has halted (SY-15). A group being joined, with nobody chosen to
--- act as yet, is not this installation's yet (BE-6).
+-- yet (HI-5) and how its sync stands, if it is shared (SY-6). A group being joined, with nobody
+-- chosen to act as yet, is not this installation's yet (BE-6).
 listed:
 SELECT
     g.id,
@@ -205,10 +205,18 @@ SELECT
        )) AS entries,
     b.settled AS own,
     EXISTS (SELECT 1 FROM unseen u WHERE u.group_id = g.id) AS unseen,
-    EXISTS (SELECT 1 FROM sync_state y WHERE y.group_id = g.id AND y.halt IS NOT NULL) AS halted
+    EXISTS (SELECT 1 FROM backend_settings s WHERE s.group_id = g.id) AS shared,
+    y.succeeded,
+    y.halted_at,
+    y.halt,
+    y.failure,
+    (SELECT count(*)
+     FROM event_row r
+     WHERE r.group_id = g.id AND r.object_number IS NULL) AS waiting
 FROM group_row g
 JOIN acting_as a ON a.group_id = g.id
 LEFT JOIN balance b ON b.group_id = g.id AND b.member = a.member
+LEFT JOIN sync_state y ON y.group_id = g.id
 ORDER BY g.name, g.id;
 
 forget {

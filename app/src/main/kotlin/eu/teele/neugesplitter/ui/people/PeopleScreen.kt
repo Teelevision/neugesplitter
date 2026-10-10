@@ -59,6 +59,7 @@ import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.ui.InlineEditor
 import eu.teele.neugesplitter.ui.formatted
+import eu.teele.neugesplitter.ui.sync.GroupTitle
 import java.util.Locale
 
 private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
@@ -90,9 +91,7 @@ fun PeopleScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = {
-                    Text(state.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                },
+                title = { GroupTitle(state.title.orEmpty(), state.sync) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(

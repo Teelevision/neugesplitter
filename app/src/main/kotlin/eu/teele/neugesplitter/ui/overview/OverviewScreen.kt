@@ -60,17 +60,27 @@ import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.storage.ListedEntry
 import eu.teele.neugesplitter.storage.Overview
+import eu.teele.neugesplitter.storage.settings.SyncState
 import eu.teele.neugesplitter.ui.EntryRow
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.longDate
 import eu.teele.neugesplitter.ui.position
+import eu.teele.neugesplitter.ui.sync.GroupTitle
 import eu.teele.neugesplitter.ui.sync.SyncHaltedCard
+import eu.teele.neugesplitter.ui.sync.ago
+import eu.teele.neugesplitter.ui.sync.failed
 import eu.teele.neugesplitter.ui.theme.groupColour
+import java.time.Instant
 import java.util.Locale
 
 private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
 
-/** A group's total spending and its entries, newest first (ui-design 4). */
+/**
+ * A group's total spending, how its sync stands in brief, and its entries, newest first (ui-design
+ * 4).
+ *
+ * @param onActivity opens the group's activity, where its sync stands in full.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OverviewScreen(
@@ -83,6 +93,7 @@ fun OverviewScreen(
     onDuplicate: (EntryId) -> Unit,
     onHistory: (EntryId) -> Unit,
     onSyncProblem: () -> Unit,
+    onActivity: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -117,10 +128,9 @@ fun OverviewScreen(
             TopAppBar(
                 title = {
                     if (overview != null) {
-                        Text(
+                        GroupTitle(
                             listOfNotNull(overview.emoji, overview.name).joinToString(" "),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                            state.sync,
                         )
                     }
                 },
@@ -139,11 +149,12 @@ fun OverviewScreen(
         if (overview != null) {
             Entries(
                 overview,
-                state.halted,
+                state,
                 onOpen = onOpen,
                 onMenu = { menu = it },
                 onDelete = viewModel::delete,
                 onSyncProblem = onSyncProblem,
+                onActivity = onActivity,
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         }
@@ -192,24 +203,28 @@ private fun SheetAction(@DrawableRes icon: Int, @StringRes label: Int, onClick: 
 @Composable
 private fun Entries(
     overview: Overview,
-    halted: Boolean,
+    state: OverviewState,
     onOpen: (EntryId) -> Unit,
     onMenu: (ListedEntry) -> Unit,
     onDelete: (EntryId) -> Unit,
     onSyncProblem: () -> Unit,
+    onActivity: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val days = overview.entries.groupBy { it.date }
+    val sync = state.sync
     LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 16.dp)) {
         item(key = "header") { Header(overview, locale) }
-        if (halted) {
+        if (sync?.halted != null) {
             item(key = "halted") {
                 SyncHaltedCard(
                     onSyncProblem,
                     Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                 )
             }
+        } else if (sync != null) {
+            item(key = "sync") { SyncLine(sync, state.now, locale, onActivity) }
         }
         if (days.isEmpty()) {
             item(key = "empty") {
@@ -303,6 +318,29 @@ private fun Header(overview: Overview, locale: Locale) {
                 )
             }
     }
+}
+
+/**
+ * How [sync] stands in one line under the total: why the passes fail, or when one last succeeded
+ * (SY-6). Tapping it opens the activity, which tells more.
+ */
+@Composable
+private fun SyncLine(sync: SyncState, now: Instant, locale: Locale, onActivity: () -> Unit) {
+    Text(
+        sync.failure?.let { stringResource(failed(it).first) }
+            ?: sync.succeeded?.let { stringResource(R.string.sync_succeeded, ago(it, now, locale)) }
+            ?: stringResource(R.string.sync_never),
+        style = MaterialTheme.typography.bodyMedium,
+        color =
+            if (sync.failure != null) MaterialTheme.colorScheme.error
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier =
+            Modifier.padding(horizontal = 16.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(onClick = onActivity)
+                .padding(horizontal = 4.dp, vertical = 8.dp),
+    )
 }
 
 @Composable

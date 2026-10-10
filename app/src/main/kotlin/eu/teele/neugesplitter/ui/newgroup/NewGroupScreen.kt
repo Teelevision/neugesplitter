@@ -174,7 +174,7 @@ private fun Details(state: NewGroupState, viewModel: NewGroupViewModel) {
             0,
             null,
             unseen = false,
-            halted = false,
+            sync = null,
         )
     )
 }

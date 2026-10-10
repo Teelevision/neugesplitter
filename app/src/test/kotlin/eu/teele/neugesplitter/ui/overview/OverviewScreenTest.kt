@@ -26,6 +26,7 @@ import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.storage.settings.BackendSettings
+import eu.teele.neugesplitter.storage.settings.Failure
 import eu.teele.neugesplitter.sync.ObjectNumber
 import eu.teele.neugesplitter.sync.writer.Halt
 import eu.teele.neugesplitter.sync.writer.Upload
@@ -74,6 +75,7 @@ class OverviewScreenTest {
     private var back = 0
     private var taken = 0
     private var problems = 0
+    private var activities = 0
 
     private fun eventId() = EventId.parse(id(0x100 + events++))
 
@@ -137,6 +139,7 @@ class OverviewScreenTest {
                     { duplicated = it },
                     { history = it },
                     { problems++ },
+                    { activities++ },
                 )
             }
         }
@@ -157,13 +160,17 @@ class OverviewScreenTest {
 
     private fun stored() = groups.load(trip)!!.entries.keys
 
+    private fun share() {
+        groups.backends.connect(
+            trip,
+            BackendSettings("https://s3.example", "splits", "", "auto", false, "AK"),
+        )
+    }
+
     @Test
     fun `a group that stopped syncing says so under the header and leads to why (SY-15)`() {
         show {
-            groups.backends.connect(
-                trip,
-                BackendSettings("https://s3.example", "splits", "", "auto", false, "AK"),
-            )
+            share()
             groups.backends.halted(trip, Upload.Halted(ObjectNumber(3), Halt.TRUNCATED))
         }
         compose.waitUntil(5_000) {
@@ -176,9 +183,43 @@ class OverviewScreenTest {
     }
 
     @Test
-    fun `a group that syncs, or is kept only here, shows no sync banner (SY-15)`() {
+    fun `a shared group says in a line under the header when it last synced, which opens the activity (SY-6)`() {
+        show {
+            share()
+            groups.backends.succeeded(trip, at.minusSeconds(3600))
+        }
+        val line = "Last successful: 1 hour ago"
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText(line).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("Changes waiting").assertExists()
+        assertTrue(top("42.00") < top(line))
+        assertTrue(top(line) < top("Dinner"))
+        compose.onNodeWithText(line).performClick()
+        assertEquals(1, activities)
+    }
+
+    @Test
+    fun `a shared group whose passes fail says why in that line (SY-6, BE-7)`() {
+        show {
+            share()
+            groups.backends.succeeded(trip, at.minusSeconds(3600))
+            groups.backends.failed(trip, Failure.UNREACHABLE)
+        }
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Not reachable").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("Sync problem").assertExists()
+        compose.onNodeWithText("Last successful: 1 hour ago").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a group kept only here shows no sync state (SY-6)`() {
         show()
         compose.onNodeWithText("Sync stopped").assertDoesNotExist()
+        compose.onNodeWithText("Not synced yet").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Changes waiting").assertDoesNotExist()
+        compose.onNodeWithContentDescription("In sync").assertDoesNotExist()
     }
 
     @Test

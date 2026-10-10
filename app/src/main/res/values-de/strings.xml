@@ -330,7 +330,6 @@
     <string name="happened_entry_deleted">%1$s hat \'%2$s\' gelöscht</string>
     <string name="happened_entry_restored">%1$s hat \'%2$s\' wiederhergestellt</string>
     <string name="happened_recurring">%1$s hat einen wiederkehrenden Eintrag geändert</string>
-    <string name="sync">Synchronisierung</string>
     <string name="sync_in_sync">Synchronisiert</string>
     <string name="sync_pending">Änderungen warten</string>
     <string name="sync_problem">Problem beim Synchronisieren</string>

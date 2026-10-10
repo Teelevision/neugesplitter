@@ -20,6 +20,9 @@ import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.format.json.BatchId
 import eu.teele.neugesplitter.format.json.EventJson
 import eu.teele.neugesplitter.format.json.LogObject
+import eu.teele.neugesplitter.storage.settings.BackendSettings
+import eu.teele.neugesplitter.storage.settings.Failure
+import eu.teele.neugesplitter.storage.settings.SyncState
 import eu.teele.neugesplitter.sync.BucketStore
 import eu.teele.neugesplitter.sync.Fetched
 import eu.teele.neugesplitter.sync.ObjectNumber
@@ -31,6 +34,7 @@ import eu.teele.neugesplitter.sync.writer.Writer
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -201,11 +205,22 @@ class StoredLogTest {
     }
 
     @Test
-    fun `a halted group is listed as such (SY-15)`(): Unit = runBlocking {
+    fun `the group list shows how each group's sync stands (SY-6, SY-15)`(): Unit = runBlocking {
+        suspend fun listed() = groups.list(TODAY).first().single().sync
+        suspend fun state() = groups.backends.state(GROUP).first()
+
         synced()
-        assertEquals(false, groups.list(TODAY).first().single().halted)
+        assertNull(listed())
+        groups.backends.connect(
+            GROUP,
+            BackendSettings("https://s3.example", "splits", "wg", "eu-central-1", false, "AKID"),
+        )
+        assertEquals(SyncState(null, null, null, waiting = 0), listed())
         groups.backends.halted(GROUP, Upload.Halted(ObjectNumber(1), Halt.GAP))
-        assertEquals(true, groups.list(TODAY).first().single().halted)
+        groups.backends.failed(GROUP, Failure.UNREACHABLE)
+        groups.append(GROUP, listOf(forty), TODAY)
+        assertNotNull(listed()?.halted)
+        assertEquals(state(), listed())
     }
 
     @Test

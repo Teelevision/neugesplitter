@@ -335,7 +335,6 @@
     <string name="happened_entry_deleted">%1$s deleted \'%2$s\'</string>
     <string name="happened_entry_restored">%1$s restored \'%2$s\'</string>
     <string name="happened_recurring">%1$s changed a recurring entry</string>
-    <string name="sync">Sync</string>
     <string name="sync_in_sync">In sync</string>
     <string name="sync_pending">Changes waiting</string>
     <string name="sync_problem">Sync problem</string>

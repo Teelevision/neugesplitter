@@ -14,12 +14,13 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.storage.settings.SyncState
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -37,6 +38,7 @@ data class Person(
  * @property title the group's emoji and name; null once loaded only if this device no longer holds
  *   the group.
  * @property people in the order the members were added to the group.
+ * @property sync how the group's sync stands; null for a group kept only on this device.
  */
 data class PeopleState(
     val loaded: Boolean = false,
@@ -44,6 +46,7 @@ data class PeopleState(
     val scale: Scale = Scale.DEFAULT,
     val people: List<Person> = emptyList(),
     val transfers: List<Transfer> = emptyList(),
+    val sync: SyncState? = null,
 ) {
     private val names = people.associate { it.id to it.name }
 
@@ -60,11 +63,9 @@ class PeopleViewModel(
 ) : ViewModel() {
 
     val state: StateFlow<PeopleState> =
-        repository
-            .group(group)
-            .map { log ->
+        combine(repository.group(group), repository.backends.state(group)) { log, sync ->
                 if (log == null) PeopleState(loaded = true)
-                else people(log, repository.actingAs(group), today())
+                else people(log, repository.actingAs(group), today()).copy(sync = sync)
             }
             .flowOn(Dispatchers.IO)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PeopleState())

@@ -13,6 +13,7 @@ import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.storage.settings.SyncState
 import java.net.URI
 import java.time.Instant
 import kotlin.time.Duration
@@ -32,6 +33,7 @@ import kotlinx.coroutines.withContext
  * @property members those not removed, in the order they joined.
  * @property defaultParticipants who a new entry starts with, without the removed; null for everyone
  *   (SP-8).
+ * @property sync how the group's sync stands; null for a group kept only on this device.
  */
 data class GroupSettingsState(
     val loaded: Boolean = false,
@@ -43,6 +45,7 @@ data class GroupSettingsState(
     val members: List<Member> = emptyList(),
     val defaultParticipants: List<MemberId>? = null,
     val backend: Shared? = null,
+    val sync: SyncState? = null,
 )
 
 /**
@@ -87,7 +90,7 @@ class GroupSettingsViewModel(
                             )
                         }
                     }
-                settings(log).copy(backend = shared)
+                settings(log).copy(backend = shared, sync = sync)
             }
             .flowOn(Dispatchers.IO)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupSettingsState())

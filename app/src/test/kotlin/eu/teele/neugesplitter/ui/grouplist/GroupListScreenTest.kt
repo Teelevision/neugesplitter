@@ -23,6 +23,7 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.storage.settings.BackendSettings
 import eu.teele.neugesplitter.sync.ObjectNumber
 import eu.teele.neugesplitter.sync.writer.Halt
 import eu.teele.neugesplitter.sync.writer.Upload
@@ -147,22 +148,31 @@ class GroupListScreenTest {
     }
 
     @Test
-    fun `a group with unseen changes carries a dot, a halted one a warning instead (HI-5, SY-15)`() {
+    fun `a group with unseen changes carries a dot, a shared one how its sync stands (HI-5, SY-6, SY-15)`() {
         seed(trip, "Trip")
         seed(flat, "Flat")
         val renamed = Event.MemberRenamed(eventId(), ben.id, at, ben.id, "Benni")
         groups.receive(trip, today, 1, renamed)
         groups.receive(flat, today, 1, renamed.copy(id = eventId()))
+        groups.backends.connect(
+            flat,
+            BackendSettings("https://s3.example", "splits", "", "auto", false, "AK"),
+        )
         groups.backends.halted(flat, Upload.Halted(ObjectNumber(2), Halt.GAP))
         show()
         waitForText("Trip")
-        compose.onNodeWithContentDescription("New").assertExists()
-        compose.onNodeWithContentDescription("Sync stopped").assertExists()
+        fun count(label: String) =
+            compose.onAllNodesWithContentDescription(label).fetchSemanticsNodes().size
+        assertEquals(2, count("New"))
+        assertEquals(1, count("Sync stopped"))
+        for (other in listOf("In sync", "Changes waiting", "Sync problem")) {
+            assertEquals(0, count(other))
+        }
 
         groups.seenAll(trip)
-        compose.waitUntil(5_000) {
-            compose.onAllNodesWithContentDescription("New").fetchSemanticsNodes().isEmpty()
-        }
+        compose.waitUntil(5_000) { count("New") == 1 }
+        groups.backends.succeeded(flat, at)
+        compose.waitUntil(5_000) { count("In sync") == 1 }
     }
 
     @Test

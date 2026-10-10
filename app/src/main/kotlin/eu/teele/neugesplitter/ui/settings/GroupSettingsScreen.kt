@@ -38,7 +38,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
@@ -48,6 +47,7 @@ import eu.teele.neugesplitter.ui.ChoiceDialog
 import eu.teele.neugesplitter.ui.ColourPicker
 import eu.teele.neugesplitter.ui.EmojiPicker
 import eu.teele.neugesplitter.ui.InlineEditor
+import eu.teele.neugesplitter.ui.sync.GroupTitle
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -95,9 +95,7 @@ fun GroupSettingsScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = {
-                    Text(state.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                },
+                title = { GroupTitle(state.title.orEmpty(), state.sync) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(

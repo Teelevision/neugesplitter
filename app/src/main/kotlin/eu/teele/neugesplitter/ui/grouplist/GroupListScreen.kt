@@ -56,6 +56,7 @@ import eu.teele.neugesplitter.storage.ListedGroup
 import eu.teele.neugesplitter.ui.GroupAvatar
 import eu.teele.neugesplitter.ui.UnseenDot
 import eu.teele.neugesplitter.ui.position
+import eu.teele.neugesplitter.ui.sync.SyncIcon
 
 /** The root screen: every group on this device (GR-1, ui-design 3). */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -227,8 +228,8 @@ private fun Empty(onNewGroup: () -> Unit, onJoin: () -> Unit, modifier: Modifier
 }
 
 /**
- * One group: its emoji and colour, its name, where the user stands in it (GR-2, BA-7), and whether
- * it holds unseen changes or its sync has halted (HI-5, SY-15).
+ * One group: its emoji and colour, its name, where the user stands in it (GR-2, BA-7), whether it
+ * holds unseen changes (HI-5) and, if it is shared, how its sync stands (SY-6, SY-15).
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -282,14 +283,9 @@ fun GroupCard(
                     contentDescription = null,
                     tint = colours.primary,
                 )
-            } else if (group.halted) {
-                Icon(
-                    painterResource(R.drawable.ic_warning),
-                    stringResource(R.string.sync_halted),
-                    tint = colours.error,
-                )
-            } else if (group.unseen) {
-                UnseenDot()
+            } else {
+                if (group.unseen) UnseenDot(Modifier.padding(start = 8.dp))
+                group.sync?.let { SyncIcon(it, Modifier.padding(start = 12.dp)) }
             }
         }
     }

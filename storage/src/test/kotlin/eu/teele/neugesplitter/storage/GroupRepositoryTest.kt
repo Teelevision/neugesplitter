@@ -323,7 +323,7 @@ class GroupRepositoryTest {
                     entries = counted.toLong(),
                     own = group.settlement(TODAY).getValue(ANNA),
                     unseen = false,
-                    halted = false,
+                    sync = null,
                 )
             ),
             runBlocking { groups.list(TODAY).first() },
