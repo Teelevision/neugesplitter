@@ -45,6 +45,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -250,7 +252,9 @@ fun GroupCard(
                     if (onClick != null) {
                         Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
                     } else Modifier
-                ),
+                )
+                // The check mark says so only to the eye (UX-6).
+                .then(if (selected) Modifier.semantics { this.selected = true } else Modifier),
         colors =
             CardDefaults.outlinedCardColors(
                 containerColor =

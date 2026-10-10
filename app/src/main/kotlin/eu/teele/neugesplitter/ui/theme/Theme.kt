@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.Color
 import eu.teele.neugesplitter.domain.value.Colour
 
 /** The brand palette of ui-design 8 and docs/ui/tokens; never the wallpaper's. */
-private val Light =
+internal val Light =
     lightColorScheme(
         primary = Color(0xFF496F2E),
         onPrimary = Color(0xFFFBFDFE),
@@ -49,7 +49,7 @@ private val Light =
         scrim = Color(0xFF000000),
     )
 
-private val Dark =
+internal val Dark =
     darkColorScheme(
         primary = Color(0xFFABBD9F),
         onPrimary = Color(0xFF141613),

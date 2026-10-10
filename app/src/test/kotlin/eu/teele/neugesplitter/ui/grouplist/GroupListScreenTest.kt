@@ -1,5 +1,6 @@
 package eu.teele.neugesplitter.ui.grouplist
 
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -201,6 +202,7 @@ class GroupListScreenTest {
         waitForText("Trip")
         compose.onNodeWithText("Trip").performTouchInput { longClick() }
         compose.onNodeWithText("1 selected").assertExists()
+        compose.onNodeWithText("Trip").assertIsSelected()
         compose.onNodeWithContentDescription("Clear selection").performClick()
         compose.onNodeWithText("Neugesplitter").assertExists()
         assertNotNull(groups.load(trip))
