@@ -99,8 +99,12 @@ class Log(private val by: MemberId = ANNA, private val group: GroupId = GROUP) {
         events += Event.SeriesAmended(id(), by, AT, target, date(from), segment)
     }
 
-    fun end(target: SeriesId, from: String) = apply {
-        events += Event.SeriesEnded(id(), by, AT, target, date(from))
+    fun stop(target: SeriesId, from: String, until: String? = null) = apply {
+        events += Event.SeriesStopped(id(), by, AT, target, date(from), until?.let(::date))
+    }
+
+    fun resume(target: SeriesId, from: String, until: String? = null) = apply {
+        events += Event.SeriesContinued(id(), by, AT, target, date(from), until?.let(::date))
     }
 
     fun delete(target: SeriesId) = apply { events += Event.SeriesDeleted(id(), by, AT, target) }

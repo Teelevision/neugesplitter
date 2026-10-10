@@ -81,7 +81,8 @@ fun history(events: List<Event>): List<Happening> {
                     )
                 is Event.SeriesCreated,
                 is Event.SeriesAmended,
-                is Event.SeriesEnded,
+                is Event.SeriesStopped,
+                is Event.SeriesContinued,
                 is Event.SeriesDeleted,
                 is Event.OccurrenceConfirmed,
                 is Event.OccurrenceDeleted,

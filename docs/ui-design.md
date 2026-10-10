@@ -215,9 +215,9 @@ Plain list, grouped:
 
 - **Group**: name, description, emoji, colour (GR-2)
 - **Entries**: default participants for new entries (SP-8)
-- **Recurring series**: those that run, each with how it repeats and a stop
-  ahead if it has one, and under them the stopped ones, folded away. Each opens
-  its series (RE-7)
+- **Recurring series**: those that run, each with how it repeats and a pause or
+  stop in force or ahead if it has one, and under them those stopped for good,
+  folded away. Each opens its series (RE-7)
 - **Backend**: current backend summary, sync interval (SY-13), edit or configure
   (BE-2, BE-15), and the encryption state (PR-11). A local group shows that it
   is local and a row that starts backend setup.
@@ -261,7 +261,13 @@ its date; a suggested one is confirmed at once, since someone just entered it
 series' first occurrence. Editing an occurrence asks on save whether the change
 is for **only this one** or **this one and the following** (RE-6); a change to
 the rule itself always goes for the following. Switching Repeats off on an
-occurrence ends the series after it (RE-7).
+occurrence stops the series after it (RE-7).
+
+Once somebody has confirmed or edited a later occurrence of the series, it can
+no longer change from this one, as that would rewrite their decision (RE-6): the
+rule under Repeats does not open the sheet, **this one and the following** is
+greyed out, and both say why. Repeats can still be switched off, and on again it
+repeats as it did.
 
 ### Amount calculator
 
@@ -304,22 +310,30 @@ occurrence (RE-15).
 
 ### Recurring series
 
-What the series produces as it stands today, or last stood before it stopped:
-description, who pays, the amount, the rule read back with automatic or
-suggested, and whether it runs, starts later, stops from a date, or stopped
-(RE-7, RE-9). Below that its actions:
+What the series produces as it stands today, or on its first day while that is
+ahead: description, who pays, the amount, the rule read back with automatic or
+suggested, and whether it runs, starts later, is paused until a date, pauses or
+stops ahead, or stopped (RE-7, RE-9). Below that its actions:
 
-- **Pause** stops it from tomorrow, so that today's occurrence stands.
-- **Resume**, in place of pause while it is stopped or about to be, goes on from
-  today, or from the stop if that is still ahead, as it was before the stop.
-  What fell due while it was stopped is not made up.
-- **Stop from a date** takes any date; what it produced before stands.
+- **Continue**, while a pause or stop is in force or ahead, goes on from a date
+  within it, by default today or its first day. What fell due before that date
+  is not made up; a pause still ends when it would have.
+- **Pause** takes a first day and a day it continues, by default today and the
+  day after the next occurrence, so that it skips one.
+- **Stop** takes a first day, by default today and at the earliest the day after
+  its first occurrence; before that, deleting it is what is meant.
 - **Delete** asks first, and says that every entry it produced goes with it and
   that stopping keeps them.
 
-Under the actions, the entries it produced, newest first, each opening its
-detail. A pause and a stop are the same event, so the screen does not tell them
-apart (event-model 6).
+Pause and stop are hidden once it is stopped for good. Each dialog says how many
+entries already in the balances it would remove or add; confirmed and edited
+ones stand either way (format-spec 4.2). Pauses and stops that overlap or meet
+become one.
+
+Under the actions, every pause and stop, past ones included, each with
+**Remove**, which asks first and says how many entries it held back come back;
+removing takes it back as a whole. Below them, the entries it produced, newest
+first, each opening its detail.
 
 ## 6. Backend setup
 

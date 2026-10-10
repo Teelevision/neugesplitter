@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -39,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -48,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.recurrence.Mode
+import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.ui.EntryRow
@@ -63,12 +66,14 @@ private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
 
 private enum class Dialog {
     STOP,
+    PAUSE,
+    CONTINUE,
     DELETE,
 }
 
 /**
- * A recurring series: what it produces, how it repeats and whether it runs, with pause, resume,
- * stop from a date and delete (RE-7, RE-9), and the entries it produced.
+ * A recurring series: what it produces, how it repeats and whether it runs, with stop, pause,
+ * continue and delete (RE-7, RE-9), and the entries it produced.
  *
  * @param onOpen opens one of its entries.
  */
@@ -78,6 +83,8 @@ fun SeriesScreen(viewModel: SeriesViewModel, onBack: () -> Unit, onOpen: (EntryI
     val state by viewModel.state.collectAsStateWithLifecycle()
     val detail = state.detail
     var dialog by rememberSaveable { mutableStateOf<Dialog?>(null) }
+    // The first day of the stop being removed, which tells it apart from the others.
+    var removing by rememberSaveable { mutableStateOf<String?>(null) }
     val locale = LocalConfiguration.current.locales[0]
 
     LaunchedEffect(state) { if (state.loaded && detail == null) onBack() }
@@ -108,18 +115,17 @@ fun SeriesScreen(viewModel: SeriesViewModel, onBack: () -> Unit, onOpen: (EntryI
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    if (detail.stop == null) {
-                        FilledTonalButton(onClick = viewModel::pause) {
-                            Text(stringResource(R.string.series_pause))
-                        }
-                    } else {
-                        FilledTonalButton(onClick = viewModel::resume) {
-                            Text(stringResource(R.string.series_resume))
+                    if (detail.stop != null) {
+                        FilledTonalButton(onClick = { dialog = Dialog.CONTINUE }) {
+                            Text(stringResource(R.string.series_continue))
                         }
                     }
-                    if (!detail.stopped) {
+                    if (!detail.ended) {
+                        OutlinedButton(onClick = { dialog = Dialog.PAUSE }) {
+                            Text(stringResource(R.string.series_pause))
+                        }
                         OutlinedButton(onClick = { dialog = Dialog.STOP }) {
-                            Text(stringResource(R.string.series_stop_from))
+                            Text(stringResource(R.string.series_stop))
                         }
                     }
                     OutlinedButton(onClick = { dialog = Dialog.DELETE }) {
@@ -130,20 +136,14 @@ fun SeriesScreen(viewModel: SeriesViewModel, onBack: () -> Unit, onOpen: (EntryI
                     }
                 }
             }
-            if (detail.entries.isNotEmpty()) {
-                item(key = "entries") {
-                    Column(Modifier.padding(top = 8.dp)) {
-                        HorizontalDivider()
-                        Text(
-                            stringResource(R.string.series_entries),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier =
-                                Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp)
-                                    .semantics { heading() },
-                        )
-                    }
+            if (detail.series.stops.isNotEmpty()) {
+                item(key = "stops") { Heading(stringResource(R.string.series_stops_list)) }
+                items(detail.series.stops, key = { "stop-${it.from}" }) { stop ->
+                    StopRow(stop, locale, onRemove = { removing = stop.from.toString() })
                 }
+            }
+            if (detail.entries.isNotEmpty()) {
+                item(key = "entries") { Heading(stringResource(R.string.series_entries)) }
                 items(detail.entries, key = { it.id.hex }) { entry ->
                     EntryRow(entry, detail.scale, locale, Modifier.clickable { onOpen(entry.id) })
                 }
@@ -155,14 +155,24 @@ fun SeriesScreen(viewModel: SeriesViewModel, onBack: () -> Unit, onOpen: (EntryI
     when (dialog) {
         Dialog.STOP ->
             detail?.let {
-                DatePick(
-                    EntryDate.of(it.today.value.plusDays(1)),
-                    onPicked = { from ->
-                        close()
-                        viewModel.stop(from)
-                    },
-                    onDismiss = close,
-                )
+                StopDialog(it, locale, onDismiss = close) { from ->
+                    close()
+                    viewModel.stop(from)
+                }
+            }
+        Dialog.PAUSE ->
+            detail?.let {
+                PauseDialog(it, locale, onDismiss = close) { from, until ->
+                    close()
+                    viewModel.pause(from, until)
+                }
+            }
+        Dialog.CONTINUE ->
+            detail?.stop?.let { stop ->
+                ContinueDialog(detail, stop, locale, onDismiss = close) { from ->
+                    close()
+                    viewModel.resume(from)
+                }
             }
         Dialog.DELETE ->
             AlertDialog(
@@ -187,6 +197,72 @@ fun SeriesScreen(viewModel: SeriesViewModel, onBack: () -> Unit, onOpen: (EntryI
                 },
             )
         null -> Unit
+    }
+    detail
+        ?.series
+        ?.stops
+        ?.find { it.from.toString() == removing }
+        ?.let { stop ->
+            AlertDialog(
+                onDismissRequest = { removing = null },
+                title = {
+                    Text(
+                        stringResource(
+                            if (stop.until == null) R.string.series_remove_stop
+                            else R.string.series_remove_pause
+                        )
+                    )
+                },
+                text = { Text(note(detail.change(detail.series.continued(stop)))) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            removing = null
+                            viewModel.remove(stop)
+                        }
+                    ) {
+                        Text(stringResource(R.string.series_remove))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { removing = null }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
+}
+
+@Composable
+private fun Heading(text: String) {
+    Column(Modifier.padding(top = 8.dp)) {
+        HorizontalDivider()
+        Text(
+            text,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier =
+                Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp).semantics { heading() },
+        )
+    }
+}
+
+/** One pause or stop, past, in force or ahead, which can be taken back as a whole (RE-7). */
+@Composable
+private fun StopRow(stop: Stop, locale: Locale, onRemove: () -> Unit) {
+    val from = longDate(stop.from, locale)
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            stop.until?.let {
+                stringResource(R.string.series_stop_span, from, longDate(it, locale))
+            } ?: stringResource(R.string.series_stop_open, from),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onRemove) { Text(stringResource(R.string.series_remove)) }
     }
 }
 
@@ -251,21 +327,204 @@ private fun Header(detail: SeriesDetail, locale: Locale) {
         Text(
             status(detail, locale),
             style = MaterialTheme.typography.bodyMedium,
-            color = if (detail.stopped) colours.error else colours.onSurfaceVariant,
+            color = if (detail.ended) colours.error else colours.onSurfaceVariant,
         )
     }
 }
 
-/** Whether it runs, as a sentence with its date (RE-7). */
+/** Whether it runs, as a sentence with its dates (RE-7). */
 @Composable
 private fun status(detail: SeriesDetail, locale: Locale): String {
     val stop = detail.stop
+    val starts = detail.starts
     return when {
-        stop != null && detail.stopped ->
-            stringResource(R.string.series_stopped, longDate(stop, locale))
-        detail.starts != null ->
-            stringResource(R.string.series_starts, longDate(detail.starts, locale))
-        stop != null -> stringResource(R.string.series_stops, longDate(stop, locale))
+        stop != null && detail.stopped -> stopText(stop, inForce = true, locale)
+        starts != null -> stringResource(R.string.series_starts, longDate(starts, locale))
+        stop != null -> stopText(stop, inForce = false, locale)
         else -> stringResource(R.string.series_running)
     }
+}
+
+/** How [stop] holds a series, [inForce] today or ahead, as a sentence with its dates (RE-7). */
+@Composable
+internal fun stopText(stop: Stop, inForce: Boolean, locale: Locale): String {
+    val from = longDate(stop.from, locale)
+    val until = stop.until?.let { longDate(it, locale) }
+    return when {
+        until == null && inForce -> stringResource(R.string.series_stopped, from)
+        until == null -> stringResource(R.string.series_stops, from)
+        inForce -> stringResource(R.string.series_paused, until)
+        else -> stringResource(R.string.series_pauses, from, until)
+    }
+}
+
+/** Stops it for good from a date, at the earliest after its first occurrence (RE-7). */
+@Composable
+private fun StopDialog(
+    detail: SeriesDetail,
+    locale: Locale,
+    onDismiss: () -> Unit,
+    onStop: (EntryDate) -> Unit,
+) {
+    var from by rememberSaveable { mutableStateOf(detail.stopFrom.toString()) }
+    val date = EntryDate.parse(from)
+    DatesDialog(
+        title = R.string.series_stop_title,
+        fields =
+            listOf(
+                DateField(R.string.series_from, date, { from = it.toString() }) {
+                    it >= detail.earliestStop
+                }
+            ),
+        note = note(detail.change(detail.series.stopped(Stop(date)))),
+        confirm = R.string.series_stop,
+        locale = locale,
+        onConfirm = { onStop(date) },
+        onDismiss = onDismiss,
+    )
+}
+
+/** Stops it from a date until it continues by itself, by default skipping one occurrence (RE-7). */
+@Composable
+private fun PauseDialog(
+    detail: SeriesDetail,
+    locale: Locale,
+    onDismiss: () -> Unit,
+    onPause: (EntryDate, EntryDate) -> Unit,
+) {
+    var from by rememberSaveable { mutableStateOf(detail.pauseFrom.toString()) }
+    var until by rememberSaveable { mutableStateOf(detail.pauseUntil(detail.pauseFrom).toString()) }
+    val start = EntryDate.parse(from)
+    val end = EntryDate.parse(until)
+    DatesDialog(
+        title = R.string.series_pause_title,
+        fields =
+            listOf(
+                DateField(
+                    R.string.series_from,
+                    start,
+                    {
+                        from = it.toString()
+                        until = detail.pauseUntil(it).toString()
+                    },
+                ) {
+                    it >= detail.series.start
+                },
+                DateField(R.string.series_continues_on, end, { until = it.toString() }) {
+                    it > start
+                },
+            ),
+        note = note(detail.change(detail.series.stopped(Stop(start, end)))),
+        confirm = R.string.series_pause,
+        locale = locale,
+        onConfirm = { onPause(start, end) },
+        onDismiss = onDismiss,
+    )
+}
+
+/** Has it go on from a date within [stop], by default today or the stop's first day (RE-7). */
+@Composable
+private fun ContinueDialog(
+    detail: SeriesDetail,
+    stop: Stop,
+    locale: Locale,
+    onDismiss: () -> Unit,
+    onContinue: (EntryDate) -> Unit,
+) {
+    var from by rememberSaveable { mutableStateOf(maxOf(detail.today, stop.from).toString()) }
+    val date = EntryDate.parse(from)
+    val until = stop.until
+    DatesDialog(
+        title = R.string.series_continue_title,
+        fields =
+            listOf(
+                DateField(R.string.series_from, date, { from = it.toString() }) {
+                    it >= stop.from && (until == null || it < until)
+                }
+            ),
+        note = note(detail.change(detail.series.continued(Stop(date, until)))),
+        confirm = R.string.series_continue,
+        locale = locale,
+        onConfirm = { onContinue(date) },
+        onDismiss = onDismiss,
+    )
+}
+
+/** What a change does to the entries already in the balances. */
+@Composable
+private fun note(change: Pair<Int, Int>): String {
+    val (removed, added) = change
+    return listOfNotNull(
+            pluralStringResource(R.plurals.series_removes, removed, removed).takeIf { removed > 0 },
+            pluralStringResource(R.plurals.series_adds, added, added).takeIf { added > 0 },
+        )
+        .ifEmpty { listOf(stringResource(R.string.series_keeps)) }
+        .joinToString(" ")
+}
+
+/** One date in a [DatesDialog]: what it is, and which dates it takes. */
+private class DateField(
+    val label: Int,
+    val date: EntryDate,
+    val onChange: (EntryDate) -> Unit,
+    val selectable: (EntryDate) -> Boolean,
+)
+
+/** A dialog of dates, each picked on a tap, with a note on what confirming does. */
+@Composable
+private fun DatesDialog(
+    title: Int,
+    fields: List<DateField>,
+    note: String,
+    confirm: Int,
+    locale: Locale,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var picking by rememberSaveable { mutableStateOf<Int?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                fields.forEachIndexed { index, field ->
+                    Column(
+                        Modifier.fillMaxWidth()
+                            .clickable(onClickLabel = stringResource(field.label)) {
+                                picking = index
+                            }
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Text(
+                            stringResource(field.label),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            longDate(field.date, locale),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                }
+                Text(note, style = MaterialTheme.typography.bodyMedium)
+            }
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(confirm)) } },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+    picking
+        ?.let { fields.getOrNull(it) }
+        ?.let { field ->
+            DatePick(
+                field.date,
+                onPicked = {
+                    picking = null
+                    if (field.selectable(it)) field.onChange(it)
+                },
+                onDismiss = { picking = null },
+                selectable = field.selectable,
+            )
+        }
 }

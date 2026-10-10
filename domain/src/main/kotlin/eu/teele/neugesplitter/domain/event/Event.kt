@@ -188,14 +188,28 @@ sealed interface Event {
         override val type = "series.amended"
     }
 
-    data class SeriesEnded(
+    /** A pause until [until], or a stop for good without one. */
+    data class SeriesStopped(
         override val id: EventId,
         override val by: MemberId,
         override val at: Instant,
         val target: SeriesId,
         val from: EntryDate,
+        val until: EntryDate? = null,
     ) : Event {
-        override val type = "series.ended"
+        override val type = "series.stopped"
+    }
+
+    /** Takes [from] to [until], or on for good without one, back out of the series' stops. */
+    data class SeriesContinued(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val target: SeriesId,
+        val from: EntryDate,
+        val until: EntryDate? = null,
+    ) : Event {
+        override val type = "series.continued"
     }
 
     data class SeriesDeleted(

@@ -251,7 +251,8 @@ document does not define is ignored (section 8).
 | `entry.deleted`        | `target`                    |                             |
 | `series.created`       | `series`                    |                             |
 | `series.amended`       | `target`, `from`, `segment` |                             |
-| `series.ended`         | `target`, `from`            | Stops it; its past stands.  |
+| `series.stopped`       | `target`, `from`, `until`?  | Pauses or stops it.         |
+| `series.continued`     | `target`, `from`, `until`?  | Undoes a stop's days.       |
 | `series.deleted`       | `target`                    | Removes it and its past.    |
 | `occurrence.confirmed` | `series`, `due`             |                             |
 | `occurrence.deleted`   | `series`, `due`             | Also declining one (RE-5).  |
@@ -265,12 +266,12 @@ no longer part of the group. Nothing leaves the log, the history still shows it
 
 `series.deleted` takes the series and every occurrence it ever produced,
 including past ones, out of the entry list and out of the balances — the same
-thing `entry.deleted` does to an entry. An occurrence amended after the deletion
-is not taken with it (see "What a due date yields"). `series.ended` is the other
-one: it stops a series from a date onward and leaves what already happened
-standing. `occurrence.deleted` removes exactly one due date's occurrence,
-whether that occurrence was suggested, confirmed, amended or automatic, and the
-series carries on.
+thing `entry.deleted` does to an entry. An occurrence confirmed or amended after
+the deletion is not taken with it (see "What a due date yields").
+`series.stopped` is the other one: the series produces nothing on the days it
+names, and what somebody confirmed or amended stands. `occurrence.deleted`
+removes exactly one due date's occurrence, whether that occurrence was
+suggested, confirmed, amended or automatic, and the series carries on.
 
 #### An event is read against the log before it
 
@@ -278,9 +279,9 @@ An event MUST agree with the state the log has produced so far:
 
 - every identifier an event names MUST already be in the group — the `target` of
   `member.renamed`, `member.removed`, `entry.updated`, `entry.deleted`,
-  `series.amended`, `series.ended` and `series.deleted`, the `series` of an
-  occurrence event, and every member identifier in a side or in
-  `defaultParticipants`;
+  `series.amended`, `series.stopped`, `series.continued` and `series.deleted`,
+  the `series` of an occurrence event, and every member identifier in a side or
+  in `defaultParticipants`;
 - `member.added`, `entry.created` and `series.created` MUST NOT reuse an
   identifier the group already has, whether or not what it named has since been
   removed or deleted.
@@ -417,38 +418,51 @@ occurrence in February, not two: clamping happens first and the resulting dates
 are then deduplicated. `everyDays` is a positive integer, and `weeklyOn` values
 are `mo`, `tu`, `we`, `th`, `fr`, `sa` and `su`.
 
-Everything about a recurrence is a **date**. `from` on `series.created`,
-`series.amended` and `series.ended` is a date, and a due date is a date; no
-field in a series is an instant. Two series falling due on the same date have no
-defined order relative to each other, and implementations MUST NOT depend on one
-— balances are a sum, so no result depends on it.
+Everything about a recurrence is a **date**. `from` and `until` on the series
+events are dates, and a due date is a date; no field in a series is an instant.
+Two series falling due on the same date have no defined order relative to each
+other, and implementations MUST NOT depend on one — balances are a sum, so no
+result depends on it.
 
 #### Which dates are due
 
-A series is a sequence of segments, each in force from its `from`:
-`series.created` begins the first, every `series.amended` begins another, and
-`series.ended` begins one that produces nothing. The segment in force on a date
-is the one with the latest `from` on or before that date, and of two with the
-same `from`, the later in the log.
+A series is three layers, each overruling the one before it: its schedule, the
+days stopped out of that schedule, and the occurrence events on single due
+dates.
+
+The schedule is a sequence of segments, each in force from its `from`:
+`series.created` begins the first and every `series.amended` begins another. The
+segment in force on a date is the one with the latest `from` on or before that
+date, and of two with the same `from`, the later in the log.
 
 A date is **due** when the segment in force on it produces it, counting from
-that segment's own `from`: `everyDays: n` produces `from`, then every \_n_th day
-after it; `weeklyOn` and `monthlyOn` produce every date on or after `from` that
-matches them. So `from` is itself due whenever the interval produces it, and an
-amendment restarts the count of `everyDays` at its own `from` rather than
-carrying on from the segment before it.
+that segment's own `from`, and it is not stopped: `everyDays: n` produces
+`from`, then every \_n_th day after it; `weeklyOn` and `monthlyOn` produce every
+date on or after `from` that matches them. So `from` is itself due whenever the
+interval produces it, and an amendment restarts the count of `everyDays` at its
+own `from` rather than carrying on from the segment before it.
 
-Pausing a series is `series.ended` from one date and resuming it is
-`series.amended` from a later one (RE-7). An ended series is simply one whose
-last segment produces nothing, and an amendment after it puts it back in force.
+`series.stopped` stops the series from `from` up to `until`, the day it goes on
+again, or for good where there is no `until`. `series.continued` names days the
+same way and makes the series run on them again, wherever it was stopped.
+`until`, where present, MUST be later than `from`; an event breaking that is
+malformed. The stopped days are what these events leave in log order: a stop
+adds its days, so two pauses that overlap or meet are one, and a continue takes
+its days away. A stop changes no segment, so whatever segment is in force once
+it is over is what the series goes on with, an amendment written during it
+included. Pausing a series (RE-7) is `series.stopped` with an `until`, and
+ending it is one without.
 
 A reader applies `from` as written, including one in the past: a series MAY be
-created or edited retrospectively, and what falls due between that `from` and
-the local date is due at once — produced if the segment is automatic, pending if
-it is suggested. An edit still reaches only from its own `from` onward (RE-6).
-Within that reach a retrospective edit changes automatic and confirmed
-occurrences, which are nothing but the calculation, and leaves amended ones as
-they are.
+created, edited, stopped or continued retrospectively, and what falls due
+between that `from` and the local date is due at once — produced if the segment
+is automatic, pending if it is suggested. An edit still reaches only from its
+own `from` onward (RE-6). Within that reach a retrospective edit changes the
+occurrences that are nothing but the calculation, and the entry a confirmed one
+yields; a retrospective stop removes the former. Neither removes a confirmed or
+an amended occurrence (see below). A writer SHOULD NOT amend a series from a
+date before an occurrence somebody confirmed or amended, because that changes or
+moves what they decided without their seeing it.
 
 An installation shows a due date once its own local date has reached it (RE-14),
 and not before, whatever events name that date.
@@ -472,24 +486,25 @@ and whichever was written last is the occurrence's state:
 - `occurrence.deleted` makes it nothing, and the series carries on (RE-5,
   RE-15).
 
-An amended occurrence is an entry somebody wrote, and only a later event naming
-it removes it: another occurrence event for its due date, or `series.deleted`.
-So it stands whether or not its due date is still due — an amendment to the
-series, written concurrently or from a date in the past, can move the schedule
-away from it, and what somebody typed in MUST NOT disappear because of that. It
-also stands while its series is deleted, provided it was written after the
-`series.deleted`, just as an `entry.updated` after an `entry.deleted` puts the
-entry back (HI-9). Like any occurrence it is shown once the local date reaches
-its due date. The price is that a moved schedule can yield two occurrences in
-one period, both in the entry list where somebody can delete one; the
-alternative is an edit lost without anyone seeing it.
+A confirmed or an amended occurrence is somebody's decision, and only a later
+event naming it removes it: another occurrence event for its due date, or
+`series.deleted`. So it stands whether or not its due date is still due — an
+amendment or a stop, written concurrently or from a date in the past, can take
+the schedule away from it, and what somebody confirmed or typed in MUST NOT
+disappear because of that. A confirmed one yields the template of the segment in
+force on its due date; dated before the series' first `from`, it has none and no
+effect. Both also stand while their series is deleted, provided they were
+written after the `series.deleted`, just as an `entry.updated` after an
+`entry.deleted` puts the entry back (HI-9). Like any occurrence they are shown
+once the local date reaches their due date. The price is that a moved schedule
+can yield two occurrences in one period, both in the entry list where somebody
+can delete one; the alternative is a decision lost without anyone seeing it.
 
-`occurrence.confirmed` and `occurrence.deleted` carry nothing of their own and
-follow the calculation. On a date that is not due, or on a series that is
-deleted, they are **not** malformed and have no effect for as long as that
-remains so. Nothing is lost by it: whatever date is due instead is offered or
-produced in its place. When `series.amended` puts a deleted series back, every
-occurrence event on it applies again, whenever it was written.
+`occurrence.deleted` carries nothing of its own. On a date that is not due, or
+on a series that is deleted, it is **not** malformed and has no effect for as
+long as that remains so. Nothing is lost by it: whatever date is due instead is
+offered or produced in its place. When `series.amended` puts a deleted series
+back, every occurrence event on it applies again, whenever it was written.
 
 An occurrence appears in the entry list with its occurrence identifier as its
 `id`. That identifier is not an entry's, so `entry.updated` and `entry.deleted`
@@ -732,8 +747,8 @@ itself.
   (section 7.1). `entry-schemes.json` holds `entry.created` with each of the
   four schemes, an `entry.updated` that names only `amount`, and fields this
   version does not define, holding `null` and booleans. `series.json` holds each
-  series and occurrence event, a suggested occurrence nobody confirmed and a
-  series that was deleted.
+  series and occurrence event, a suggested occurrence nobody confirmed, one
+  confirmed on a stopped day and a series that was deleted.
 - **`accepted`** — objects a reader MUST accept, near the edges of what section
   2.2 allows.
 - **`refused`** — objects a reader MUST refuse, whatever was read before them,

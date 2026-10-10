@@ -99,7 +99,7 @@ class GroupRepositoryTest {
             .decline(RENT, "2026-07-01")
             .amend(RENT, "2026-08-01", "2026-08-03", rent(950))
             .start(cleaning, "2026-08-20", segment(Interval.EveryDays(3), rent(20), Mode.SUGGESTED))
-            .end(cleaning, "2026-08-28")
+            .stop(cleaning, "2026-08-28")
             .start(gym, "2026-08-01", segment(Interval.EveryDays(7), rent(15)))
             .delete(gym)
             .remove(CLARA)

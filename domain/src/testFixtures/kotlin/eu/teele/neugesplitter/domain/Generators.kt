@@ -8,6 +8,7 @@ import eu.teele.neugesplitter.domain.recurrence.Interval
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Series
+import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
@@ -21,7 +22,6 @@ import io.kotest.property.arbitrary.enum
 import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.long
 import io.kotest.property.arbitrary.map
-import io.kotest.property.arbitrary.orNull
 import java.time.DayOfWeek
 import java.time.LocalDate
 
@@ -105,21 +105,30 @@ val arbSegment: Arb<Segment> = arbitrary {
     Segment(arbInterval.bind(), Arb.enum<Mode>().bind(), arbTemplate.bind())
 }
 
+/** Days stopped from a date, for up to two months or for good. */
+val arbStop: Arb<Stop> = arbitrary {
+    val from = arbDate.bind()
+    val days = Arb.int(0..60).bind()
+    Stop(from, if (days == 0) null else EntryDate.of(from.value.plusDays(days.toLong())))
+}
+
 /**
- * A series of up to four segments, any of which after the first may be an end (RE-7), with
- * decisions on dates drawn freely and deleted and restored in between.
+ * A series of up to four segments, stopped and continued, with decisions on dates drawn freely and
+ * deleted and restored in between.
  */
 val arbSeries: Arb<Series> = arbitrary {
-    val later = List(Arb.int(0..3).bind()) { arbDate.bind() to arbSegment.orNull(0.25).bind() }
+    val later = List(Arb.int(0..3).bind()) { arbDate.bind() to arbSegment.bind() }
     var series = Series(RENT, listOf(arbDate.bind() to arbSegment.bind()) + later)
     repeat(Arb.int(0..6).bind()) {
         val due = arbDate.bind()
         series =
-            when (Arb.int(0..5).bind()) {
+            when (Arb.int(0..7).bind()) {
                 0 -> series.removed()
                 1 -> series.restored()
                 2 -> series.decided(due, Decision.Confirmed)
                 3 -> series.decided(due, Decision.Deleted)
+                4 -> series.stopped(arbStop.bind())
+                5 -> series.continued(arbStop.bind())
                 else -> series.decided(due, Decision.Amended(arbDate.bind(), arbTemplate.bind()))
             }
     }
@@ -148,12 +157,14 @@ val arbGroup: Arb<Group> = arbitrary {
         repeat(Arb.int(0..4).bind()) {
             // Dates are drawn freely, so some decisions name a date that is not due.
             val date = arbDate.bind().toString()
-            when (Arb.int(0..5).bind()) {
+            val stop = arbStop.bind()
+            when (Arb.int(0..6).bind()) {
                 0 -> log.amend(series, date, arbSegment.bind())
-                1 -> log.end(series, date)
-                2 -> log.confirm(series, date)
-                3 -> log.decline(series, date)
-                4 -> log.delete(series)
+                1 -> log.stop(series, stop.from.toString(), stop.until?.toString())
+                2 -> log.resume(series, stop.from.toString(), stop.until?.toString())
+                3 -> log.confirm(series, date)
+                4 -> log.decline(series, date)
+                5 -> log.delete(series)
                 else -> log.amend(series, date, arbDate.bind().toString(), arbTemplate.bind())
             }
         }

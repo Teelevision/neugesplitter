@@ -192,14 +192,24 @@ class GroupSettingsScreenTest {
                         date("2026-08-01"),
                         monthly("Cleaning"),
                     ),
-                    Event.SeriesEnded(eventId(), anna.id, at, cleaning, date("2026-10-01")),
-                    Event.SeriesEnded(eventId(), anna.id, at, rent, date("2026-12-01")),
+                    Event.SeriesStopped(eventId(), anna.id, at, cleaning, date("2026-10-01")),
+                    Event.SeriesStopped(
+                        eventId(),
+                        anna.id,
+                        at,
+                        rent,
+                        date("2026-12-01"),
+                        date("2027-01-01"),
+                    ),
                 )
             groups.append(trip, events, today)
         }
         scrollTo("1 stopped")
         compose
-            .onNodeWithText("Every month on the 1st · Stops from Tuesday, December 1, 2026")
+            .onNodeWithText(
+                "Every month on the 1st · Pauses from Tuesday, December 1, 2026, continues on " +
+                    "Friday, January 1, 2027"
+            )
             .assertExists()
         compose.onNodeWithText("Cleaning").assertDoesNotExist()
 

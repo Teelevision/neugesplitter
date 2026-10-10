@@ -105,13 +105,23 @@ internal object Events {
                     json.required("from", date),
                     json.required("segment", segment),
                 )
-            "series.ended" ->
-                Event.SeriesEnded(
+            "series.stopped" ->
+                Event.SeriesStopped(
                     id,
                     by,
                     at,
                     json.required("target", seriesId),
                     json.required("from", date),
+                    json.optional("until", date),
+                )
+            "series.continued" ->
+                Event.SeriesContinued(
+                    id,
+                    by,
+                    at,
+                    json.required("target", seriesId),
+                    json.required("from", date),
+                    json.optional("until", date),
                 )
             "series.deleted" -> Event.SeriesDeleted(id, by, at, json.required("target", seriesId))
             "occurrence.confirmed" ->
@@ -188,9 +198,15 @@ internal object Events {
                 put("from", event.from.toString())
                 put("segment", segmentJson(event.segment))
             }
-            is Event.SeriesEnded -> {
+            is Event.SeriesStopped -> {
                 put("target", event.target.hex)
                 put("from", event.from.toString())
+                event.until?.let { put("until", it.toString()) }
+            }
+            is Event.SeriesContinued -> {
+                put("target", event.target.hex)
+                put("from", event.from.toString())
+                event.until?.let { put("until", it.toString()) }
             }
             is Event.SeriesDeleted -> put("target", event.target.hex)
             is Event.OccurrenceConfirmed -> {

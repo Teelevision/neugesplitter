@@ -15,6 +15,7 @@ import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.recurrence.Occurrence
 import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Series
+import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
@@ -63,6 +64,8 @@ enum class Party {
  * @property recurrence how the entry repeats, if it does (RE-1).
  * @property occurrence whether the entry being edited came from a series (RE-15).
  * @property was how that series repeated on the occurrence's due date.
+ * @property fixed whether somebody confirmed or edited a later occurrence of that series, so that
+ *   the series can no longer change from this one; it can still stop after it (RE-6).
  * @property asking whether to ask if a change to an occurrence goes for the rest of the series too
  *   (RE-6).
  * @property done once the editor should close.
@@ -85,6 +88,7 @@ data class EntryEditorState(
     val recurrence: Recurrence? = null,
     val occurrence: Boolean = false,
     val was: Recurrence? = null,
+    val fixed: Boolean = false,
     val asking: Boolean = false,
     val saving: Boolean = false,
     val failed: Boolean = false,
@@ -241,6 +245,7 @@ class EntryEditorViewModel(
                         recurrence = was,
                         occurrence = series != null,
                         was = was,
+                        fixed = occurrence != null && series?.decidedAfter(occurrence.due) == true,
                     )
             }
         }
@@ -327,7 +332,15 @@ class EntryEditorViewModel(
         val events: (MemberId) -> List<Event> =
             when {
                 occurrence != null -> { by ->
-                        changed(occurrence, written, recurrence, state.was, following == true, by)
+                        changed(
+                            occurrence,
+                            written,
+                            recurrence,
+                            state.was,
+                            following == true,
+                            state.fixed,
+                            by,
+                        )
                     }
                 recurrence != null -> { by -> started(written, recurrence, state.editing, by) }
                 else -> { by -> listOfNotNull(entry(written, state, by)) }
@@ -384,9 +397,10 @@ class EntryEditorViewModel(
 
     /**
      * [occurrence] as [written], and its series as [recurrence] from there on — [following] the
-     * occurrence when it repeats as it [was], ending after it when it no longer repeats (RE-6,
-     * RE-7). The occurrence is amended only where the series does not already produce it as
-     * written.
+     * occurrence when it repeats as it [was], stopping after it when it no longer repeats (RE-6,
+     * RE-7). A series [fixed] by a later decision only stops, as amending it would rewrite what
+     * somebody confirmed or edited. The occurrence is amended only where the series does not
+     * already produce it as written.
      */
     private fun changed(
         occurrence: Occurrence,
@@ -394,6 +408,7 @@ class EntryEditorViewModel(
         recurrence: Recurrence?,
         was: Recurrence?,
         following: Boolean,
+        fixed: Boolean,
         by: MemberId,
     ): List<Event> {
         val series = checkNotNull(series)
@@ -405,9 +420,10 @@ class EntryEditorViewModel(
                     if (was == null) null to series
                     else {
                         val next = EntryDate.of(due.value.plusDays(1))
-                        Event.SeriesEnded(event(), by, now(), series.id, next) to
-                            series.from(next, null)
+                        Event.SeriesStopped(event(), by, now(), series.id, next) to
+                            series.stopped(Stop(next))
                     }
+                fixed -> null to series
                 recurrence != was || following -> {
                     val segment = Segment(recurrence.interval, recurrence.mode, template)
                     Event.SeriesAmended(event(), by, now(), series.id, due, segment) to

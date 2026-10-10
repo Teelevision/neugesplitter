@@ -303,24 +303,31 @@ are described in [sync-design.md](sync-design.md).
   somebody who already holds the credentials, and its name is the hash of its
   content, so it is the bytes that member uploaded. That is the same boundary
   everything else in the design sits behind (TM-6).
-- **What ends a series without ending its past?** `series.ended` does, and it is
-  not what delete means. So there are both: ending stops a series from a date
-  onward and leaves everything it already produced standing, while
-  `series.deleted` removes the series and all of its occurrences, past ones
-  included, exactly as deleting an entry removes an entry (RE-7). A single
-  occurrence goes the same way with `occurrence.deleted`, which is also how a
-  suggestion is refused — both say that one due date produces nothing (RE-5,
-  RE-15). Nothing leaves the log in any of these cases; the history keeps it and
-  a later event can restore it.
-- **What happens to an edited occurrence when its series moves?** It stays. An
-  amendment to the series, written concurrently or from a past date, can make an
-  edited occurrence's date stop being due, and so can a `series.deleted` that
-  the editor had not seen. Dropping the edit would leave the balances wrong with
-  nothing on screen to say so, so an amended occurrence stands until an event
-  names it, at the cost of a possible second occurrence in the same period that
-  somebody can see and delete (format-spec 4.2). A confirmation or a refusal
-  carries nothing and keeps following the calculation, because losing one only
-  asks the question again.
+- **What ends a series without ending its past?** `series.stopped` does, and it
+  is not what delete means. So there are both: stopping takes days out of a
+  series, up to a date for a pause or for good, and leaves everything somebody
+  confirmed or edited standing, while `series.deleted` removes the series and
+  all of its occurrences, past ones included, exactly as deleting an entry
+  removes an entry (RE-7). Stops are a layer of their own rather than a segment
+  that produces nothing, so that pauses written by two people join instead of
+  the earlier end winning, and so that the end of a pause does not have to copy
+  a segment and undo an amendment written meanwhile. A single occurrence goes
+  with `occurrence.deleted`, which is also how a suggestion is refused — both
+  say that one due date produces nothing (RE-5, RE-15). Nothing leaves the log
+  in any of these cases; the history keeps it and a later event can restore it.
+- **What happens to a confirmed or edited occurrence when its series moves?** It
+  stays. An amendment to the series, written concurrently or from a past date,
+  can make its date stop being due, a stop can cover it, and a `series.deleted`
+  the writer had not seen can remove the series. Dropping the decision would
+  leave the balances wrong with nothing on screen to say so, so a confirmed or
+  amended occurrence stands until an event names it, at the cost of a possible
+  second occurrence in the same period that somebody can see and delete
+  (format-spec 4.2). A confirmation carries no entry and takes the one the
+  schedule has on its date, so the app does not amend a series from before a
+  confirmed or edited occurrence; the format allows it, but it would change what
+  somebody confirmed without their seeing it (RE-6). A refusal carries nothing
+  and keeps following the calculation, because losing one only asks the question
+  again.
 - **Does an entry need a schema version of its own?** No. The object header
   carries the format version, and a change to what an event _means_ is a change
   of `type`, which older installations already refuse rather than misread. If

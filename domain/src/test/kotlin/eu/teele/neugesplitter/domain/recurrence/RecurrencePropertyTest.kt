@@ -38,13 +38,14 @@ class RecurrencePropertyTest {
     }
 
     @Test
-    fun `an amended occurrence stands until an event names it (format-spec 4_2)`() {
+    fun `a confirmed or amended occurrence stands until an event names it (format-spec 4_2)`() {
         runBlocking {
             checkAll(arbSeries, arbDate) { series, today ->
                 val standing =
                     series.decisions
                         .filter { (due, decision) ->
-                            decision is Decision.Amended &&
+                            (decision is Decision.Amended ||
+                                decision == Decision.Confirmed && due >= series.start) &&
                                 due <= today &&
                                 (!series.deleted || due in series.sinceDeletion)
                         }

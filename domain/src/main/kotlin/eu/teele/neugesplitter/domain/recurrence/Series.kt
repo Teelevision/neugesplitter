@@ -4,6 +4,7 @@ import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.SeriesId
+import java.time.LocalDate
 
 /** What the last occurrence event for a due date said about it (format-spec 4.2). */
 sealed interface Decision {
@@ -23,22 +24,73 @@ data class Occurrence(
 )
 
 /**
- * A recurring series: its segments in log order and the decisions taken on its due dates.
+ * Days on which a series produces nothing: from [from] up to [until], which is the day it
+ * continues, or for good without one (RE-7).
+ */
+data class Stop(val from: EntryDate, val until: EntryDate? = null) {
+
+    operator fun contains(date: EntryDate): Boolean =
+        from <= date && (until == null || date < until)
+
+    /** Whether this and [other] overlap or meet, so that together they are one. */
+    internal fun touches(other: Stop): Boolean = from.value <= other.end && other.from.value <= end
+
+    internal fun overlaps(other: Stop): Boolean = from.value < other.end && other.from.value < end
+
+    private val end: LocalDate
+        get() = until?.value ?: LocalDate.MAX
+}
+
+/**
+ * A recurring series, as three layers (format-spec 4.2): the schedule its segments make, the stops
+ * that take days out of it, and the decisions on single due dates, which outrank both.
  *
  * Occurrences are not stored but derived (event-model 6), so this holds only what the log said.
  */
 data class Series(
     val id: SeriesId,
-    val segments: List<Pair<EntryDate, Segment?>>,
+    /** In log order. */
+    val segments: List<Pair<EntryDate, Segment>>,
+    /** Apart from one another and in order of date. */
+    val stops: List<Stop> = emptyList(),
     val decisions: Map<EntryDate, Decision> = emptyMap(),
     val deleted: Boolean = false,
-    /** Due dates decided since the series was last deleted, whose amendments outlive it. */
+    /** Due dates decided since the series was last deleted, whose decisions outlive it. */
     val sinceDeletion: Set<EntryDate> = emptySet(),
 ) {
 
-    /** This series begins a new segment from [from]; `null` produces nothing (RE-7). */
-    fun from(from: EntryDate, segment: Segment?): Series =
+    /** The first day of the schedule. */
+    val start: EntryDate
+        get() = segments.minOf { it.first }
+
+    /** This series following [segment] from [from] (RE-6). */
+    fun from(from: EntryDate, segment: Segment): Series =
         copy(segments = segments + (from to segment))
+
+    /** This series stopped on the days of [stop] as well, which joins any stop it touches. */
+    fun stopped(stop: Stop): Series {
+        val (joined, apart) = stops.partition { it.touches(stop) }
+        val all = joined + stop
+        val until = if (all.any { it.until == null }) null else all.maxOf { it.until!! }
+        return copy(stops = (apart + Stop(all.minOf { it.from }, until)).sortedBy { it.from })
+    }
+
+    /** This series running on the days of [span] again, wherever it was stopped. */
+    fun continued(span: Stop): Series =
+        copy(
+            stops =
+                stops.flatMap { stop ->
+                    if (!stop.overlaps(span)) return@flatMap listOf(stop)
+                    listOfNotNull(
+                        Stop(stop.from, span.from).takeIf { stop.from < span.from },
+                        span.until?.let { until ->
+                            Stop(until, stop.until).takeIf {
+                                stop.until == null || until < stop.until
+                            }
+                        },
+                    )
+                }
+        )
 
     fun decided(due: EntryDate, decision: Decision): Series =
         copy(decisions = decisions + (due to decision), sinceDeletion = sinceDeletion + due)
@@ -47,68 +99,56 @@ data class Series(
 
     fun restored(): Series = copy(deleted = false)
 
-    /** What this series does on [date]: null before it starts and where it is ended (RE-7). */
+    /** The schedule on [on], stops or not: null only before it starts (RE-6). */
     fun segment(on: EntryDate): Segment? =
         // A stable sort, as in dues: of two segments from the same date the later in the log wins.
         segments.sortedBy { it.first }.lastOrNull { it.first <= on }?.second
 
-    /**
-     * Where this series stops, as it stands on [today]: the first day of the stop in force, or else
-     * of the next one ahead; null if none. A pause and an end are the same thing (RE-7).
-     */
-    fun stop(today: EntryDate): EntryDate? {
-        val effective = effective()
-        val dates = effective.keys.toList()
-        val now = dates.indexOfLast { it <= today }
-        if (now >= 0 && effective.getValue(dates[now]) == null) {
-            return dates.take(now + 1).takeLastWhile { effective.getValue(it) == null }.first()
-        }
-        return dates.drop(now + 1).firstOrNull { effective.getValue(it) == null }
-    }
+    /** The schedule on [today], or on its first day if that is still ahead. */
+    fun current(today: EntryDate): Segment = segment(maxOf(today, start))!!
+
+    /** The stop in force on [today], or else the next one ahead; null if there is none. */
+    fun stop(today: EntryDate): Stop? = stops.firstOrNull { it.until == null || today < it.until }
+
+    /** Whether somebody confirmed or edited an occurrence due after [date] (RE-6). */
+    fun decidedAfter(date: EntryDate): Boolean =
+        decisions.any { (due, decision) -> due > date && decision != Decision.Deleted }
 
     /**
-     * How resuming on [today] goes on: from today, or from the stop if that is still ahead, with
-     * the segment in force before the stop; null if there is no stop (RE-7).
+     * The first day on or after [date] the schedule makes due, stops or not; null if none in a
+     * year.
      */
-    fun resumption(today: EntryDate): Pair<EntryDate, Segment>? {
-        val stop = stop(today) ?: return null
-        val segment = effective().filterKeys { it < stop }.values.filterNotNull().lastOrNull()
-        return segment?.let { maxOf(today, stop) to it }
-    }
-
-    /** What this series does on [today], or did last before it stopped, or does once it starts. */
-    fun current(today: EntryDate): Segment? =
-        segment(today)
-            ?: resumption(today)?.second
-            ?: effective().values.firstNotNullOfOrNull { it }
-
-    /** Each date a segment begins on, with the one in force from it: the later in the log. */
-    private fun effective(): Map<EntryDate, Segment?> = segments.sortedBy { it.first }.toMap()
+    fun nextDue(date: EntryDate): EntryDate? =
+        dues(EntryDate.of(date.value.plusYears(1))).keys.filter { it >= date }.minOrNull()
 
     /**
      * Every occurrence due on or before [today], the installation's local date (RE-14), in order of
-     * due date. An amended one stands even where nothing is due any more (format-spec 4.2).
+     * due date. A confirmed or amended one stands even where nothing is due any more (format-spec
+     * 4.2).
      */
     fun occurrences(today: EntryDate): List<Occurrence> {
-        val calculated = if (deleted) emptyMap() else dues(today)
+        val calculated =
+            if (deleted) emptyMap() else dues(today).filterKeys { due -> stops.none { due in it } }
         val standing =
             decisions.mapNotNull { (due, decision) ->
                 val kept = !deleted || due in sinceDeletion
-                if (decision is Decision.Amended && kept && due <= today && due !in calculated) {
-                    amended(due, decision)
-                } else null
+                if (!kept || due > today || due in calculated) return@mapNotNull null
+                when (decision) {
+                    Decision.Confirmed -> segment(due)?.let { confirmed(due, it) }
+                    Decision.Deleted -> null
+                    is Decision.Amended -> amended(due, decision)
+                }
             }
         return (calculated.mapNotNull { (due, segment) -> occurrence(due, segment) } + standing)
             .sortedBy { it.due }
     }
 
-    /** Each date the calculation makes due by [today], with the segment in force on it. */
+    /** Each date the schedule makes due by [today], with the segment in force on it. */
     private fun dues(today: EntryDate): Map<EntryDate, Segment> {
         // A stable sort, so that of two segments from the same date the later in the log is last.
         val ordered = segments.sortedBy { it.first }
         return ordered
             .flatMapIndexed { index, (from, segment) ->
-                if (segment == null) return@flatMapIndexed emptyList()
                 val until = ordered.getOrNull(index + 1)?.first
                 segment.interval
                     .dates(from.value, today.value)
@@ -130,11 +170,14 @@ data class Series(
                     segment.template.on(id, due),
                     segment.mode == Mode.SUGGESTED,
                 )
-            Decision.Confirmed -> Occurrence(this.id, due, segment.template.on(id, due), false)
+            Decision.Confirmed -> confirmed(due, segment)
             Decision.Deleted -> null
             is Decision.Amended -> amended(due, decision)
         }
     }
+
+    private fun confirmed(due: EntryDate, segment: Segment) =
+        Occurrence(id, due, segment.template.on(EntryId.occurrence(id, due), due), false)
 
     private fun amended(due: EntryDate, decision: Decision.Amended) =
         Occurrence(

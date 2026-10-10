@@ -97,6 +97,7 @@
     <string name="following_title">Wiederkehrenden Eintrag ändern</string>
     <string name="following_only">Nur diesen</string>
     <string name="following_too">Diesen und alle folgenden</string>
+    <string name="series_fixed">Spätere Einträge dieser Serie wurden bestätigt oder bearbeitet, daher lässt sie sich erst ab dem letzten davon ändern.</string>
 
     <!-- Recurrence editor -->
     <string name="recurrence_start">Beginnt</string>
@@ -138,9 +139,31 @@
     <string name="series_starts">Beginnt am %1$s</string>
     <string name="series_stops">Endet ab %1$s</string>
     <string name="series_stopped">Beendet seit %1$s</string>
+    <string name="series_paused">Pausiert, geht am %1$s weiter</string>
+    <string name="series_pauses">Pausiert ab %1$s, geht am %2$s weiter</string>
     <string name="series_pause">Pausieren</string>
-    <string name="series_resume">Fortsetzen</string>
-    <string name="series_stop_from">Ab einem Datum beenden</string>
+    <string name="series_stop">Beenden</string>
+    <string name="series_continue">Fortsetzen</string>
+    <string name="series_pause_title">Diese Serie pausieren</string>
+    <string name="series_stop_title">Diese Serie beenden</string>
+    <string name="series_continue_title">Diese Serie fortsetzen</string>
+    <string name="series_from">Ab</string>
+    <string name="series_continues_on">Geht weiter am</string>
+    <plurals name="series_removes">
+        <item quantity="one">%d Eintrag, den sie schon hinzugefügt hat, wird entfernt. Bestätigte und bearbeitete bleiben.</item>
+        <item quantity="other">%d Einträge, die sie schon hinzugefügt hat, werden entfernt. Bestätigte und bearbeitete bleiben.</item>
+    </plurals>
+    <plurals name="series_adds">
+        <item quantity="one">%d Eintrag, der inzwischen fällig wurde, kommt hinzu.</item>
+        <item quantity="other">%d Einträge, die inzwischen fällig wurden, kommen hinzu.</item>
+    </plurals>
+    <string name="series_keeps">Einträge, die sie schon hinzugefügt hat, bleiben.</string>
+    <string name="series_stops_list">Pausen und Enden</string>
+    <string name="series_stop_span">Ab %1$s, geht am %2$s weiter</string>
+    <string name="series_stop_open">Ab %1$s, endgültig</string>
+    <string name="series_remove">Entfernen</string>
+    <string name="series_remove_pause">Diese Pause entfernen?</string>
+    <string name="series_remove_stop">Dieses Ende entfernen?</string>
     <string name="series_entries">Ihre Einträge</string>
     <string name="series_delete_title">Diese Serie löschen?</string>
     <string name="series_delete_text">Die Serie und alle Einträge, die sie erzeugt hat, auch vergangene, werden entfernt. Um Vergangenes zu behalten, beende sie stattdessen.</string>

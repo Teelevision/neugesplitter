@@ -8,6 +8,7 @@ import eu.teele.neugesplitter.domain.event.GroupChanges
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.recurrence.Interval
+import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EventId
@@ -54,12 +55,17 @@ data class GroupSettingsState(
     val stopped: List<SeriesSummary> = emptyList(),
 )
 
-/** A series as the settings list it: what it is, how it repeats, and a stop ahead if it has one. */
+/**
+ * A series as the settings list it: what it is, how it repeats, and the stop in force today or else
+ * the next one ahead (RE-7).
+ */
 data class SeriesSummary(
     val id: SeriesId,
     val description: String,
     val interval: Interval,
-    val stop: EntryDate?,
+    val stop: Stop?,
+    /** Whether [stop] holds it today. */
+    val held: Boolean,
 )
 
 /**
@@ -185,17 +191,20 @@ private fun settings(group: Group, today: EntryDate): GroupSettingsState {
     val (running, stopped) =
         group.series.values
             .filterNot { it.deleted }
-            .mapNotNull { series ->
-                val segment = series.current(today) ?: return@mapNotNull null
+            .map { series ->
+                val segment = series.current(today)
+                val stop = series.stop(today)
                 SeriesSummary(
                     series.id,
                     segment.template.description,
                     segment.interval,
-                    series.stop(today),
+                    stop,
+                    held = stop != null && today in stop,
                 )
             }
             .sortedBy { it.description.lowercase() }
-            .partition { it.stop == null || it.stop > today }
+            // Stopped for good as of today; a pause goes on by itself.
+            .partition { !it.held || it.stop?.until != null }
     return GroupSettingsState(
         loaded = true,
         title = listOfNotNull(group.emoji, group.name).joinToString(" "),

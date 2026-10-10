@@ -128,7 +128,7 @@ val arbEvent: Arb<Event> = arbitrary {
     val id = EventId.parse(hexId().bind())
     val by = arbMember.bind()
     val at = arbInstant.bind()
-    when (Arb.int(0..14).bind()) {
+    when (Arb.int(0..15).bind()) {
         0 ->
             Event.GroupCreated(
                 id,
@@ -166,10 +166,27 @@ val arbEvent: Arb<Event> = arbitrary {
                 arbSegment.bind().copy(template = arbFullTemplate.bind()),
             )
         9 -> Event.SeriesAmended(id, by, at, arbSeriesId.bind(), arbDate.bind(), arbSegment.bind())
-        10 -> Event.SeriesEnded(id, by, at, arbSeriesId.bind(), arbDate.bind())
-        11 -> Event.SeriesDeleted(id, by, at, arbSeriesId.bind())
-        12 -> Event.OccurrenceConfirmed(id, by, at, arbSeriesId.bind(), arbDate.bind())
-        13 -> Event.OccurrenceDeleted(id, by, at, arbSeriesId.bind(), arbDate.bind())
+        10 ->
+            Event.SeriesStopped(
+                id,
+                by,
+                at,
+                arbSeriesId.bind(),
+                arbDate.bind(),
+                arbDate.orNull().bind(),
+            )
+        11 ->
+            Event.SeriesContinued(
+                id,
+                by,
+                at,
+                arbSeriesId.bind(),
+                arbDate.bind(),
+                arbDate.orNull().bind(),
+            )
+        12 -> Event.SeriesDeleted(id, by, at, arbSeriesId.bind())
+        13 -> Event.OccurrenceConfirmed(id, by, at, arbSeriesId.bind(), arbDate.bind())
+        14 -> Event.OccurrenceDeleted(id, by, at, arbSeriesId.bind(), arbDate.bind())
         else ->
             Event.OccurrenceAmended(
                 id,

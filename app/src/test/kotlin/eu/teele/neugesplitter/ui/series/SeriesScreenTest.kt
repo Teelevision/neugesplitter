@@ -17,6 +17,7 @@ import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.recurrence.Interval
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.recurrence.Segment
+import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
@@ -24,6 +25,7 @@ import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
@@ -118,39 +120,92 @@ class SeriesScreenTest {
         assertEquals(listOf(EntryId.occurrence(rent, date("2026-10-01"))), opened)
     }
 
-    @Test
-    fun `pausing stops it from tomorrow, and resuming takes that back (RE-7)`() {
-        show()
-        compose.onNodeWithText("Pause").performClick()
-        awaitText("Stops from Thursday, October 8, 2026")
-        assertEquals(date("2026-10-08"), series().stop(today))
-        assertEquals(3, series().occurrences(today).size)
+    private fun inDialog(text: String) =
+        compose.onNode(hasText(text) and hasAnyAncestor(isDialog()))
 
-        compose.onNodeWithText("Resume").performClick()
-        awaitText("Running")
-        assertEquals(null, series().stop(today))
+    @Test
+    fun `stopping offers today, says what stays, and leaves only continuing (RE-7)`() {
+        show()
+        compose.onNodeWithText("Stop").performClick()
+        compose.onNodeWithText("Stop this series").assertExists()
+        compose.onNodeWithText("Wednesday, October 7, 2026").assertExists()
+        compose.onNodeWithText("Entries it already added stay.").assertExists()
+        inDialog("Stop").performClick()
+        awaitText("Stopped since Wednesday, October 7, 2026")
+        assertEquals(listOf(Stop(today)), series().stops)
+        assertEquals(3, series().occurrences(date("2026-11-01")).size)
+        compose.onNodeWithText("Pause").assertDoesNotExist()
+        compose.onNodeWithText("Stop").assertDoesNotExist()
+        compose.onNodeWithText("Continue").assertExists()
     }
 
     @Test
-    fun `a series stopped in the past resumes from today and skips what fell due meanwhile (RE-7)`() {
-        show(Event.SeriesEnded(eventId(), anna.id, at, rent, date("2026-09-15")))
+    fun `a pause skips the next occurrence by default and then goes on by itself (RE-7)`() {
+        show()
+        compose.onNodeWithText("Pause").performClick()
+        compose.onNodeWithText("Wednesday, October 7, 2026").assertExists()
+        compose.onNodeWithText("Monday, November 2, 2026").assertExists()
+        inDialog("Pause").performClick()
+        awaitText("Paused, continues on Monday, November 2, 2026")
+        val dues = series().occurrences(date("2026-12-01")).map { it.due.toString() }
+        assertEquals(listOf("2026-08-01", "2026-09-01", "2026-10-01", "2026-12-01"), dues)
+    }
+
+    @Test
+    fun `a series stopped in the past continues from today and skips what fell due meanwhile (RE-7)`() {
+        show(Event.SeriesStopped(eventId(), anna.id, at, rent, date("2026-09-15")))
         compose.onNodeWithText("Stopped since Tuesday, September 15, 2026").assertExists()
-        compose.onNodeWithText("Stop from a date").assertDoesNotExist()
+        compose.onNodeWithText("Pause").assertDoesNotExist()
         assertEquals(3, compose.onAllNodesWithText("Rent").fetchSemanticsNodes().size)
 
-        compose.onNodeWithText("Resume").performClick()
+        compose.onNodeWithText("Continue").performClick()
+        compose.onNodeWithText("Wednesday, October 7, 2026").assertExists()
+        inDialog("Continue").performClick()
         awaitText("Running")
         val dues = series().occurrences(date("2026-11-01")).map { it.due.toString() }
         assertEquals(listOf("2026-08-01", "2026-09-01", "2026-11-01"), dues)
     }
 
     @Test
-    fun `stopping from a date offers tomorrow and leaves what came before standing (RE-7)`() {
-        show()
-        compose.onNodeWithText("Stop from a date").performClick()
-        compose.onNodeWithText("OK").performClick()
-        awaitText("Stops from Thursday, October 8, 2026")
-        assertEquals(3, series().occurrences(date("2026-11-01")).size)
+    fun `a stop counts what it would remove, and not what somebody confirmed (RE-7)`() {
+        show(Event.OccurrenceConfirmed(eventId(), anna.id, at, rent, date("2026-09-01")))
+        val detail = SeriesDetail(today, series(), monthly, emptyList(), Scale.DEFAULT, emptyList())
+        assertEquals(date("2026-08-02"), detail.earliestStop)
+        assertEquals(1 to 0, detail.change(series().stopped(Stop(date("2026-08-15")))))
+        val stopped = series().stopped(Stop(date("2026-08-15")))
+        assertEquals(0 to 1, detail.copy(series = stopped).change(series()))
+    }
+
+    @Test
+    fun `a pause long over can still be removed, and what it held back is added (RE-7)`() {
+        val pause =
+            Event.SeriesStopped(
+                eventId(),
+                anna.id,
+                at,
+                rent,
+                date("2026-08-15"),
+                date("2026-09-15"),
+            )
+        show(pause)
+        compose.onNodeWithText("Running").assertExists()
+        compose.onNodeWithText("Continue").assertDoesNotExist()
+        compose
+            .onNodeWithText(
+                "From Saturday, August 15, 2026, continues on Tuesday, September 15, 2026"
+            )
+            .assertExists()
+
+        compose.onNodeWithText("Remove").performClick()
+        compose.onNodeWithText("Remove this pause?").assertExists()
+        compose.onNodeWithText("1 entry that fell due meanwhile is added.").assertExists()
+        inDialog("Remove").performClick()
+        compose.waitUntil(5_000) {
+            shadowOf(Looper.getMainLooper()).idle()
+            series().stops.isEmpty()
+        }
+        val dues = series().occurrences(today).map { it.due.toString() }
+        assertEquals(listOf("2026-08-01", "2026-09-01", "2026-10-01"), dues)
     }
 
     @Test

@@ -8,8 +8,10 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -90,7 +92,8 @@ class EntryEditorScreenTest {
 
     /**
      * Anna's group, with her dinner for all three of them the day before, if [existing], and her
-     * rent on the first of every month since August, if [renting].
+     * rent on the first of every month since August, if [renting], with the one due on [confirmed]
+     * confirmed.
      */
     private fun show(
         existing: Boolean = false,
@@ -99,6 +102,7 @@ class EntryEditorScreenTest {
         settling: Transfer? = null,
         ready: String = "Description",
         renting: Boolean = false,
+        confirmed: String? = null,
     ) {
         groups.create(
             Group.create(trip, "Trip", null, "⛺", null, listOf(anna, ben, clara), at, ::eventId),
@@ -130,7 +134,12 @@ class EntryEditorScreenTest {
             val august = EntryDate.parse("2026-08-01")
             groups.append(
                 trip,
-                listOf(Event.SeriesCreated(eventId(), anna.id, at, rent, august, monthly)),
+                listOfNotNull(
+                    Event.SeriesCreated(eventId(), anna.id, at, rent, august, monthly),
+                    confirmed?.let {
+                        Event.OccurrenceConfirmed(eventId(), anna.id, at, rent, EntryDate.parse(it))
+                    },
+                ),
                 today,
             )
         }
@@ -518,5 +527,36 @@ class EntryEditorScreenTest {
         save()
         val dues = groups.load(trip)!!.occurrences(today).map { it.due.toString() }
         assertEquals(listOf("2026-08-01", "2026-09-01"), dues)
+    }
+
+    @Test
+    fun `a series somebody decided on later keeps its rule, and a change goes for this one alone (RE-6)`() {
+        show(renting = true, entry = rentOn("2026-09-01"), confirmed = "2026-10-01")
+        val fixed =
+            "Later entries of this series were confirmed or edited, so it can change only from " +
+                "the last of them."
+        compose.onNodeWithText(fixed).assertExists()
+        compose.onNodeWithText("Every month on the 1st").performScrollTo().performClick()
+        compose.onNodeWithText("Weekly").assertDoesNotExist()
+
+        // Off and on again, it repeats as it did, without the sheet.
+        compose.onNodeWithContentDescription("Repeats").performClick()
+        compose.onNodeWithText("The series ends after this one").assertExists()
+        compose.onNodeWithContentDescription("Repeats").performClick()
+        compose.onNodeWithText("Every month on the 1st").assertExists()
+        compose.onNodeWithText("Weekly").assertDoesNotExist()
+
+        compose.onNodeWithText("Description").performTextReplacement("Rent, raised")
+        compose.onNodeWithText("Save").performClick()
+        compose.onNodeWithText("This one and the following").assertIsNotEnabled().performClick()
+        compose.onNode(hasText(fixed) and hasAnyAncestor(isDialog())).assertExists()
+        compose.onNodeWithText("OK").performClick()
+        compose.waitUntil(5_000) {
+            shadowOf(Looper.getMainLooper()).idle()
+            closed > 0
+        }
+        assertEquals(listOf("Rent", "Rent, raised", "Rent"), descriptions())
+        val series = groups.load(trip)!!.series.getValue(rent)
+        assertEquals(1, series.segments.size)
     }
 }

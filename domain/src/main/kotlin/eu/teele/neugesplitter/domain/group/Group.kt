@@ -12,6 +12,7 @@ import eu.teele.neugesplitter.domain.event.or
 import eu.teele.neugesplitter.domain.recurrence.Decision
 import eu.teele.neugesplitter.domain.recurrence.Occurrence
 import eu.teele.neugesplitter.domain.recurrence.Series
+import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.Colour
@@ -120,7 +121,11 @@ data class Group(
                 revised(event.target) { it.from(event.from, event.segment).restored() }
             }
 
-            is Event.SeriesEnded -> revised(event.target) { it.from(event.from, null) }
+            is Event.SeriesStopped ->
+                revised(event.target) { it.stopped(span(event.from, event.until, event.type)) }
+
+            is Event.SeriesContinued ->
+                revised(event.target) { it.continued(span(event.from, event.until, event.type)) }
 
             is Event.SeriesDeleted -> revised(event.target) { it.removed() }
 
@@ -209,6 +214,11 @@ data class Group(
     private fun revised(target: SeriesId, change: (Series) -> Series): Group {
         val known = series[target] ?: throw Malformed("no series $target in group $id")
         return copy(series = series.with(target, change(known)))
+    }
+
+    private fun span(from: EntryDate, until: EntryDate?, type: String): Stop {
+        if (until != null && until <= from) throw Malformed("$type ends on or before $from")
+        return Stop(from, until)
     }
 
     /** An entry is checked when it enters the state, so that a stored one can always be split. */

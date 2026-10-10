@@ -255,16 +255,20 @@ mutable definition, raising the rent from 800 to 850 would retroactively raise
 every rent payment since the group began. Selecting the segment in force _at the
 due date_ means an edit reaches forward and nothing else.
 
-Pausing (RE-7) is `series.ended`, and resuming is a `series.amended` from a
-later date. `series.ended` is a segment that produces nothing: the series stops,
-everything it already produced stands, and an amendment after it simply begins
-the next segment. Nothing distinguishes a pause from an end except that somebody
-later resumed it, so the format does not ask anyone to know in advance which of
-the two they meant. Ending is the right behaviour and the wrong word for a
-button marked delete, so deleting is a separate event. `series.deleted` takes
-the series and every occurrence of it, past ones included, out of the group —
-exactly what `entry.deleted` does to an entry, and just as recoverable, because
-the history keeps both (HI-3).
+Stopping is a layer of its own over the segments. `series.stopped` names days
+the series produces nothing on — from a date until the day it goes on, which is
+a pause (RE-7), or for good — and `series.continued` gives such days back.
+Replay applies them in log order as a set of days: two pauses that overlap or
+meet are one, however many people wrote them, and a stop changes no segment, so
+the series goes on afterwards with whatever segment is in force by then,
+including one somebody amended during the pause. Had a pause been a segment of
+its own, ended by one copying the segment before it, two overlapping pauses
+would have ended at the first one's end, and the copy would have undone an
+amendment written in between. Stopping is the right behaviour and the wrong word
+for a button marked delete, so deleting is a separate event. `series.deleted`
+takes the series and every occurrence of it, past ones included, out of the
+group — exactly what `entry.deleted` does to an entry, and just as recoverable,
+because the history keeps both (HI-3).
 
 **Only departures from the calculation produce events**, each with an id derived
 from the series id and the due date:
@@ -281,12 +285,15 @@ but successive answers to one question — what is this due date's occurrence? �
 and the last one written is the answer. Confirming and then editing, or editing
 twice, or deleting and changing one's mind, all need nothing more than that.
 
-The three differ in what they lose when the calculation moves. A confirmation or
-a deletion carries nothing, so if an amendment to the series makes its date stop
-being due, the date that is due instead simply asks the question again. An
-amended occurrence carries an entry somebody typed in, so it stands on its own:
-it outlives a schedule that moves away from its due date, and a `series.deleted`
-written before it, and only a later event naming it removes it.
+The three differ in what they lose when the calculation moves. A deletion
+carries nothing, so if an amendment to the series makes its date stop being due,
+the date that is due instead simply asks the question again. A confirmation and
+an amendment are somebody's decision that an occurrence happened, so they
+outrank both the segments and the stops: they outlive a schedule that moves away
+from their due date, a stop over it, and a `series.deleted` written before them,
+and only a later event naming them removes them. A confirmation still takes its
+entry from the segment in force on its due date, which is why the app does not
+amend a series from before an occurrence somebody confirmed or edited (RE-6).
 
 An automatic series that nobody touches produces no events whatsoever, and its
 occurrences exist only as the result of replay.

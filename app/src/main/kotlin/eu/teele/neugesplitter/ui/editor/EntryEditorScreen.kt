@@ -37,6 +37,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -54,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -272,7 +274,14 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
             Repeats(
                 state,
                 locale,
-                onSwitch = { on -> if (on) recurring = true else viewModel.recurrence(null) },
+                onSwitch = { on ->
+                    when {
+                        !on -> viewModel.recurrence(null)
+                        // It can only go back to repeating as it did.
+                        state.fixed -> viewModel.recurrence(state.was)
+                        else -> recurring = true
+                    }
+                },
                 onOpen = { recurring = true },
             )
         }
@@ -293,7 +302,11 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
         )
     }
     if (state.asking) {
-        Following(onAnswer = { viewModel.save(following = it) }, onDismiss = viewModel::dismiss)
+        Following(
+            fixed = state.fixed,
+            onAnswer = { viewModel.save(following = it) },
+            onDismiss = viewModel::dismiss,
+        )
     }
 
     if (picking) {
@@ -387,7 +400,8 @@ internal fun <T> Segments(
 
 /**
  * Whether the entry repeats and how. Switching it on opens the recurrence sheet, and so does a tap
- * on the rule (RE-1). An occurrence switched off says that its series ends after it (RE-7).
+ * on the rule (RE-1). An occurrence switched off says that its series ends after it (RE-7). A
+ * series fixed by later decisions keeps its rule, and says why (RE-6).
  */
 @Composable
 private fun Repeats(
@@ -400,7 +414,8 @@ private fun Repeats(
     val label = stringResource(R.string.repeats)
     Row(
         modifier =
-            Modifier.fillMaxWidth().clickable(enabled = recurrence != null, onClick = onOpen),
+            Modifier.fillMaxWidth()
+                .clickable(enabled = recurrence != null && !state.fixed, onClick = onOpen),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f).padding(end = 16.dp)) {
@@ -423,6 +438,13 @@ private fun Repeats(
                     else -> null
                 }
             rule?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+            if (recurrence != null && state.fixed) {
+                Text(
+                    stringResource(R.string.series_fixed),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         Switch(
             checked = recurrence != null,
@@ -432,9 +454,12 @@ private fun Repeats(
     }
 }
 
-/** Whether a change to an occurrence goes for the rest of its series too (RE-6). */
+/**
+ * Whether a change to an occurrence goes for the rest of its series too (RE-6); not if the series
+ * is [fixed] by later decisions.
+ */
 @Composable
-private fun Following(onAnswer: (Boolean) -> Unit, onDismiss: () -> Unit) {
+private fun Following(fixed: Boolean, onAnswer: (Boolean) -> Unit, onDismiss: () -> Unit) {
     var following by rememberSaveable { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -442,25 +467,42 @@ private fun Following(onAnswer: (Boolean) -> Unit, onDismiss: () -> Unit) {
         text = {
             Column(Modifier.selectableGroup()) {
                 for (option in listOf(false, true)) {
+                    val enabled = !(option && fixed)
                     Row(
                         modifier =
                             Modifier.fillMaxWidth()
                                 .heightIn(min = 48.dp)
                                 .selectable(
                                     selected = following == option,
+                                    enabled = enabled,
                                     onClick = { following = option },
                                     role = Role.RadioButton,
                                 ),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        RadioButton(selected = following == option, onClick = null)
+                        RadioButton(
+                            selected = following == option,
+                            onClick = null,
+                            enabled = enabled,
+                        )
                         Text(
                             stringResource(
                                 if (option) R.string.following_too else R.string.following_only
                             ),
+                            color =
+                                if (enabled) Color.Unspecified
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                             modifier = Modifier.padding(start = 16.dp),
                         )
                     }
+                }
+                if (fixed) {
+                    Text(
+                        stringResource(R.string.series_fixed),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
                 }
             }
         },
@@ -555,13 +597,30 @@ private fun splitProblem(
     }
 }
 
+/** Picks a date, among those [selectable] allows. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun DatePick(date: EntryDate, onPicked: (EntryDate) -> Unit, onDismiss: () -> Unit) {
+internal fun DatePick(
+    date: EntryDate,
+    onPicked: (EntryDate) -> Unit,
+    onDismiss: () -> Unit,
+    selectable: (EntryDate) -> Boolean = { true },
+) {
     val picker =
         rememberDatePickerState(
             initialSelectedDateMillis =
-                date.value.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+                date.value.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+            selectableDates =
+                object : SelectableDates {
+                    override fun isSelectableDate(utcTimeMillis: Long) =
+                        selectable(
+                            EntryDate.of(
+                                Instant.ofEpochMilli(utcTimeMillis)
+                                    .atZone(ZoneOffset.UTC)
+                                    .toLocalDate()
+                            )
+                        )
+                },
         )
     DatePickerDialog(
         onDismissRequest = onDismiss,

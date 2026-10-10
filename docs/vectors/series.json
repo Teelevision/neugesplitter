@@ -170,11 +170,20 @@
     },
     {
       "id": "0000000000000000000000000000000b",
-      "type": "series.ended",
+      "type": "series.stopped",
       "by": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
       "at": "2026-01-01T12:00:00Z",
       "target": "5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
-      "from": "2026-03-01"
+      "from": "2026-02-10"
+    },
+    {
+      "id": "0000000000000000000000000000000e",
+      "type": "series.continued",
+      "by": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "at": "2026-01-01T12:00:00Z",
+      "target": "5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+      "from": "2026-02-20",
+      "until": "2026-03-01"
     },
     {
       "id": "0000000000000000000000000000000c",

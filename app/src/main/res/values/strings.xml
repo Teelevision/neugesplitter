@@ -99,6 +99,7 @@
     <string name="following_title">Change recurring entry</string>
     <string name="following_only">Only this one</string>
     <string name="following_too">This one and the following</string>
+    <string name="series_fixed">Later entries of this series were confirmed or edited, so it can change only from the last of them.</string>
 
     <!-- Recurrence editor -->
     <string name="recurrence_start">Starts</string>
@@ -140,9 +141,31 @@
     <string name="series_starts">Starts on %1$s</string>
     <string name="series_stops">Stops from %1$s</string>
     <string name="series_stopped">Stopped since %1$s</string>
+    <string name="series_paused">Paused, continues on %1$s</string>
+    <string name="series_pauses">Pauses from %1$s, continues on %2$s</string>
     <string name="series_pause">Pause</string>
-    <string name="series_resume">Resume</string>
-    <string name="series_stop_from">Stop from a date</string>
+    <string name="series_stop">Stop</string>
+    <string name="series_continue">Continue</string>
+    <string name="series_pause_title">Pause this series</string>
+    <string name="series_stop_title">Stop this series</string>
+    <string name="series_continue_title">Continue this series</string>
+    <string name="series_from">From</string>
+    <string name="series_continues_on">Continues on</string>
+    <plurals name="series_removes">
+        <item quantity="one">%d entry it already added is removed. Confirmed and edited ones stay.</item>
+        <item quantity="other">%d entries it already added are removed. Confirmed and edited ones stay.</item>
+    </plurals>
+    <plurals name="series_adds">
+        <item quantity="one">%d entry that fell due meanwhile is added.</item>
+        <item quantity="other">%d entries that fell due meanwhile are added.</item>
+    </plurals>
+    <string name="series_keeps">Entries it already added stay.</string>
+    <string name="series_stops_list">Pauses and stops</string>
+    <string name="series_stop_span">From %1$s, continues on %2$s</string>
+    <string name="series_stop_open">From %1$s, for good</string>
+    <string name="series_remove">Remove</string>
+    <string name="series_remove_pause">Remove this pause?</string>
+    <string name="series_remove_stop">Remove this stop?</string>
     <string name="series_entries">Its entries</string>
     <string name="series_delete_title">Delete this series?</string>
     <string name="series_delete_text">The series and every entry it produced, past ones included, are removed. To keep what already happened, stop it instead.</string>

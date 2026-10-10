@@ -53,7 +53,7 @@ import eu.teele.neugesplitter.ui.ColourPicker
 import eu.teele.neugesplitter.ui.EmojiPicker
 import eu.teele.neugesplitter.ui.InlineEditor
 import eu.teele.neugesplitter.ui.editor.recurrenceText
-import eu.teele.neugesplitter.ui.longDate
+import eu.teele.neugesplitter.ui.series.stopText
 import eu.teele.neugesplitter.ui.sync.GroupTitle
 import java.util.Locale
 import kotlin.time.Duration
@@ -200,7 +200,7 @@ fun GroupSettingsScreen(
                 }
             }
             items(state.series, key = { "series-${it.id.hex}" }) {
-                SeriesRow(it, stopped = false, locale, onClick = { onSeries(it.id) })
+                SeriesRow(it, locale, onClick = { onSeries(it.id) })
             }
             if (state.stopped.isNotEmpty()) {
                 item(key = "stopped") {
@@ -229,7 +229,7 @@ fun GroupSettingsScreen(
                 }
                 if (stopped) {
                     items(state.stopped, key = { "stopped-${it.id.hex}" }) {
-                        SeriesRow(it, stopped = true, locale, onClick = { onSeries(it.id) })
+                        SeriesRow(it, locale, onClick = { onSeries(it.id) })
                     }
                 }
             }
@@ -358,24 +358,14 @@ private fun atMostEvery(interval: Duration): String {
     return pluralStringResource(R.plurals.poll_minutes, minutes, minutes)
 }
 
-/** A series, how it repeats, and when it stops or stopped (RE-7). */
+/** A series, how it repeats, and how a stop holds it (RE-7). */
 @Composable
-private fun SeriesRow(
-    series: SeriesSummary,
-    stopped: Boolean,
-    locale: Locale,
-    onClick: () -> Unit,
-) {
+private fun SeriesRow(series: SeriesSummary, locale: Locale, onClick: () -> Unit) {
     SettingRow(
         series.description,
         listOfNotNull(
                 recurrenceText(series.interval, locale),
-                series.stop?.let {
-                    stringResource(
-                        if (stopped) R.string.series_stopped else R.string.series_stops,
-                        longDate(it, locale),
-                    )
-                },
+                series.stop?.let { stopText(it, series.held, locale) },
             )
             .joinToString(" · "),
         onClick = onClick,

@@ -114,9 +114,10 @@ class GroupHistoryTest {
                 .add(CLARA, "Clara")
                 .start(RENT, "2026-08-01", rent)
                 .confirm(RENT, "2026-08-01")
-                .end(RENT, "2026-09-01")
+                .stop(RENT, "2026-09-01")
+                .resume(RENT, "2026-10-01")
         assertEquals(
-            List(3) { Happened.Recurring },
+            List(4) { Happened.Recurring },
             history(log.events()).drop(3).map { it.happened },
         )
     }

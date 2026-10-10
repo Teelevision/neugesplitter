@@ -7,6 +7,7 @@ import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Series
+import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
@@ -25,26 +26,65 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * @property segment what the series does today, or did last before it stopped.
- * @property starts its first day, while that is still ahead.
- * @property stop where it stops: stopped if that is today or before, stopping if after (RE-7).
+ * @property segment what the series does today, or on its first day while that is ahead.
  * @property entries its occurrences in the entry list, newest first.
  */
 data class SeriesDetail(
     val today: EntryDate,
+    val series: Series,
     val segment: Segment,
     val payers: List<String>,
     val scale: Scale,
-    val starts: EntryDate?,
-    val stop: EntryDate?,
-    val stopped: Boolean,
     val entries: List<ListedEntry>,
-)
+) {
+    /** Its first day, while that is still ahead. */
+    val starts: EntryDate?
+        get() = series.start.takeIf { it > today }
+
+    /** The stop in force today, or else the next one ahead (RE-7). */
+    val stop: Stop?
+        get() = series.stop(today)
+
+    /** Whether it produces nothing today. */
+    val stopped: Boolean
+        get() = stop?.let { today in it } == true
+
+    /** Whether it is stopped for good as of today, so that only continuing it is left. */
+    val ended: Boolean
+        get() = stopped && stop?.until == null
+
+    /** The earliest it can stop: after its first occurrence, as stopping before is deleting it. */
+    val earliestStop: EntryDate
+        get() = (series.nextDue(series.start) ?: series.start).plusDays(1)
+
+    /** Stopping offers today, or the earliest it can. */
+    val stopFrom: EntryDate
+        get() = maxOf(today, earliestStop)
+
+    /** A pause offers today, or its first day while that is ahead. */
+    val pauseFrom: EntryDate
+        get() = maxOf(today, series.start)
+
+    /** A pause from [from] offers to skip one occurrence: it continues the day after the next. */
+    fun pauseUntil(from: EntryDate): EntryDate = (series.nextDue(from) ?: from).plusDays(1)
+
+    /**
+     * How many entries in the balances today [revised] would remove, and how many it would add;
+     * those somebody confirmed or edited stand either way (format-spec 4.2).
+     */
+    fun change(revised: Series): Pair<Int, Int> {
+        val before = series.occurrences(today).filterNot { it.pending }.map { it.due }.toSet()
+        val after = revised.occurrences(today).filterNot { it.pending }.map { it.due }.toSet()
+        return (before - after).size to (after - before).size
+    }
+}
+
+private fun EntryDate.plusDays(days: Long) = EntryDate.of(value.plusDays(days))
 
 /** @property detail null once loaded only if the series is gone, deleted or with its group. */
 data class SeriesState(val loaded: Boolean = false, val detail: SeriesDetail? = null)
 
-/** One recurring series, and pausing, resuming, stopping and deleting it (RE-7, RE-9). */
+/** One recurring series, and stopping, pausing, continuing and deleting it (RE-7, RE-9). */
 class SeriesViewModel(
     private val repository: GroupRepository,
     private val group: GroupId,
@@ -62,18 +102,25 @@ class SeriesViewModel(
             .flowOn(Dispatchers.IO)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SeriesState())
 
-    /** Stops it from tomorrow, so that today's stands. */
-    fun pause() = write { id, by, at ->
-        Event.SeriesEnded(id, by, at, series, EntryDate.of(today().value.plusDays(1)))
+    /** Stops it for good from [from] on; what it produced before stands (RE-7). */
+    fun stop(from: EntryDate) = write { id, by, at ->
+        Event.SeriesStopped(id, by, at, series, from)
     }
 
-    /** Stops it from [from] on; what it produced before stands (RE-7). */
-    fun stop(from: EntryDate) = write { id, by, at -> Event.SeriesEnded(id, by, at, series, from) }
+    /** Stops it from [from] and has it continue on [until] by itself (RE-7). */
+    fun pause(from: EntryDate, until: EntryDate) = write { id, by, at ->
+        Event.SeriesStopped(id, by, at, series, from, until)
+    }
 
-    /** Goes on from today, or from its stop if that is still ahead, as it was before it (RE-7). */
-    fun resume() = write { id, by, at ->
-        val (from, segment) = current()?.resumption(today()) ?: return@write null
-        Event.SeriesAmended(id, by, at, series, from, segment)
+    /** Has it go on from [from] where its stop in force or next ahead would have held it (RE-7). */
+    fun resume(from: EntryDate) = write { id, by, at ->
+        val stop = current()?.stop(today()) ?: return@write null
+        Event.SeriesContinued(id, by, at, series, from, stop.until)
+    }
+
+    /** Takes [stop] back as a whole, past ones too; what it held back is due again (RE-7). */
+    fun remove(stop: Stop) = write { id, by, at ->
+        Event.SeriesContinued(id, by, at, series, stop.from, stop.until)
     }
 
     /** Removes it and everything it produced (RE-7). The screen has asked first. */
@@ -96,18 +143,14 @@ class SeriesViewModel(
     private fun Group.detail(listed: List<ListedEntry>): SeriesDetail? {
         val found = series[this@SeriesViewModel.series]?.takeUnless { it.deleted } ?: return null
         val today = today()
-        val first = found.segments.minOf { it.first }
-        val segment = found.current(today) ?: return null
-        val stop = found.stop(today)
+        val segment = found.current(today)
         val ids = found.occurrences(today).filterNot { it.pending }.map { it.entry.id }.toSet()
         return SeriesDetail(
             today = today,
+            series = found,
             segment = segment,
             payers = segment.template.payers.members.map { members[it]?.name ?: it.hex.take(8) },
             scale = scale,
-            starts = first.takeIf { it > today },
-            stop = stop,
-            stopped = stop != null && stop <= today,
             entries = listed.filter { it.id in ids },
         )
     }
