@@ -123,15 +123,7 @@ class ActivityScreenTest {
             today,
         )
         before()
-        val viewModel =
-            ActivityViewModel(
-                groups,
-                trip,
-                { id(0x200 + events++) },
-                { today },
-                { hours(2) },
-                { synced += it },
-            )
+        val viewModel = ActivityViewModel(groups, trip, { today }, { hours(2) }, { synced += it })
         compose.setContent {
             NeugesplitterTheme {
                 ActivityScreen(
@@ -191,6 +183,9 @@ class ActivityScreenTest {
         compose.onAllNodesWithText("Confirm")[0].performClick()
         compose.waitUntil(5_000) { pending().size == 1 }
         assertEquals(EntryDate.parse("2026-10-01"), pending().single().due)
+        // Under the id every installation gives it (format-spec 6).
+        val september = EntryDate.parse("2026-09-01")
+        assertEquals(EventId.occurrence(cleaning, september), groups.events(trip).last().id)
         compose.waitUntil(5_000) { count("Due Tuesday, September 1, 2026") == 0 }
     }
 
@@ -202,6 +197,8 @@ class ActivityScreenTest {
         val group = groups.load(trip)!!
         assertEquals(listOf(EntryDate.parse("2026-09-01")), group.occurrences(today).map { it.due })
         assertEquals(false, group.series.getValue(cleaning).deleted)
+        val october = EntryDate.parse("2026-10-01")
+        assertEquals(EventId.occurrence(cleaning, october), groups.events(trip).last().id)
         val november = EntryDate.parse("2026-11-01")
         assertEquals(2, group.occurrences(november).size)
     }

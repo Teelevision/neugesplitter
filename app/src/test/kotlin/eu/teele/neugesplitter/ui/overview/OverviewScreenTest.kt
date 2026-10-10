@@ -368,6 +368,7 @@ class OverviewScreenTest {
         assertEquals(false, series.deleted)
         assertEquals(1, series.occurrences(EntryDate.parse("2026-11-07")).size)
         assertEquals(setOf(dinner, taxi), stored())
+        assertEquals(EventId.occurrence(rent, today), groups.events(trip).last().id)
     }
 
     @Test

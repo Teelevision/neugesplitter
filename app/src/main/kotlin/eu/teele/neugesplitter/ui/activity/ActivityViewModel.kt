@@ -62,7 +62,6 @@ data class Suggestion(val series: SeriesId, val due: EntryDate, val entry: Liste
 class ActivityViewModel(
     private val repository: GroupRepository,
     private val group: GroupId,
-    private val identifier: () -> String,
     private val today: () -> EntryDate,
     private val now: () -> Instant,
     /** Runs a pass over a group at once (SY-9, TR-13). */
@@ -74,7 +73,9 @@ class ActivityViewModel(
                 repository.log(group),
                 repository.unseen(group),
                 repository.backends.state(group),
-            ) { events, unseen, sync ->
+                // Changes when a new day brings suggestions, as the log does not.
+                repository.pending(group, today),
+            ) { events, unseen, sync, _ ->
                 if (events.isEmpty()) return@combine ActivityState(loaded = true)
                 val replayed = Group.replay(events)
                 val me = repository.actingAs(group)
@@ -119,24 +120,24 @@ class ActivityViewModel(
     fun sync() = syncNow(group)
 
     /** Counts [suggestion] from now on (RE-4). */
-    fun confirm(suggestion: Suggestion) = decide { id, by, at ->
-        Event.OccurrenceConfirmed(id, by, at, suggestion.series, suggestion.due)
-    }
+    fun confirm(suggestion: Suggestion) =
+        decide(suggestion) { id, by, at ->
+            Event.OccurrenceConfirmed(id, by, at, suggestion.series, suggestion.due)
+        }
 
     /** Leaves [suggestion] out; its series carries on (RE-5). */
-    fun decline(suggestion: Suggestion) = decide { id, by, at ->
-        Event.OccurrenceDeleted(id, by, at, suggestion.series, suggestion.due)
-    }
+    fun decline(suggestion: Suggestion) =
+        decide(suggestion) { id, by, at ->
+            Event.OccurrenceDeleted(id, by, at, suggestion.series, suggestion.due)
+        }
 
-    private fun decide(event: (EventId, MemberId, Instant) -> Event) {
+    /** Writes [event] under the id every installation gives [suggestion] (format-spec 6). */
+    private fun decide(suggestion: Suggestion, event: (EventId, MemberId, Instant) -> Event) {
         viewModelScope.launch(Dispatchers.IO) {
             val by = repository.actingAs(group) ?: return@launch
+            val id = EventId.occurrence(suggestion.series, suggestion.due)
             try {
-                repository.append(
-                    group,
-                    listOf(event(EventId.parse(identifier()), by, now())),
-                    today(),
-                )
+                repository.append(group, listOf(event(id, by, now())), today())
             } catch (_: Malformed) {
                 // Decided already, by a second tap or by someone else whose decision arrived first.
             }

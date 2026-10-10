@@ -382,7 +382,7 @@ class SyncingTest {
         assertNull(runBlocking { syncing.fetch(trip, bucket, null) })
         assertEquals("Trip", groups.load(trip)?.name)
         assertEquals(listOf(trip), groups.unclaimed())
-        assertTrue(runBlocking { groups.list(today).first() }.isEmpty())
+        assertTrue(runBlocking { groups.list({ today }).first() }.isEmpty())
 
         val ben = Member(MemberId.parse(id(2)), "Ben")
         val added = Event.MemberAdded(EventId.parse(id(0x400)), ben.id, at, ben)

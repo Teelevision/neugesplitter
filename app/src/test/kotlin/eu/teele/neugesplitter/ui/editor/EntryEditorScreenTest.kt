@@ -469,8 +469,10 @@ class EntryEditorScreenTest {
         compose.onNodeWithText("Every month on the 7th · Suggested").assertExists()
         save()
         val group = groups.load(trip)!!
-        assertEquals(Mode.SUGGESTED, group.series.values.single().segment(today)!!.mode)
+        val series = group.series.values.single()
+        assertEquals(Mode.SUGGESTED, series.segment(today)!!.mode)
         assertEquals(listOf(false), group.occurrences(today).map { it.pending })
+        assertEquals(EventId.occurrence(series.id, today), groups.events(trip).last().id)
     }
 
     @Test
@@ -501,6 +503,8 @@ class EntryEditorScreenTest {
             closed > 0
         }
         assertEquals(listOf("Rent", "Rent, late", "Rent"), descriptions())
+        val amended = groups.events(trip).last()
+        assertEquals(EventId.occurrence(rent, september), amended.id)
     }
 
     @Test

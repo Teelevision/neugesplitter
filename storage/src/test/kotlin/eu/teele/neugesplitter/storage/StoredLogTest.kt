@@ -173,16 +173,16 @@ class StoredLogTest {
         log.received(listOf(fetched(1, objectOf(9, absolute)), fetched(2, objectOf(10, renamed))))
 
         assertEquals(setOf(received, received + 1), groups.unseen(GROUP).first())
-        assertEquals(true, groups.overview(GROUP, TODAY).first()!!.entries.single().unseen)
-        assertEquals(true, groups.list(TODAY).first().single().unseen)
+        assertEquals(true, groups.overview(GROUP, { TODAY }).first()!!.entries.single().unseen)
+        assertEquals(true, groups.list({ TODAY }).first().single().unseen)
 
         groups.seen(GROUP, entryId(1))
         assertEquals(setOf(received + 1), groups.unseen(GROUP).first())
-        assertEquals(false, groups.overview(GROUP, TODAY).first()!!.entries.single().unseen)
+        assertEquals(false, groups.overview(GROUP, { TODAY }).first()!!.entries.single().unseen)
 
         groups.seen(GROUP, received + 1)
         assertEquals(emptySet(), groups.unseen(GROUP).first())
-        assertEquals(false, groups.list(TODAY).first().single().unseen)
+        assertEquals(false, groups.list({ TODAY }).first().single().unseen)
 
         val described = update(5, BEN, EntryChanges(description = Change.To("Dinner")))
         log.received(listOf(fetched(3, objectOf(11, described))))
@@ -206,7 +206,7 @@ class StoredLogTest {
 
     @Test
     fun `the group list shows how each group's sync stands (SY-6, SY-15)`(): Unit = runBlocking {
-        suspend fun listed() = groups.list(TODAY).first().single().sync
+        suspend fun listed() = groups.list({ TODAY }).first().single().sync
         suspend fun state() = groups.backends.state(GROUP).first()
 
         synced()
@@ -248,7 +248,7 @@ class StoredLogTest {
         val entry = groups.load(GROUP)!!.entries.getValue(entryId(1))
         assertEquals(euros(40), entry.amount)
         assertEquals(Side.Equal(both), entry.beneficiaries)
-        assertEquals(euros(40), groups.overview(GROUP, TODAY).first()!!.entries.single().amount)
+        assertEquals(euros(40), groups.overview(GROUP, { TODAY }).first()!!.entries.single().amount)
     }
 
     @Test
@@ -313,7 +313,10 @@ class StoredLogTest {
         }
         assertEquals(rows(driver), rows(other))
         assertEquals(groups.events(GROUP), singly.events(GROUP))
-        assertEquals(groups.overview(GROUP, TODAY).first(), singly.overview(GROUP, TODAY).first())
+        assertEquals(
+            groups.overview(GROUP, { TODAY }).first(),
+            singly.overview(GROUP, { TODAY }).first(),
+        )
         assertEquals(ObjectNumber(3), log.head()!!.number)
     }
 

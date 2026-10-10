@@ -250,7 +250,7 @@ fun App(graph: AppGraph) {
                                 combine(
                                     graph.groups.unseen(group),
                                     graph.groups.backends.state(group),
-                                    graph.groups.pending(group, graph.today()),
+                                    graph.groups.pending(group, graph::today),
                                 ) { unseen, sync, pending ->
                                     unseen.isNotEmpty() || sync?.halted != null || pending > 0
                                 }
@@ -317,7 +317,6 @@ fun App(graph: AppGraph) {
                                         ActivityViewModel(
                                             graph.groups,
                                             group,
-                                            graph::identifier,
                                             graph::today,
                                             graph::now,
                                             graph.syncing::now,

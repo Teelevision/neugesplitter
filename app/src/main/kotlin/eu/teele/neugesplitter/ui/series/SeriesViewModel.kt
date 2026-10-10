@@ -95,7 +95,7 @@ class SeriesViewModel(
 ) : ViewModel() {
 
     val state: StateFlow<SeriesState> =
-        combine(repository.group(group), repository.overview(group, today())) { log, overview ->
+        combine(repository.group(group), repository.overview(group, today)) { log, overview ->
                 val listed = overview?.entries.orEmpty()
                 SeriesState(loaded = true, detail = log?.detail(listed))
             }

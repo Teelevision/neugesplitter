@@ -196,7 +196,10 @@ the next start turns into a rebuild before anything is read (TR-18b).
 
 Occurrences and balances depend on the installation's local date (RE-14), so a
 group's row records the date it was projected for, and the projection is brought
-forward when that date has passed.
+forward when that date has passed. That is checked whenever a screen starts
+reading and whenever the app comes back to the foreground. Nothing listens for
+the date changing while the app stays in front; what fell due shows the next
+time either happens.
 
 Secrets are in a second database, `secrets.db`, whose one table `secret` holds
 each group's backend secret key and passphrase sealed with an AES key from the

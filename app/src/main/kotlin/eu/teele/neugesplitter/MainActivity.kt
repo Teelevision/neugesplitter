@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.ui.App
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,6 +39,16 @@ class MainActivity : ComponentActivity() {
             }
             NeugesplitterTheme(dark = dark) { App(graph) }
         }
+    }
+
+    /**
+     * Moves every group to the local date, which may have changed while the app was away, so that
+     * what fell due meanwhile is shown on screens that stayed open (RE-14).
+     */
+    override fun onResume() {
+        super.onResume()
+        val graph = (application as Neugesplitter).graph
+        graph.scope.launch { graph.groups.refresh(graph.today()) }
     }
 
     private companion object {

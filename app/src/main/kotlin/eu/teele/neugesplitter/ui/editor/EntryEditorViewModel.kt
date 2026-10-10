@@ -390,7 +390,13 @@ class EntryEditorViewModel(
             if (editing) Event.EntryDeleted(event(), by, now(), id) else null,
             Event.SeriesCreated(event(), by, now(), series, start, segment),
             if (recurrence.mode == Mode.SUGGESTED && first) {
-                Event.OccurrenceConfirmed(event(), by, now(), series, start)
+                Event.OccurrenceConfirmed(
+                    EventId.occurrence(series, start),
+                    by,
+                    now(),
+                    series,
+                    start,
+                )
             } else null,
         )
     }
@@ -432,11 +438,12 @@ class EntryEditorViewModel(
                 else -> null to series
             }
         val produced = after.occurrences(maxOf(today(), due)).find { it.due == due }
+        val decided = EventId.occurrence(series.id, due)
         val decision =
             when {
                 produced?.entry != written ->
                     Event.OccurrenceAmended(
-                        event(),
+                        decided,
                         by,
                         now(),
                         series.id,
@@ -444,7 +451,7 @@ class EntryEditorViewModel(
                         written.date,
                         template,
                     )
-                produced.pending -> Event.OccurrenceConfirmed(event(), by, now(), series.id, due)
+                produced.pending -> Event.OccurrenceConfirmed(decided, by, now(), series.id, due)
                 else -> null
             }
         return listOfNotNull(change, decision)

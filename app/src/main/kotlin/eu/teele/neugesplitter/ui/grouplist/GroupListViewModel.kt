@@ -31,7 +31,7 @@ class GroupListViewModel(private val repository: GroupRepository, today: () -> E
     private val selected = MutableStateFlow(emptySet<GroupId>())
 
     val state: StateFlow<GroupListState> =
-        combine(repository.list(today()), selected) { groups, selected ->
+        combine(repository.list(today), selected) { groups, selected ->
                 GroupListState(
                     groups,
                     selected.filterTo(mutableSetOf()) { id -> groups.any { it.id == id } },

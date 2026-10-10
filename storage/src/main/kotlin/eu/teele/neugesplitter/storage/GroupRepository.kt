@@ -107,10 +107,10 @@ class GroupRepository(private val driver: SqlDriver) {
 
     /**
      * Every group this installation holds, again whenever a write changes the list. The projection
-     * is brought to [today] first.
+     * is brought to [today] each time collecting starts, which may be days after this was called.
      */
     fun list(
-        today: EntryDate,
+        today: () -> EntryDate,
         context: CoroutineContext = Dispatchers.IO,
     ): Flow<List<ListedGroup>> =
         database.projectionQueries
@@ -157,16 +157,17 @@ class GroupRepository(private val driver: SqlDriver) {
             }
             .asFlow()
             .mapToList(context)
-            .onStart { refresh(today) }
+            .onStart { refresh(today()) }
             .flowOn(context)
 
     /**
      * Group [id] as its overview shows it, again whenever a write changes it, or null once the
-     * installation no longer holds it. The projection is brought to [today] first.
+     * installation no longer holds it. The projection is brought to [today] each time collecting
+     * starts.
      */
     fun overview(
         id: GroupId,
-        today: EntryDate,
+        today: () -> EntryDate,
         context: CoroutineContext = Dispatchers.IO,
     ): Flow<Overview?> {
         val queries = database.projectionQueries
@@ -220,17 +221,18 @@ class GroupRepository(private val driver: SqlDriver) {
                 }
             }
             .distinctUntilChanged()
-            .onStart { refresh(today) }
+            .onStart { refresh(today()) }
             .flowOn(context)
     }
 
     /**
      * How many suggested occurrences of group [id] wait to be confirmed or declined (RE-4, RE-10),
-     * again whenever that changes. The projection is brought to [today] first.
+     * again whenever that changes. The projection is brought to [today] each time collecting
+     * starts.
      */
     fun pending(
         id: GroupId,
-        today: EntryDate,
+        today: () -> EntryDate,
         context: CoroutineContext = Dispatchers.IO,
     ): Flow<Int> =
         database.projectionQueries
@@ -239,7 +241,7 @@ class GroupRepository(private val driver: SqlDriver) {
             .mapToOne(context)
             .map { it.toInt() }
             .distinctUntilChanged()
-            .onStart { refresh(today) }
+            .onStart { refresh(today()) }
             .flowOn(context)
 
     /**

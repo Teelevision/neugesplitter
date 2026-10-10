@@ -164,12 +164,12 @@ class GroupRepositoryTest {
             val log = Log().create("WG").add(ANNA, "Anna").add(BEN, "Ben")
             groups.append(GROUP, log.start(cleaning, "2026-08-20", every3).events(), TODAY)
             // Due on the 20th, 23rd, 26th and 29th.
-            assertEquals(4, groups.pending(GROUP, TODAY).first())
+            assertEquals(4, groups.pending(GROUP, { TODAY }).first())
 
             val decided = log.confirm(cleaning, "2026-08-20").decline(cleaning, "2026-08-23")
             groups.append(GROUP, decided.events().takeLast(2), TODAY)
-            assertEquals(2, groups.pending(GROUP, TODAY).first())
-            assertEquals(0, groups.pending(trip, TODAY).first())
+            assertEquals(2, groups.pending(GROUP, { TODAY }).first())
+            assertEquals(0, groups.pending(trip, { TODAY }).first())
         }
 
     @Test
@@ -341,13 +341,13 @@ class GroupRepositoryTest {
                     sync = null,
                 )
             ),
-            runBlocking { groups.list(TODAY).first() },
+            runBlocking { groups.list({ TODAY }).first() },
         )
 
         groups.actAs(GROUP, BEN)
         groups.actAs(trip, BEN)
 
-        val listed = runBlocking { groups.list(TODAY).first() }
+        val listed = runBlocking { groups.list({ TODAY }).first() }
         assertEquals(group.settlement(TODAY).getValue(BEN), listed.first().own)
         assertEquals(listOf(GROUP, trip), listed.map { it.id })
     }
@@ -356,7 +356,7 @@ class GroupRepositoryTest {
     fun `the group list follows every write (GR-1, GR-11)`() {
         val seen = mutableListOf<List<String>>()
         runBlocking {
-            groups.list(TODAY, Dispatchers.Unconfined).take(3).collect { listed ->
+            groups.list({ TODAY }, Dispatchers.Unconfined).take(3).collect { listed ->
                 seen += listed.map { it.name }
                 when (seen.size) {
                     1 -> groups.create(weekend, TODAY)
@@ -374,7 +374,7 @@ class GroupRepositoryTest {
         val group = Group.replay(household)
         val groceries = group.entries.getValue(entryId(1))
 
-        val overview = assertNotNull(runBlocking { groups.overview(GROUP, TODAY).first() })
+        val overview = assertNotNull(runBlocking { groups.overview(GROUP, { TODAY }).first() })
 
         assertEquals("WG", overview.name)
         assertEquals(Colour.parse("#3366cc"), overview.colour)
@@ -435,7 +435,7 @@ class GroupRepositoryTest {
                 .last()
         val seen = mutableListOf<Overview?>()
         runBlocking {
-            groups.overview(trip, TODAY, Dispatchers.Unconfined).take(3).collect { overview ->
+            groups.overview(trip, { TODAY }, Dispatchers.Unconfined).take(3).collect { overview ->
                 seen += overview
                 when (seen.size) {
                     1 -> groups.append(trip, listOf(paidByTwo), TODAY)
@@ -557,7 +557,7 @@ class GroupRepositoryTest {
         groups.actAs(trip, BEN)
         val listed = mutableListOf<Int>()
         runBlocking {
-            groups.list(TODAY, Dispatchers.Unconfined).take(2).collect { list ->
+            groups.list({ TODAY }, Dispatchers.Unconfined).take(2).collect { list ->
                 listed += list.size
                 if (listed.size == 1) groups.deleteAll()
             }

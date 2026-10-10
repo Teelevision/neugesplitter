@@ -80,11 +80,11 @@ class OverviewViewModel(
 
     val state: StateFlow<OverviewState> =
         combine(
-                repository.overview(group, today()),
+                repository.overview(group, today),
                 deleting,
                 ownWithout,
                 repository.backends.state(group),
-                repository.pending(group, today()),
+                repository.pending(group, today),
             ) { overview, deleting, without, sync, suggestions ->
                 OverviewState(
                     loaded = true,
@@ -125,11 +125,14 @@ class OverviewViewModel(
     private fun write(entry: EntryId) {
         scope.launch {
             val by = repository.actingAs(group) ?: return@launch
-            val id = EventId.parse(identifier())
             val occurrence = repository.load(group)?.occurrence(entry, today())
             val deleted =
-                if (occurrence == null) Event.EntryDeleted(id, by, now(), entry)
-                else Event.OccurrenceDeleted(id, by, now(), occurrence.series, occurrence.due)
+                if (occurrence == null) {
+                    Event.EntryDeleted(EventId.parse(identifier()), by, now(), entry)
+                } else {
+                    val (series, due) = occurrence.series to occurrence.due
+                    Event.OccurrenceDeleted(EventId.occurrence(series, due), by, now(), series, due)
+                }
             repository.append(group, listOf(deleted), today())
         }
     }
