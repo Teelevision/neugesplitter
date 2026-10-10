@@ -347,6 +347,17 @@ are described in [sync-design.md](sync-design.md).
   summing to zero as possible, which is exponential in their number, so above
   sixteen of them the app settles them as one group instead — still never more
   than one transfer fewer than members.
+- **Does anything leave the device except sync?** No, as audited for TR-53
+  before the first release. The release manifest asks for the internet only
+  through `INTERNET`, its other permissions are WorkManager's, and every
+  component it declares is AndroidX's or the app's own. The release dependencies
+  hold no analytics, advertising, crash reporting or Google Play services, and
+  the only network code is OkHttp in `:backend-s3`, which talks to the endpoint
+  the user typed and nothing else (TR-27). Two things travel without the app
+  sending them, and neither is telemetry: Android's cloud backup, which the user
+  controls and which excludes the secrets (TR-37), and the emoji font that
+  EmojiCompat may ask the system's font provider for. A new dependency or
+  permission reopens the question, so the audit is worth repeating then.
 
 ## Open Questions
 
