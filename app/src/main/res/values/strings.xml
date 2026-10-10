@@ -49,6 +49,7 @@
     <string name="member_name">Name</string>
     <string name="add_member">Add member</string>
     <string name="remove_member">Remove %1$s</string>
+    <string name="remove_unnamed_member">Remove member</string>
     <string name="storage_title">Where is the data kept?</string>
     <string name="storage_header">Storage</string>
     <string name="storage_hint">Choose where the new group keeps its data.</string>

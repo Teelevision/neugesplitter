@@ -216,7 +216,11 @@ private fun Members(state: NewGroupState, viewModel: NewGroupViewModel) {
                 IconButton(onClick = { viewModel.removeMember(index) }) {
                     Icon(
                         painterResource(R.drawable.ic_remove),
-                        stringResource(R.string.remove_member, name),
+                        if (name.isBlank()) {
+                            stringResource(R.string.remove_unnamed_member)
+                        } else {
+                            stringResource(R.string.remove_member, name)
+                        },
                     )
                 }
             },

@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Group list -->
     <string name="group_list_empty">Eine Gruppe bleibt lokal oder wird geteilt.</string>
     <string name="new_group">Neue Gruppe</string>
@@ -47,6 +47,7 @@
     <string name="member_name">Name</string>
     <string name="add_member">Mitglied hinzufügen</string>
     <string name="remove_member">%1$s entfernen</string>
+    <string name="remove_unnamed_member">Mitglied entfernen</string>
     <string name="storage_title">Wo werden die Daten gespeichert?</string>
     <string name="storage_header">Speicherort</string>
     <string name="storage_hint">Wähle, wo die neue Gruppe ihre Daten ablegt.</string>
@@ -436,4 +437,6 @@
     <string name="sync_resumed">Synchronisierung läuft wieder</string>
     <string name="sync_resumed_text">Der Speicher passt wieder zu diesem Gerät.</string>
     <string name="done">Fertig</string>
+    <!-- Compose's own German reads "Tabelle schließen". -->
+    <string name="close_sheet" tools:ignore="ExtraTranslation,PrivateResource">Schließen</string>
 </resources>
