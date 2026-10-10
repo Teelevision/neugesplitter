@@ -68,6 +68,25 @@ install-second: ## Install a second debug app beside the first, to sync between 
 screenshots: ## Record the screens in German at three text sizes, into app/build/outputs/roborazzi
 	$(GRADLE) :app:testDebugUnitTest --tests '*.ScreenshotTest' -Pscreenshots --rerun
 
+REPRO := build/reproducible
+APK := app/build/outputs/apk/release/app-release-unsigned.apk
+
+# Two clones at different depths, so an absolute path that leaks into the apk shows up.
+.PHONY: reproducible
+reproducible: ## Build the release apk from two clean clones of HEAD and compare them byte for byte (TR-51)
+	rm -rf $(REPRO) && mkdir -p $(REPRO)/elsewhere
+	git clone -q --no-local . $(REPRO)/one
+	git clone -q --no-local . $(REPRO)/elsewhere/two
+	for d in one elsewhere/two; do \
+		(cd $(REPRO)/$$d && ANDROID_HOME=$${ANDROID_HOME:-$$(sed -n 's/^sdk.dir=//p' $(CURDIR)/local.properties)} \
+			./gradlew -q --no-build-cache $(GRADLE_ARGS) :app:assembleRelease) || exit 1; \
+	done
+	shasum -a 256 $(REPRO)/one/$(APK) $(REPRO)/elsewhere/two/$(APK)
+	@cmp -s $(REPRO)/one/$(APK) $(REPRO)/elsewhere/two/$(APK) || { \
+		unzip -v $(REPRO)/one/$(APK) > $(REPRO)/one.txt; unzip -v $(REPRO)/elsewhere/two/$(APK) > $(REPRO)/two.txt; \
+		diff $(REPRO)/one.txt $(REPRO)/two.txt; echo "The two builds differ."; exit 1; }
+	@echo "The two builds are identical."
+
 .PHONY: report
 report: ## Open the last test report
 	open domain/build/reports/tests/test/index.html

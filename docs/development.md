@@ -99,11 +99,19 @@ milliseconds, with no emulator anywhere near it.
 | OkHttp                         | the HTTP client under `:backend-s3` (TR-27), decisions.md  |
 | OkHttp MockWebServer           | a fake S3 without conditional writes (TR-49)               |
 | Testcontainers + SeaweedFS     | the integration suite TR-48 asks for, `make integration`   |
-| GitHub Actions                 | one workflow: `./gradlew check assembleDebug`              |
+| GitHub Actions                 | `check` and `integrationTest`, and the reproducible build  |
 
 Everything is free and open source, and nothing needs credentials to build
 (TR-31, TR-51). Dependencies stay few enough to read: each new one is a thing
 that can be abandoned, and this app is meant to still build in five years.
+
+The release apk is reproducible (TR-51): `make reproducible` builds it from two
+clean clones of `HEAD` at different paths, without the build cache, and fails
+unless the two are identical byte for byte, and CI does the same on every push.
+The wrapper checks the Gradle download against its published checksum, and the
+apk leaves out the dependency block only Google can read, which F-Droid refuses
+(TR-52). The comparison is of the unsigned apk; a signature is added after it
+and is not part of what has to match.
 
 ### Testing
 

@@ -58,6 +58,11 @@ android {
         resValues = true
     }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
+    // An encrypted block only Google can read; F-Droid refuses apks that carry it (TR-52).
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
     testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
