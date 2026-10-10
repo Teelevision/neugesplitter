@@ -15,12 +15,17 @@ import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.recurrence.Interval
+import eu.teele.neugesplitter.domain.recurrence.Mode
+import eu.teele.neugesplitter.domain.recurrence.Segment
+import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.ui.receive
@@ -95,8 +100,8 @@ class EntryDetailScreenTest {
             beneficiaries = Side.Equal(listOf(anna.id, ben.id, clara.id)),
         )
 
-    private fun show() {
-        val viewModel = EntryDetailViewModel(groups, trip, entryId)
+    private fun show(entry: EntryId = entryId) {
+        val viewModel = EntryDetailViewModel(groups, trip, entry) { today }
         compose.setContent {
             NeugesplitterTheme {
                 EntryDetailScreen(
@@ -182,6 +187,27 @@ class EntryDetailScreenTest {
         compose.onNodeWithContentDescription("More options").performClick()
         compose.onNodeWithText("History").performClick()
         assertEquals(listOf("history"), calls)
+    }
+
+    @Test
+    fun `an occurrence shows how its series repeats and has no history of its own (RE-9)`() {
+        seed()
+        val rent = SeriesId.parse(id(20))
+        val first = EntryDate.parse("2026-10-01")
+        val segment =
+            Segment(Interval.MonthlyOn(setOf(15, 1)), Mode.AUTOMATIC, Template.of(dinner()))
+        groups.append(
+            trip,
+            listOf(Event.SeriesCreated(eventId(), anna.id, at, rent, first, segment)),
+            today,
+        )
+        show(EntryId.occurrence(rent, first))
+        waitForText("Dinner")
+        compose.onNodeWithText("Thursday, October 1, 2026").assertExists()
+        compose.onNodeWithText("Recurring · Every month on the 1st and 15th").assertExists()
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Duplicate").assertExists()
+        compose.onNodeWithText("History").assertDoesNotExist()
     }
 
     @Test

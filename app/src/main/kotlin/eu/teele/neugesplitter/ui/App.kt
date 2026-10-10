@@ -372,6 +372,7 @@ fun App(graph: AppGraph) {
                                 graph.groups,
                                 GroupId.parse(key.group),
                                 EntryId.parse(key.entry),
+                                graph::today,
                             )
                         },
                         onBack = { pop() },

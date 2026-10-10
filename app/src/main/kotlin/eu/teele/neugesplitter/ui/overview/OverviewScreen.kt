@@ -177,9 +177,12 @@ fun OverviewScreen(
                 menu = null
                 onDuplicate(entry.id)
             }
-            SheetAction(R.drawable.ic_history, R.string.history) {
-                menu = null
-                onHistory(entry.id)
+            // An occurrence has no versions of its own to list (HI-3).
+            if (!entry.repeats) {
+                SheetAction(R.drawable.ic_history, R.string.history) {
+                    menu = null
+                    onHistory(entry.id)
+                }
             }
             SheetAction(R.drawable.ic_delete, R.string.delete) {
                 menu = null

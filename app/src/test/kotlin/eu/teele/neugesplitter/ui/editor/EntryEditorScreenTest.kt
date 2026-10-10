@@ -18,6 +18,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
@@ -29,15 +30,21 @@ import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.recurrence.Interval
+import eu.teele.neugesplitter.domain.recurrence.Mode
+import eu.teele.neugesplitter.domain.recurrence.Segment
+import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
+import java.time.DayOfWeek
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -69,6 +76,8 @@ class EntryEditorScreenTest {
     private val clara = Member(MemberId.parse(id(3)), "Clara")
     private val trip = GroupId.parse(id(9))
     private val dinner = EntryId.parse(id(10))
+    private val rent = SeriesId.parse(id(20))
+    private val september = EntryDate.parse("2026-09-01")
 
     private val groups =
         GroupRepository(
@@ -79,13 +88,17 @@ class EntryEditorScreenTest {
 
     private fun cents(value: Long) = Amount.ofUnits(value * 1_000_000L)
 
-    /** Anna's group, with her dinner for all three of them the day before, if [existing]. */
+    /**
+     * Anna's group, with her dinner for all three of them the day before, if [existing], and her
+     * rent on the first of every month since August, if [renting].
+     */
     private fun show(
         existing: Boolean = false,
         entry: EntryId? = null,
         duplicate: Boolean = false,
         settling: Transfer? = null,
         ready: String = "Description",
+        renting: Boolean = false,
     ) {
         groups.create(
             Group.create(trip, "Trip", null, "⛺", null, listOf(anna, ben, clara), at, ::eventId),
@@ -103,6 +116,23 @@ class EntryEditorScreenTest {
                     beneficiaries = Side.Equal(listOf(anna.id, ben.id, clara.id)),
                 )
             groups.append(trip, listOf(Event.EntryCreated(eventId(), anna.id, at, meal)), today)
+        }
+        if (renting) {
+            val template =
+                Template(
+                    Kind.EXPENSE,
+                    "Rent",
+                    cents(90000),
+                    Side.Equal(listOf(anna.id)),
+                    Side.Equal(listOf(anna.id, ben.id, clara.id)),
+                )
+            val monthly = Segment(Interval.MonthlyOn(setOf(1)), Mode.AUTOMATIC, template)
+            val august = EntryDate.parse("2026-08-01")
+            groups.append(
+                trip,
+                listOf(Event.SeriesCreated(eventId(), anna.id, at, rent, august, monthly)),
+                today,
+            )
         }
         val viewModel =
             EntryEditorViewModel(
@@ -165,6 +195,26 @@ class EntryEditorScreenTest {
     }
 
     private fun scheme(label: String) = hasText(label) and isSelected()
+
+    /** Switches Repeats on, which opens the recurrence sheet. */
+    private fun repeat() {
+        compose.onNodeWithContentDescription("Repeats").performScrollTo().performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Monthly").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun confirmRecurrence() {
+        compose.onNodeWithText("OK").performClick()
+        compose.waitUntil(5_000) {
+            shadowOf(Looper.getMainLooper()).idle()
+            compose.onAllNodesWithText("Monthly").fetchSemanticsNodes().isEmpty()
+        }
+    }
+
+    private fun descriptions() = groups.load(trip)!!.occurrences(today).map { it.entry.description }
+
+    private fun rentOn(date: String) = EntryId.occurrence(rent, EntryDate.parse(date))
 
     private fun count(matcher: SemanticsMatcher) =
         compose.onAllNodes(matcher).fetchSemanticsNodes().size
@@ -369,5 +419,104 @@ class EntryEditorScreenTest {
         for (label in listOf("Gleich", "Anteile", "Angepasst", "Exakt")) {
             compose.onNodeWithText(label).assertExists()
         }
+    }
+
+    @Test
+    fun `a new recurring entry is a series whose first occurrence it is (RE-1, RE-2)`() {
+        show()
+        enterAmount("900")
+        compose.onNodeWithText("Description").performTextInput("Rent")
+        repeat()
+        compose.onNodeWithText("Every month on the 7th").assertExists()
+        compose.onNodeWithText("Weekly").performClick()
+        compose.onNodeWithText("Every week on Wednesday").assertExists()
+        compose.onNodeWithText("Fri").performClick()
+        confirmRecurrence()
+        compose.onNodeWithText("Every week on Wednesday and Friday").assertExists()
+        save()
+        val group = groups.load(trip)!!
+        assertEquals(emptyMap(), group.entries)
+        val segment = group.series.values.single().segment(today)!!
+        assertEquals(
+            Interval.WeeklyOn(setOf(DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY)),
+            segment.interval,
+        )
+        assertEquals(Mode.AUTOMATIC, segment.mode)
+        val first = group.occurrences(today).single()
+        assertEquals(today, first.due)
+        assertEquals("Rent", first.entry.description)
+        assertEquals(cents(90000), first.entry.amount)
+    }
+
+    @Test
+    fun `a new suggested series counts its first occurrence, the one entered, at once (RE-3)`() {
+        show()
+        enterAmount("40")
+        compose.onNodeWithText("Description").performTextInput("Cleaning")
+        repeat()
+        compose.onNodeWithText("Suggested").performClick()
+        compose.onNodeWithText("Each one waits for someone to confirm it.").assertExists()
+        confirmRecurrence()
+        compose.onNodeWithText("Every month on the 7th · Suggested").assertExists()
+        save()
+        val group = groups.load(trip)!!
+        assertEquals(Mode.SUGGESTED, group.series.values.single().segment(today)!!.mode)
+        assertEquals(listOf(false), group.occurrences(today).map { it.pending })
+    }
+
+    @Test
+    fun `an entry switched to repeating becomes the first occurrence of a series (RE-1)`() {
+        show(existing = true, entry = dinner)
+        repeat()
+        compose.onNodeWithText("Every month on the 6th").assertExists()
+        confirmRecurrence()
+        save()
+        val group = groups.load(trip)!!
+        assertEquals(emptyMap(), group.entries)
+        assertTrue(dinner in group.deleted)
+        val first = group.occurrences(today).single()
+        assertEquals(yesterday, first.due)
+        assertEquals("Dinner", first.entry.description)
+    }
+
+    @Test
+    fun `a change to an occurrence asks, and only this one amends it alone (RE-6, RE-15)`() {
+        show(renting = true, entry = rentOn("2026-09-01"))
+        compose.onNodeWithText("Every month on the 1st").assertExists()
+        compose.onNodeWithText("Description").performTextReplacement("Rent, late")
+        compose.onNodeWithText("Save").performClick()
+        compose.onNodeWithText("Change recurring entry").assertExists()
+        compose.onNodeWithText("OK").performClick()
+        compose.waitUntil(5_000) {
+            shadowOf(Looper.getMainLooper()).idle()
+            closed > 0
+        }
+        assertEquals(listOf("Rent", "Rent, late", "Rent"), descriptions())
+    }
+
+    @Test
+    fun `a change to an occurrence can go for the rest of its series too (RE-6)`() {
+        show(renting = true, entry = rentOn("2026-09-01"))
+        compose.onNodeWithText("Description").performTextReplacement("Rent, raised")
+        compose.onNodeWithText("Save").performClick()
+        compose.onNodeWithText("This one and the following").performClick()
+        compose.onNodeWithText("OK").performClick()
+        compose.waitUntil(5_000) {
+            shadowOf(Looper.getMainLooper()).idle()
+            closed > 0
+        }
+        assertEquals(listOf("Rent", "Rent, raised", "Rent, raised"), descriptions())
+        val series = groups.load(trip)!!.series.getValue(rent)
+        assertEquals("Rent, raised", series.segment(september)!!.template.description)
+    }
+
+    @Test
+    fun `an occurrence switched off ends its series after it, without asking (RE-7)`() {
+        show(renting = true, entry = rentOn("2026-09-01"))
+        compose.onNodeWithContentDescription("Repeats").performScrollTo().performClick()
+        compose.onNodeWithText("The series ends after this one").assertExists()
+        save()
+        val dues = groups.load(trip)!!.occurrences(today).map { it.due.toString() }
+        assertEquals(listOf("2026-08-01", "2026-09-01"), dues)
     }
 }

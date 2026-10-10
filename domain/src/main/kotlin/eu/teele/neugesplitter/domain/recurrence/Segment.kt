@@ -26,6 +26,14 @@ data class Template(
 ) {
     fun on(id: EntryId, date: EntryDate): Entry =
         Entry(id, kind, description, date, amount, payers, beneficiaries, note, attachments)
+
+    companion object {
+        /** [entry] without its id and date. */
+        fun of(entry: Entry): Template =
+            with(entry) {
+                Template(kind, description, amount, payers, beneficiaries, note, attachments)
+            }
+    }
 }
 
 /** What a series does from a date onward (format-spec 4.2, event-model 6). */

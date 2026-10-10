@@ -92,6 +92,30 @@
     <string name="problem_side">Wähle jemanden unter „%1$s“</string>
     <string name="save_failed">Der Eintrag konnte nicht gespeichert werden.</string>
     <string name="created_by">Erstellt von %1$s</string>
+    <string name="repeats">Wiederholen</string>
+    <string name="repeats_ends_here">Die Serie endet nach diesem Eintrag</string>
+    <string name="following_title">Wiederkehrenden Eintrag ändern</string>
+    <string name="following_only">Nur diesen</string>
+    <string name="following_too">Diesen und alle folgenden</string>
+
+    <!-- Recurrence editor -->
+    <string name="recurrence_start">Beginnt</string>
+    <string name="pattern_days">Tage</string>
+    <string name="pattern_weekly">Wöchentlich</string>
+    <string name="pattern_monthly">Monatlich</string>
+    <plurals name="recurrence_days">
+        <item quantity="one">Jeden Tag</item>
+        <item quantity="other">Alle %d Tage</item>
+    </plurals>
+    <string name="recurrence_weekly">Jede Woche am %1$s</string>
+    <string name="recurrence_monthly">Jeden Monat am %1$s</string>
+    <string name="recurrence_fewer_days">Weniger Tage</string>
+    <string name="recurrence_more_days">Mehr Tage</string>
+    <string name="recurrence_month_end">In kürzeren Monaten am letzten Tag.</string>
+    <string name="mode_automatic">Automatisch</string>
+    <string name="mode_suggested">Vorgeschlagen</string>
+    <string name="mode_automatic_hint">Jeder Termin wird an seinem Datum eingetragen.</string>
+    <string name="mode_suggested_hint">Jeder Termin wartet, bis jemand ihn bestätigt.</string>
 
     <!-- Entry history -->
     <string name="history">Verlauf</string>

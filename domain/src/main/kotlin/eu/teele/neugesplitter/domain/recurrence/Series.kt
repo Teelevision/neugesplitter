@@ -47,6 +47,11 @@ data class Series(
 
     fun restored(): Series = copy(deleted = false)
 
+    /** What this series does on [date]: null before it starts and where it is ended (RE-7). */
+    fun segment(on: EntryDate): Segment? =
+        // A stable sort, as in dues: of two segments from the same date the later in the log wins.
+        segments.sortedBy { it.first }.lastOrNull { it.first <= on }?.second
+
     /**
      * Every occurrence due on or before [today], the installation's local date (RE-14), in order of
      * due date. An amended one stands even where nothing is due any more (format-spec 4.2).

@@ -144,7 +144,8 @@ and a sign, not colour alone (UX-6).
 Interactions:
 
 - **Tap** opens entry detail.
-- **Long press** opens a context sheet: edit, duplicate, delete, history.
+- **Long press** opens a context sheet: edit, duplicate, delete, history (but
+  not for an occurrence, which has no versions of its own).
 - **Swipe left** deletes, with an undo snackbar. The deletion event is not
   written until the snackbar goes, so undo leaves no trace in the history
   (HI-1).
@@ -250,6 +251,14 @@ or meaningless (AM-6).
 A transfer relabels the two sides as "from" and "to" and hides the split schemes
 unless more than one member is selected (EN-7).
 
+With Repeats on, the entry is the first occurrence of a new series starting on
+its date; a suggested one is confirmed at once, since someone just entered it
+(RE-1, RE-3). Switching it on for an existing entry turns that entry into the
+series' first occurrence. Editing an occurrence asks on save whether the change
+is for **only this one** or **this one and the following** (RE-6); a change to
+the rule itself always goes for the following. Switching Repeats off on an
+occurrence ends the series after it (RE-7).
+
 ### Amount calculator
 
 A full-width sheet that replaces the keyboard: digits, decimal separator, `+`,
@@ -271,11 +280,13 @@ others leave of the total.
 
 ### Recurrence editor
 
-A sheet: start date, then the pattern as one of **every _x_ days**, **weekdays**
-(multi-select), **days of the month** (multi-select) (RE-2), then **automatic**
-or **suggested** (RE-3). A sentence at the bottom reads the rule back in plain
-language — "every month on the 1st and the 15th". Times of day appear nowhere
-(RE-14).
+A sheet: start date (for a new series only; an occurrence's due date is fixed),
+then the pattern as one of **every _x_ days**, **weekdays** (multi-select),
+**days of the month** (multi-select) (RE-2), then **automatic** or **suggested**
+(RE-3). A sentence at the bottom reads the rule back in plain language — "every
+month on the 1st and 15th" — and the same sentence stands under the Repeats
+switch once the sheet is closed. Days after the 28th note that shorter months
+use their last day. Times of day appear nowhere (RE-14).
 
 ### Entry detail
 
@@ -283,8 +294,9 @@ What the entry is, who paid, who benefited, and the per-member amounts as
 derived, plus who created it and whether it has been edited (HI-4). Actions:
 edit, duplicate, delete, and **history**, which lists previous versions and the
 deletion if there is one (HI-3). Opening this screen clears the entry's unseen
-highlight (HI-6). An entry from a series shows which series and links to it
-(RE-9); deleting it deletes only that occurrence (RE-15).
+highlight (HI-6). An entry from a series says how the series repeats and links
+to it (RE-9); it has no history of its own, and deleting it deletes only that
+occurrence (RE-15).
 
 ## 6. Backend setup
 

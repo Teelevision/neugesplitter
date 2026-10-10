@@ -11,13 +11,17 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -29,10 +33,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -52,6 +58,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -61,6 +70,7 @@ import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Scheme
 import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.MemberId
@@ -89,6 +99,7 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
     var splitting by rememberSaveable { mutableStateOf<Party?>(null) }
     // The scheme the sheet opens with; the side keeps its own until OK.
     var splitScheme by rememberSaveable { mutableStateOf(Scheme.EQUAL) }
+    var recurring by rememberSaveable { mutableStateOf(false) }
     var asked by rememberSaveable { mutableStateOf(false) }
     var describe by remember { mutableStateOf(false) }
     val label = { party: Party -> if (party == Party.PAYERS) payersLabel else beneficiariesLabel }
@@ -189,7 +200,7 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
                     )
-                    Button(onClick = viewModel::save, enabled = state.canSave) {
+                    Button(onClick = { viewModel.save() }, enabled = state.canSave) {
                         Text(stringResource(R.string.save))
                     }
                 }
@@ -258,7 +269,31 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                     )
                 }
             }
+            Repeats(
+                state,
+                locale,
+                onSwitch = { on -> if (on) recurring = true else viewModel.recurrence(null) },
+                onOpen = { recurring = true },
+            )
         }
+    }
+
+    if (recurring) {
+        RecurrenceSheet(
+            date = state.date,
+            choosesStart = !state.occurrence,
+            initial = state.recurrence ?: state.was ?: Recurrence.on(state.date),
+            locale = locale,
+            onStart = viewModel::date,
+            onDone = {
+                viewModel.recurrence(it)
+                recurring = false
+            },
+            onDismiss = { recurring = false },
+        )
+    }
+    if (state.asking) {
+        Following(onAnswer = { viewModel.save(following = it) }, onDismiss = viewModel::dismiss)
     }
 
     if (picking) {
@@ -318,7 +353,7 @@ private fun Kinds(selected: Kind, onSelect: (Kind) -> Unit) =
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun <T> Segments(
+internal fun <T> Segments(
     options: List<T>,
     selected: T,
     label: (T) -> Int,
@@ -348,6 +383,94 @@ private fun <T> Segments(
             }
         }
     }
+}
+
+/**
+ * Whether the entry repeats and how. Switching it on opens the recurrence sheet, and so does a tap
+ * on the rule (RE-1). An occurrence switched off says that its series ends after it (RE-7).
+ */
+@Composable
+private fun Repeats(
+    state: EntryEditorState,
+    locale: Locale,
+    onSwitch: (Boolean) -> Unit,
+    onOpen: () -> Unit,
+) {
+    val recurrence = state.recurrence
+    val label = stringResource(R.string.repeats)
+    Row(
+        modifier =
+            Modifier.fillMaxWidth().clickable(enabled = recurrence != null, onClick = onOpen),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f).padding(end = 16.dp)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val rule =
+                when {
+                    recurrence != null ->
+                        listOfNotNull(
+                                recurrenceText(recurrence.interval, locale),
+                                stringResource(modeLabel(Mode.SUGGESTED)).takeIf {
+                                    recurrence.mode == Mode.SUGGESTED
+                                },
+                            )
+                            .joinToString(" · ")
+                    state.was != null -> stringResource(R.string.repeats_ends_here)
+                    else -> null
+                }
+            rule?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+        }
+        Switch(
+            checked = recurrence != null,
+            onCheckedChange = onSwitch,
+            modifier = Modifier.semantics { contentDescription = label },
+        )
+    }
+}
+
+/** Whether a change to an occurrence goes for the rest of its series too (RE-6). */
+@Composable
+private fun Following(onAnswer: (Boolean) -> Unit, onDismiss: () -> Unit) {
+    var following by rememberSaveable { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.following_title)) },
+        text = {
+            Column(Modifier.selectableGroup()) {
+                for (option in listOf(false, true)) {
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .selectable(
+                                    selected = following == option,
+                                    onClick = { following = option },
+                                    role = Role.RadioButton,
+                                ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = following == option, onClick = null)
+                        Text(
+                            stringResource(
+                                if (option) R.string.following_too else R.string.following_only
+                            ),
+                            modifier = Modifier.padding(start = 16.dp),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onAnswer(following) }) { Text(stringResource(R.string.ok)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
 }
 
 @Composable
@@ -434,7 +557,7 @@ private fun splitProblem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DatePick(date: EntryDate, onPicked: (EntryDate) -> Unit, onDismiss: () -> Unit) {
+internal fun DatePick(date: EntryDate, onPicked: (EntryDate) -> Unit, onDismiss: () -> Unit) {
     val picker =
         rememberDatePickerState(
             initialSelectedDateMillis =

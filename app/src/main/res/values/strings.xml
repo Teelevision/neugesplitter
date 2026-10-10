@@ -94,6 +94,30 @@
     <string name="problem_side">Choose someone under “%1$s”</string>
     <string name="save_failed">The entry could not be saved.</string>
     <string name="created_by">Created by %1$s</string>
+    <string name="repeats">Repeats</string>
+    <string name="repeats_ends_here">The series ends after this one</string>
+    <string name="following_title">Change recurring entry</string>
+    <string name="following_only">Only this one</string>
+    <string name="following_too">This one and the following</string>
+
+    <!-- Recurrence editor -->
+    <string name="recurrence_start">Starts</string>
+    <string name="pattern_days">Days</string>
+    <string name="pattern_weekly">Weekly</string>
+    <string name="pattern_monthly">Monthly</string>
+    <plurals name="recurrence_days">
+        <item quantity="one">Every day</item>
+        <item quantity="other">Every %d days</item>
+    </plurals>
+    <string name="recurrence_weekly">Every week on %1$s</string>
+    <string name="recurrence_monthly">Every month on the %1$s</string>
+    <string name="recurrence_fewer_days">Fewer days</string>
+    <string name="recurrence_more_days">More days</string>
+    <string name="recurrence_month_end">In shorter months, on the last day.</string>
+    <string name="mode_automatic">Automatic</string>
+    <string name="mode_suggested">Suggested</string>
+    <string name="mode_automatic_hint">Each one is added on its date.</string>
+    <string name="mode_suggested_hint">Each one waits for someone to confirm it.</string>
 
     <!-- Entry history -->
     <string name="history">History</string>

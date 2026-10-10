@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.ui.editor.recurrenceText
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.kindIcon
 import eu.teele.neugesplitter.ui.kindLabel
@@ -104,13 +105,16 @@ fun EntryDetailScreen(
                                     onDuplicate()
                                 },
                             )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.history)) },
-                                onClick = {
-                                    menu = false
-                                    onHistory()
-                                },
-                            )
+                            // An occurrence has no versions of its own to list (HI-3).
+                            if (!detail.occurrence) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.history)) },
+                                    onClick = {
+                                        menu = false
+                                        onHistory()
+                                    },
+                                )
+                            }
                         }
                     }
                 },
@@ -163,15 +167,39 @@ private fun Content(detail: Detail, modifier: Modifier = Modifier) {
         Parts(stringResource(payersLabel), detail.payers, detail.scale, locale)
         Parts(stringResource(beneficiariesLabel), detail.beneficiaries, detail.scale, locale)
         HorizontalDivider()
-        Text(
+        if (detail.occurrence) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painterResource(R.drawable.ic_repeat),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    listOfNotNull(
+                            stringResource(R.string.entry_repeats),
+                            detail.recurrence?.let { recurrenceText(it.interval, locale) },
+                        )
+                        .joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+        }
+        val made =
             listOfNotNull(
                     detail.author?.let { stringResource(R.string.created_by, it) },
                     stringResource(R.string.entry_edited).takeIf { detail.edited },
                 )
-                .joinToString(" · "),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+                .joinToString(" · ")
+        if (made.isNotEmpty()) {
+            Text(
+                made,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

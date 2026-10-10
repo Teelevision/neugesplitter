@@ -145,6 +145,18 @@ data class Group(
     fun occurrences(today: EntryDate): List<Occurrence> =
         series.values.flatMap { it.occurrences(today) }
 
+    /** The occurrence shown as [entry] by [today], if [entry] is one (format-spec 6). */
+    fun occurrence(entry: EntryId, today: EntryDate): Occurrence? =
+        occurrences(today).find { it.entry.id == entry }
+
+    /**
+     * This group as it would be with [entry] deleted: an occurrence goes, its series stays (RE-15).
+     */
+    fun without(entry: EntryId, today: EntryDate): Group {
+        val occurrence = occurrence(entry, today) ?: return copy(entries = entries - entry)
+        return revised(occurrence.series) { it.decided(occurrence.due, Decision.Deleted) }
+    }
+
     /** Every member's exact balance in 10⁻⁸ units, zero included (format-spec 7.1). */
     fun balances(today: EntryDate): Map<MemberId, Amount> {
         val totals = members.keys.associateWithTo(mutableMapOf()) { Amount.ZERO }

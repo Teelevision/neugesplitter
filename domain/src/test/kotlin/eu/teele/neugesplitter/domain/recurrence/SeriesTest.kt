@@ -144,6 +144,40 @@ class SeriesTest {
     }
 
     @Test
+    fun `the segment in force on a date is the latest from on or before it (RE-6, RE-7)`() {
+        val series =
+            threePeople()
+                .start(RENT, "2026-05-01", monthly(900))
+                .end(RENT, "2026-06-15")
+                .amend(RENT, "2026-08-01", monthly(1200))
+                .amend(RENT, "2026-08-01", monthly(1300))
+                .replay()
+                .series
+                .getValue(RENT)
+        assertEquals(null, series.segment(date("2026-04-30")))
+        assertEquals(monthly(900), series.segment(date("2026-06-14")))
+        assertEquals(null, series.segment(date("2026-07-31")))
+        assertEquals(monthly(1300), series.segment(TODAY))
+    }
+
+    @Test
+    fun `an occurrence is found by the id it has in the entry list (format-spec 6)`() {
+        val group = threePeople().start(RENT, "2026-07-01", monthly(900)).replay()
+        val id = EntryId.occurrence(RENT, date("2026-08-01"))
+        assertEquals(date("2026-08-01"), group.occurrence(id, TODAY)?.due)
+        assertEquals(null, group.occurrence(id, date("2026-07-31")))
+        assertEquals(rent(900), Template.of(group.occurrence(id, TODAY)!!.entry))
+    }
+
+    @Test
+    fun `a group without an occurrence still has the rest of its series (RE-15)`() {
+        val group = threePeople().start(RENT, "2026-07-01", monthly(900)).replay()
+        val without = group.without(EntryId.occurrence(RENT, date("2026-08-01")), TODAY)
+        assertEquals(listOf(date("2026-07-01")), without.occurrences(TODAY).map { it.due })
+        assertEquals(600, without.balances(TODAY).getValue(ANNA).units / euro)
+    }
+
+    @Test
     fun `deleting a series removes everything it produced, and amending it puts it back (RE-7)`() {
         val log = threePeople().start(RENT, "2026-06-01", monthly(900)).delete(RENT)
         assertEquals(emptyList(), log.dues())

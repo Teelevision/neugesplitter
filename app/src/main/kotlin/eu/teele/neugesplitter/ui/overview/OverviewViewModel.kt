@@ -71,11 +71,7 @@ class OverviewViewModel(
                     .map { log ->
                         val me = repository.actingAs(group)
                         entry to
-                            me?.let {
-                                log?.copy(entries = log.entries - entry)
-                                    ?.settlement(today())
-                                    ?.get(it)
-                            }
+                            me?.let { log?.without(entry, today())?.settlement(today())?.get(it) }
                     }
                     .flowOn(Dispatchers.IO)
         }
@@ -121,10 +117,15 @@ class OverviewViewModel(
         undoGone()
     }
 
+    /** Deletes [entry]; an occurrence goes alone and its series runs on (RE-15). */
     private fun write(entry: EntryId) {
         scope.launch {
             val by = repository.actingAs(group) ?: return@launch
-            val deleted = Event.EntryDeleted(EventId.parse(identifier()), by, now(), entry)
+            val id = EventId.parse(identifier())
+            val occurrence = repository.load(group)?.occurrence(entry, today())
+            val deleted =
+                if (occurrence == null) Event.EntryDeleted(id, by, now(), entry)
+                else Event.OccurrenceDeleted(id, by, now(), occurrence.series, occurrence.due)
             repository.append(group, listOf(deleted), today())
         }
     }

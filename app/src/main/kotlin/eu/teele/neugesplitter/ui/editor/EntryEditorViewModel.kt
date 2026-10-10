@@ -11,6 +11,11 @@ import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.recurrence.Mode
+import eu.teele.neugesplitter.domain.recurrence.Occurrence
+import eu.teele.neugesplitter.domain.recurrence.Segment
+import eu.teele.neugesplitter.domain.recurrence.Series
+import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
@@ -18,6 +23,7 @@ import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.ui.split.Mismatch
 import eu.teele.neugesplitter.ui.split.Split
@@ -54,6 +60,11 @@ enum class Party {
  * @property source the entry being edited or duplicated. A side that comes out the same as there
  *   stays as it was saved.
  * @property blank a new entry with nothing prefilled.
+ * @property recurrence how the entry repeats, if it does (RE-1).
+ * @property occurrence whether the entry being edited came from a series (RE-15).
+ * @property was how that series repeated on the occurrence's due date.
+ * @property asking whether to ask if a change to an occurrence goes for the rest of the series too
+ *   (RE-6).
  * @property done once the editor should close.
  */
 data class EntryEditorState(
@@ -71,6 +82,10 @@ data class EntryEditorState(
     val beneficiaries: Set<MemberId> = emptySet(),
     val payerSplit: Split = Split(),
     val beneficiarySplit: Split = Split(),
+    val recurrence: Recurrence? = null,
+    val occurrence: Boolean = false,
+    val was: Recurrence? = null,
+    val asking: Boolean = false,
     val saving: Boolean = false,
     val failed: Boolean = false,
     val done: Boolean = false,
@@ -139,6 +154,10 @@ data class EntryEditorState(
  * Writes a new entry, or a change to [entry] — or, with [duplicate], a new entry starting out as a
  * copy of it, dated today (EN-1 to EN-9). A new entry starts out as [settling], described as
  * [settlement], when one is given (BA-6).
+ *
+ * A recurring entry is a series whose first occurrence is the entry itself (RE-1). An [entry] that
+ * came from a series is changed as that occurrence, and the series with it from there on if the
+ * user says so (RE-6, RE-15).
  */
 class EntryEditorViewModel(
     private val repository: GroupRepository,
@@ -159,6 +178,8 @@ class EntryEditorViewModel(
     private val id: EntryId = entry?.takeUnless { duplicate } ?: EntryId.parse(identifier())
     private var defaults: Set<MemberId> = emptySet()
     private var beneficiariesChosen = entry != null || settling != null
+    private var occurrence: Occurrence? = null
+    private var series: Series? = null
 
     init {
         viewModelScope.launch {
@@ -168,7 +189,16 @@ class EntryEditorViewModel(
                 mutable.update { it.copy(done = true) }
                 return@launch
             }
-            val source = entry?.let { loaded.entries[it] ?: loaded.deleted[it] }
+            val occurrence = entry?.let { loaded.occurrence(it, today()) }
+            val source =
+                entry?.let { loaded.entries[it] ?: loaded.deleted[it] ?: occurrence?.entry }
+            val series = occurrence?.takeUnless { duplicate }?.let { loaded.series[it.series] }
+            this@EntryEditorViewModel.occurrence = occurrence?.takeIf { series != null }
+            this@EntryEditorViewModel.series = series
+            val was =
+                occurrence
+                    ?.let { series?.segment(it.due) }
+                    ?.let { Recurrence(it.interval, it.mode) }
             val involved =
                 source?.let { it.payers.members + it.beneficiaries.members }.orEmpty() +
                     listOfNotNull(settling?.from, settling?.to)
@@ -208,6 +238,9 @@ class EntryEditorViewModel(
                         beneficiaries = source.beneficiaries.members.toSet(),
                         payerSplit = Split.of(source.payers, loaded.scale, separator),
                         beneficiarySplit = Split.of(source.beneficiaries, loaded.scale, separator),
+                        recurrence = was,
+                        occurrence = series != null,
+                        was = was,
                     )
             }
         }
@@ -254,7 +287,17 @@ class EntryEditorViewModel(
             else it.copy(beneficiarySplit = change(it.beneficiarySplit))
         }
 
-    fun save() {
+    /** Makes the entry repeat as [recurrence], or stop repeating with null (RE-1). */
+    fun recurrence(recurrence: Recurrence?) = mutable.update { it.copy(recurrence = recurrence) }
+
+    /** Leaves the question of [EntryEditorState.asking] unanswered, and the entry unsaved. */
+    fun dismiss() = mutable.update { it.copy(asking = false) }
+
+    /**
+     * Saves the entry. A change to an occurrence that could go for the rest of the series as well
+     * asks first; [following] is the answer (RE-6).
+     */
+    fun save(following: Boolean? = null) {
         val state = mutable.value
         if (!state.canSave) return
         val written =
@@ -269,26 +312,35 @@ class EntryEditorViewModel(
                 note = state.source?.note,
                 attachments = state.source?.attachments,
             )
-        val source = state.source
-        val changes =
-            if (state.editing && source != null) EntryChanges.between(source, written) else null
-        if (changes?.isEmpty == true) {
-            mutable.update { it.copy(done = true) }
+        val occurrence = occurrence
+        val recurrence = state.recurrence
+        if (
+            occurrence != null &&
+                following == null &&
+                recurrence != null &&
+                recurrence == state.was &&
+                written != occurrence.entry
+        ) {
+            mutable.update { it.copy(asking = true) }
             return
         }
-        mutable.update { it.copy(saving = true, failed = false) }
+        val events: (MemberId) -> List<Event> =
+            when {
+                occurrence != null -> { by ->
+                        changed(occurrence, written, recurrence, state.was, following == true, by)
+                    }
+                recurrence != null -> { by -> started(written, recurrence, state.editing, by) }
+                else -> { by -> listOfNotNull(entry(written, state, by)) }
+            }
+        mutable.update { it.copy(asking = false, saving = true, failed = false) }
         viewModelScope.launch {
             val stored =
                 withContext(Dispatchers.IO) {
                     val by = repository.actingAs(group) ?: return@withContext false
-                    val event =
-                        if (changes != null) {
-                            Event.EntryUpdated(EventId.parse(identifier()), by, now(), id, changes)
-                        } else {
-                            Event.EntryCreated(EventId.parse(identifier()), by, now(), written)
-                        }
                     try {
-                        repository.append(group, listOf(event), today())
+                        events(by)
+                            .takeIf { it.isNotEmpty() }
+                            ?.let { repository.append(group, it, today()) }
                         true
                     } catch (_: Malformed) {
                         // A description past the limits every reader holds to (format-spec 2.2).
@@ -298,6 +350,91 @@ class EntryEditorViewModel(
             mutable.update { it.copy(saving = false, failed = !stored, done = stored) }
         }
     }
+
+    /** A plain entry, created or changed; null if nothing changed. */
+    private fun entry(written: Entry, state: EntryEditorState, by: MemberId): Event? {
+        val source = state.source
+        if (!state.editing || source == null) return Event.EntryCreated(event(), by, now(), written)
+        val changes = EntryChanges.between(source, written)
+        return if (changes.isEmpty) null else Event.EntryUpdated(event(), by, now(), id, changes)
+    }
+
+    /**
+     * A new series, whose first occurrence is [written]: confirmed right away if the series only
+     * suggests, since it is being entered now. An entry [editing] makes way for it.
+     */
+    private fun started(
+        written: Entry,
+        recurrence: Recurrence,
+        editing: Boolean,
+        by: MemberId,
+    ): List<Event> {
+        val series = SeriesId.parse(identifier())
+        val start = written.date
+        val segment = Segment(recurrence.interval, recurrence.mode, Template.of(written))
+        val first = recurrence.interval.dates(start.value, start.value).any()
+        return listOfNotNull(
+            if (editing) Event.EntryDeleted(event(), by, now(), id) else null,
+            Event.SeriesCreated(event(), by, now(), series, start, segment),
+            if (recurrence.mode == Mode.SUGGESTED && first) {
+                Event.OccurrenceConfirmed(event(), by, now(), series, start)
+            } else null,
+        )
+    }
+
+    /**
+     * [occurrence] as [written], and its series as [recurrence] from there on — [following] the
+     * occurrence when it repeats as it [was], ending after it when it no longer repeats (RE-6,
+     * RE-7). The occurrence is amended only where the series does not already produce it as
+     * written.
+     */
+    private fun changed(
+        occurrence: Occurrence,
+        written: Entry,
+        recurrence: Recurrence?,
+        was: Recurrence?,
+        following: Boolean,
+        by: MemberId,
+    ): List<Event> {
+        val series = checkNotNull(series)
+        val due = occurrence.due
+        val template = Template.of(written)
+        val (change, after) =
+            when {
+                recurrence == null ->
+                    if (was == null) null to series
+                    else {
+                        val next = EntryDate.of(due.value.plusDays(1))
+                        Event.SeriesEnded(event(), by, now(), series.id, next) to
+                            series.from(next, null)
+                    }
+                recurrence != was || following -> {
+                    val segment = Segment(recurrence.interval, recurrence.mode, template)
+                    Event.SeriesAmended(event(), by, now(), series.id, due, segment) to
+                        series.from(due, segment).restored()
+                }
+                else -> null to series
+            }
+        val produced = after.occurrences(maxOf(today(), due)).find { it.due == due }
+        val decision =
+            when {
+                produced?.entry != written ->
+                    Event.OccurrenceAmended(
+                        event(),
+                        by,
+                        now(),
+                        series.id,
+                        due,
+                        written.date,
+                        template,
+                    )
+                produced.pending -> Event.OccurrenceConfirmed(event(), by, now(), series.id, due)
+                else -> null
+            }
+        return listOfNotNull(change, decision)
+    }
+
+    private fun event() = EventId.parse(identifier())
 
     private fun Set<MemberId>.toggled(member: MemberId) =
         if (member in this) this - member else this + member

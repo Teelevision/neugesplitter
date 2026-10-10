@@ -17,12 +17,17 @@ import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.recurrence.Interval
+import eu.teele.neugesplitter.domain.recurrence.Mode
+import eu.teele.neugesplitter.domain.recurrence.Segment
+import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.storage.settings.BackendSettings
@@ -340,6 +345,29 @@ class OverviewScreenTest {
         compose.waitUntil(5_000) { dinner !in stored() }
         assertEquals(setOf(taxi), stored())
         assertTrue(dinner in groups.load(trip)!!.deleted)
+    }
+
+    @Test
+    fun `an occurrence is deleted alone, its series runs on, and it has no history (RE-15, HI-3)`() {
+        val rent = SeriesId.parse(id(20))
+        show {
+            val template = Template.of(entry(dinner, "Rent", today, cents(1000), anna))
+            val monthly = Segment(Interval.MonthlyOn(setOf(7)), Mode.AUTOMATIC, template)
+            groups.append(
+                trip,
+                listOf(Event.SeriesCreated(eventId(), anna.id, at, rent, today, monthly)),
+                today,
+            )
+        }
+        openMenu("Rent")
+        compose.onNodeWithText("History").assertDoesNotExist()
+        compose.onNodeWithText("Delete").performClick()
+        compose.mainClock.advanceTimeBy(11_000)
+        compose.waitUntil(5_000) { groups.load(trip)!!.occurrences(today).isEmpty() }
+        val series = groups.load(trip)!!.series.getValue(rent)
+        assertEquals(false, series.deleted)
+        assertEquals(1, series.occurrences(EntryDate.parse("2026-11-07")).size)
+        assertEquals(setOf(dinner, taxi), stored())
     }
 
     @Test
