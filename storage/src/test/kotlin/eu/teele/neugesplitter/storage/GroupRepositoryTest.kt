@@ -158,6 +158,21 @@ class GroupRepositoryTest {
     private fun projection(): Map<String, List<String>> = Projection.TABLES.associateWith(::dump)
 
     @Test
+    fun `suggestions are counted until each is confirmed or declined (RE-4, RE-5, RE-10)`(): Unit =
+        runBlocking {
+            val every3 = segment(Interval.EveryDays(3), rent(20), Mode.SUGGESTED)
+            val log = Log().create("WG").add(ANNA, "Anna").add(BEN, "Ben")
+            groups.append(GROUP, log.start(cleaning, "2026-08-20", every3).events(), TODAY)
+            // Due on the 20th, 23rd, 26th and 29th.
+            assertEquals(4, groups.pending(GROUP, TODAY).first())
+
+            val decided = log.confirm(cleaning, "2026-08-20").decline(cleaning, "2026-08-23")
+            groups.append(GROUP, decided.events().takeLast(2), TODAY)
+            assertEquals(2, groups.pending(GROUP, TODAY).first())
+            assertEquals(0, groups.pending(trip, TODAY).first())
+        }
+
+    @Test
     fun `an appended event is kept as the text it was written as (TR-17b)`() {
         appendedOneByOne(GROUP, household)
         groups.append(trip, weekend, TODAY)

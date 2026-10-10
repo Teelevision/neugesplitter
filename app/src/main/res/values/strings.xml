@@ -118,6 +118,16 @@
     <string name="mode_suggested">Suggested</string>
     <string name="mode_automatic_hint">Each one is added on its date.</string>
     <string name="mode_suggested_hint">Each one waits for someone to confirm it.</string>
+    <string name="suggestions">Suggestions</string>
+    <string name="suggestions_note">Declining skips only this one. The series carries on.</string>
+    <string name="suggestion_due">Due %1$s</string>
+    <string name="suggestion_confirm">Confirm</string>
+    <string name="suggestion_decline">Decline</string>
+    <plurals name="suggestions_waiting">
+        <item quantity="one">%d suggestion is waiting</item>
+        <item quantity="other">%d suggestions are waiting</item>
+    </plurals>
+    <string name="suggestions_review">Review</string>
 
     <!-- Entry history -->
     <string name="history">History</string>

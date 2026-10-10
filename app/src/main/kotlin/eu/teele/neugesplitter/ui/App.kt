@@ -244,8 +244,9 @@ fun App(graph: AppGraph) {
                                 combine(
                                     graph.groups.unseen(group),
                                     graph.groups.backends.state(group),
-                                ) { unseen, sync ->
-                                    unseen.isNotEmpty() || sync?.halted != null
+                                    graph.groups.pending(group, graph.today()),
+                                ) { unseen, sync, pending ->
+                                    unseen.isNotEmpty() || sync?.halted != null || pending > 0
                                 }
                             }
                             .collectAsStateWithLifecycle(false)
@@ -310,12 +311,15 @@ fun App(graph: AppGraph) {
                                         ActivityViewModel(
                                             graph.groups,
                                             group,
+                                            graph::identifier,
+                                            graph::today,
                                             graph::now,
                                             graph.syncing::now,
                                         )
                                     },
                                     onBack = back,
                                     onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
+                                    onEdit = { stack.add(EntryEditor(key.group, it.hex)) },
                                     onHistory = { stack.add(EntryHistory(key.group, it.hex)) },
                                     onShare = { stack.add(BackendSetup(key.group)) },
                                     onSyncProblem = { stack.add(SyncProblem(key.group)) },

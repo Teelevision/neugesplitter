@@ -35,6 +35,7 @@ import kotlinx.coroutines.launch
  *   out while its undo is offered (HI-1).
  * @property sync how the group's sync stands (SY-6, SY-15); null for a group kept only on this
  *   device.
+ * @property suggestions how many suggested occurrences wait for someone (RE-10).
  * @property now when this state was read, which relative times count back from.
  */
 data class OverviewState(
@@ -42,6 +43,7 @@ data class OverviewState(
     val overview: Overview? = null,
     val deleting: EntryId? = null,
     val sync: SyncState? = null,
+    val suggestions: Int = 0,
     val now: Instant = Instant.EPOCH,
 )
 
@@ -82,7 +84,8 @@ class OverviewViewModel(
                 deleting,
                 ownWithout,
                 repository.backends.state(group),
-            ) { overview, deleting, without, sync ->
+                repository.pending(group, today()),
+            ) { overview, deleting, without, sync, suggestions ->
                 OverviewState(
                     loaded = true,
                     overview =
@@ -94,6 +97,7 @@ class OverviewViewModel(
                         ),
                     deleting = deleting,
                     sync = sync,
+                    suggestions = suggestions,
                     now = now(),
                 )
             }

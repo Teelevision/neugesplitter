@@ -126,8 +126,10 @@ it, the user's own position ("you owe 12.30", BA-7). Under it, a shared group
 says in one line how its sync stands: when a pass last succeeded, or why the
 last ones failed ("Not reachable") in the error colour (SY-6, TR-12). The line
 opens Activity. If suggestions are pending, a banner sits directly under the
-header (RE-10). A group whose sync has halted shows an error banner there
-instead of the line, which opens the sync problem screen (SY-15).
+header saying how many, and leads to Activity, where they are decided (RE-10).
+Until then they are not listed and count nowhere. A group whose sync has halted
+shows an error banner there instead of the line, which opens the sync problem
+screen (SY-15).
 
 Below that, entries newest first, grouped under date headers. Each row carries:
 
@@ -193,9 +195,10 @@ stacked in collapsible sections below it:
    is queued, and a manual sync button (SY-9). When sync has halted, it says so
    instead of offering the button, and leads to the sync problem screen. A group
    kept only on this device says so here and offers to share it (BE-1).
-2. **Pending suggestions** (RE-4, RE-10): each with confirm, edit and confirm,
-   or decline; declining does not stop the series and the screen says so once
-   (RE-5).
+2. **Pending suggestions** (RE-4, RE-10), shown only while there are some,
+   oldest first: each with confirm, edit, or decline. Edit opens the entry
+   editor, and saving there confirms it, as it was or changed. Declining does
+   not stop the series and the section says so once (RE-5).
 3. **History**: what changed, by which member, and when (HI-2), as a reverse
    chronological list covering entries, membership and group settings. A line
    about an entry opens it, or its history once it is deleted (HI-3). Unseen

@@ -371,6 +371,31 @@ class OverviewScreenTest {
     }
 
     @Test
+    fun `suggestions waiting are announced under the header and lead to activity (RE-10)`() {
+        val cleaning = SeriesId.parse(id(21))
+        show {
+            val template = Template.of(entry(dinner, "Cleaning", today, cents(2000), ben))
+            val monthly = Segment(Interval.MonthlyOn(setOf(1)), Mode.SUGGESTED, template)
+            val september = EntryDate.parse("2026-09-01")
+            groups.append(
+                trip,
+                listOf(Event.SeriesCreated(eventId(), ben.id, at, cleaning, september, monthly)),
+                today,
+            )
+        }
+        compose.waitUntil(5_000) {
+            compose
+                .onAllNodesWithText("2 suggestions are waiting")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+        assertEquals(0, compose.onAllNodesWithText("Cleaning").fetchSemanticsNodes().size)
+        assertTrue(top("2 suggestions are waiting") < top("Dinner"))
+        compose.onNodeWithText("Review").performClick()
+        assertEquals(1, activities)
+    }
+
+    @Test
     fun `an entry the detail screen asked to delete is deleted here (EN-9, HI-1)`() {
         show(deleteRequested = taxi)
         assertEquals(1, taken)

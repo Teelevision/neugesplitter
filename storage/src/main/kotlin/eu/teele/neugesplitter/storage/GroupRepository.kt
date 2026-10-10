@@ -2,6 +2,7 @@ package eu.teele.neugesplitter.storage
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.coroutines.mapToOne
 import app.cash.sqldelight.db.SqlDriver
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.entry.Kind
@@ -222,6 +223,24 @@ class GroupRepository(private val driver: SqlDriver) {
             .onStart { refresh(today) }
             .flowOn(context)
     }
+
+    /**
+     * How many suggested occurrences of group [id] wait to be confirmed or declined (RE-4, RE-10),
+     * again whenever that changes. The projection is brought to [today] first.
+     */
+    fun pending(
+        id: GroupId,
+        today: EntryDate,
+        context: CoroutineContext = Dispatchers.IO,
+    ): Flow<Int> =
+        database.projectionQueries
+            .pending(id.hex)
+            .asFlow()
+            .mapToOne(context)
+            .map { it.toInt() }
+            .distinctUntilChanged()
+            .onStart { refresh(today) }
+            .flowOn(context)
 
     /**
      * Stores a new group from the events [Group.create] returned for it, and acts from then on as

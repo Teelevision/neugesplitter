@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -32,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -60,7 +62,9 @@ import eu.teele.neugesplitter.domain.history.Setting
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.settings.SyncState
+import eu.teele.neugesplitter.ui.EntryRow
 import eu.teele.neugesplitter.ui.UnseenDot
+import eu.teele.neugesplitter.ui.longDate
 import eu.teele.neugesplitter.ui.sync.GroupTitle
 import eu.teele.neugesplitter.ui.sync.ago
 import eu.teele.neugesplitter.ui.sync.failed
@@ -69,11 +73,12 @@ import java.time.Instant
 import java.util.Locale
 
 /**
- * How a group's sync stands, with a manual sync (SY-6, SY-9, TR-12), above what changed in it, by
- * whom and when (HI-2), with what has not been seen yet highlighted (HI-5, HI-7). The history folds
- * away (ui-design 4).
+ * How a group's sync stands, with a manual sync (SY-6, SY-9, TR-12), then the suggestions waiting
+ * for someone (RE-4, RE-10), above what changed in it, by whom and when (HI-2), with what has not
+ * been seen yet highlighted (HI-5, HI-7). The suggestions and the history fold away (ui-design 4).
  *
  * @param onOpen opens an entry a change names.
+ * @param onEdit opens a suggestion in the editor, which confirms it as saved (RE-4).
  * @param onHistory opens the history of a deleted entry a change names.
  * @param onShare starts sharing a group kept only on this device.
  * @param onSyncProblem opens why the group stopped syncing.
@@ -84,6 +89,7 @@ fun ActivityScreen(
     viewModel: ActivityViewModel,
     onBack: () -> Unit,
     onOpen: (EntryId) -> Unit,
+    onEdit: (EntryId) -> Unit,
     onHistory: (EntryId) -> Unit,
     onShare: () -> Unit,
     onSyncProblem: () -> Unit,
@@ -91,6 +97,7 @@ fun ActivityScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val locale = LocalConfiguration.current.locales[0]
+    var suggestions by rememberSaveable { mutableStateOf(true) }
     var history by rememberSaveable { mutableStateOf(true) }
     var menu by remember { mutableStateOf(false) }
 
@@ -142,6 +149,31 @@ fun ActivityScreen(
             item(key = "sync") {
                 SyncCard(state.sync, state.now, locale, viewModel::sync, onShare, onSyncProblem)
             }
+            if (state.suggestions.isNotEmpty()) {
+                section("suggestions", R.string.suggestions, suggestions) {
+                    suggestions = !suggestions
+                }
+            }
+            if (state.suggestions.isNotEmpty() && suggestions) {
+                item(key = "suggestions-note") {
+                    Text(
+                        stringResource(R.string.suggestions_note),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
+                items(state.suggestions, key = { "suggestion-${it.entry.id.hex}" }) { suggestion ->
+                    SuggestionRow(
+                        suggestion,
+                        state,
+                        locale,
+                        onConfirm = { viewModel.confirm(suggestion) },
+                        onEdit = { onEdit(suggestion.entry.id) },
+                        onDecline = { viewModel.decline(suggestion) },
+                    )
+                }
+            }
             section("history", R.string.history, history) { history = !history }
             if (history) {
                 itemsIndexed(state.history, key = { index, _ -> "happened-$index" }) {
@@ -189,6 +221,39 @@ private fun LazyListScope.section(
                 }
             }
             HorizontalDivider()
+        }
+    }
+}
+
+/** A suggested occurrence, with what can be done about it (RE-4). */
+@Composable
+private fun SuggestionRow(
+    suggestion: Suggestion,
+    state: ActivityState,
+    locale: Locale,
+    onConfirm: () -> Unit,
+    onEdit: () -> Unit,
+    onDecline: () -> Unit,
+) {
+    Column {
+        EntryRow(suggestion.entry, state.scale, locale)
+        Text(
+            stringResource(R.string.suggestion_due, longDate(suggestion.due, locale)),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 72.dp, end = 16.dp),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 60.dp, end = 16.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onDecline) { Text(stringResource(R.string.suggestion_decline)) }
+            TextButton(onClick = onEdit) { Text(stringResource(R.string.edit)) }
+            Spacer(Modifier.weight(1f))
+            FilledTonalButton(onClick = onConfirm) {
+                Text(stringResource(R.string.suggestion_confirm))
+            }
         }
     }
 }

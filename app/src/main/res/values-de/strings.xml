@@ -116,6 +116,16 @@
     <string name="mode_suggested">Vorgeschlagen</string>
     <string name="mode_automatic_hint">Jeder Termin wird an seinem Datum eingetragen.</string>
     <string name="mode_suggested_hint">Jeder Termin wartet, bis jemand ihn bestätigt.</string>
+    <string name="suggestions">Vorschläge</string>
+    <string name="suggestions_note">Ablehnen überspringt nur diesen einen Termin. Die Serie läuft weiter.</string>
+    <string name="suggestion_due">Fällig am %1$s</string>
+    <string name="suggestion_confirm">Bestätigen</string>
+    <string name="suggestion_decline">Ablehnen</string>
+    <plurals name="suggestions_waiting">
+        <item quantity="one">%d Vorschlag wartet</item>
+        <item quantity="other">%d Vorschläge warten</item>
+    </plurals>
+    <string name="suggestions_review">Ansehen</string>
 
     <!-- Entry history -->
     <string name="history">Verlauf</string>

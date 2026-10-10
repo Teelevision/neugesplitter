@@ -13,12 +13,17 @@ import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.recurrence.Interval
+import eu.teele.neugesplitter.domain.recurrence.Mode
+import eu.teele.neugesplitter.domain.recurrence.Segment
+import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.storage.settings.BackendSettings
@@ -52,6 +57,7 @@ class ActivityScreenTest {
     private var events = 0
     private val zone = TimeZone.getDefault()
     private val opened = mutableListOf<EntryId>()
+    private val edited = mutableListOf<EntryId>()
     private val histories = mutableListOf<EntryId>()
     private val synced = mutableListOf<GroupId>()
     private var shares = 0
@@ -64,6 +70,7 @@ class ActivityScreenTest {
     private val trip = GroupId.parse(id(9))
     private val dinnerId = EntryId.parse(id(10))
     private val taxiId = EntryId.parse(id(11))
+    private val cleaning = SeriesId.parse(id(20))
 
     private val groups =
         GroupRepository(
@@ -89,6 +96,21 @@ class ActivityScreenTest {
 
     private fun hours(n: Long) = at.plusSeconds(n * 3600)
 
+    /** Ben's cleaning, suggested on the first of every month since September (RE-3). */
+    private fun suggesting() {
+        val template =
+            Template.of(entry(dinnerId, "Cleaning")).copy(payers = Side.Equal(listOf(ben.id)))
+        val monthly = Segment(Interval.MonthlyOn(setOf(1)), Mode.SUGGESTED, template)
+        val september = EntryDate.parse("2026-09-01")
+        groups.append(
+            trip,
+            listOf(Event.SeriesCreated(eventId(), ben.id, at, cleaning, september, monthly)),
+            today,
+        )
+    }
+
+    private fun pending() = groups.load(trip)!!.occurrences(today).filter { it.pending }
+
     /** Anna's group "Trip", where Ben added a dinner after an hour, read two hours in. */
     private fun show(before: () -> Unit = {}) {
         groups.create(
@@ -101,13 +123,22 @@ class ActivityScreenTest {
             today,
         )
         before()
-        val viewModel = ActivityViewModel(groups, trip, { hours(2) }, { synced += it })
+        val viewModel =
+            ActivityViewModel(
+                groups,
+                trip,
+                { id(0x200 + events++) },
+                { today },
+                { hours(2) },
+                { synced += it },
+            )
         compose.setContent {
             NeugesplitterTheme {
                 ActivityScreen(
                     viewModel,
                     onBack = {},
                     onOpen = { opened += it },
+                    onEdit = { edited += it },
                     onHistory = { histories += it },
                     onShare = { shares++ },
                     onSyncProblem = { problems++ },
@@ -143,6 +174,44 @@ class ActivityScreenTest {
         compose.onNodeWithText("Anna added Ben · 2 hours ago").assertExists()
         compose.onNodeWithText(dinner).assertExists()
         assertTrue(top(dinner) < top(created))
+        assertEquals(0, count("Suggestions"))
+    }
+
+    @Test
+    fun `suggestions wait above the history, and one confirmed counts (RE-4, RE-10)`() {
+        show { suggesting() }
+        compose.onNodeWithText("Suggestions").assertExists()
+        compose
+            .onNodeWithText("Declining skips only this one. The series carries on.")
+            .assertExists()
+        compose.onNodeWithText("Due Tuesday, September 1, 2026").assertExists()
+        compose.onNodeWithText("Due Thursday, October 1, 2026").assertExists()
+        assertTrue(top("Due Thursday, October 1, 2026") < top("History"))
+
+        compose.onAllNodesWithText("Confirm")[0].performClick()
+        compose.waitUntil(5_000) { pending().size == 1 }
+        assertEquals(EntryDate.parse("2026-10-01"), pending().single().due)
+        compose.waitUntil(5_000) { count("Due Tuesday, September 1, 2026") == 0 }
+    }
+
+    @Test
+    fun `a declined suggestion is gone and its series carries on (RE-4, RE-5)`() {
+        show { suggesting() }
+        compose.onAllNodesWithText("Decline")[1].performClick()
+        compose.waitUntil(5_000) { pending().size == 1 }
+        val group = groups.load(trip)!!
+        assertEquals(listOf(EntryDate.parse("2026-09-01")), group.occurrences(today).map { it.due })
+        assertEquals(false, group.series.getValue(cleaning).deleted)
+        val november = EntryDate.parse("2026-11-01")
+        assertEquals(2, group.occurrences(november).size)
+    }
+
+    @Test
+    fun `a suggestion is edited in the editor, which confirms it (RE-4)`() {
+        show { suggesting() }
+        compose.onAllNodesWithText("Edit")[0].performClick()
+        val september = EntryDate.parse("2026-09-01")
+        assertEquals(listOf(EntryId.occurrence(cleaning, september)), edited)
     }
 
     @Test

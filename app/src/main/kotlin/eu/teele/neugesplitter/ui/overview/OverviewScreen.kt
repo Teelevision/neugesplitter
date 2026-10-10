@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +35,7 @@ import androidx.compose.material3.SwipeToDismissBoxDefaults
 import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -47,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -76,10 +80,11 @@ import java.util.Locale
 private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
 
 /**
- * A group's total spending, how its sync stands in brief, and its entries, newest first (ui-design
- * 4).
+ * A group's total spending, the suggestions waiting, how its sync stands in brief, and its entries,
+ * newest first (ui-design 4).
  *
- * @param onActivity opens the group's activity, where its sync stands in full.
+ * @param onActivity opens the group's activity, where its sync stands in full and its suggestions
+ *   are decided.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -219,6 +224,15 @@ private fun Entries(
     val sync = state.sync
     LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 16.dp)) {
         item(key = "header") { Header(overview, locale) }
+        if (state.suggestions > 0) {
+            item(key = "suggestions") {
+                SuggestionsBanner(
+                    state.suggestions,
+                    onActivity,
+                    Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                )
+            }
+        }
         if (sync?.halted != null) {
             item(key = "halted") {
                 SyncHaltedCard(
@@ -320,6 +334,39 @@ private fun Header(overview: Overview, locale: Locale) {
                     color = Color.White,
                 )
             }
+    }
+}
+
+/**
+ * That [count] suggested occurrences wait for someone, leading to Activity where they are decided
+ * (RE-4, RE-10).
+ */
+@Composable
+private fun SuggestionsBanner(count: Int, onActivity: () -> Unit, modifier: Modifier = Modifier) {
+    val colours = MaterialTheme.colorScheme
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(colours.secondaryContainer)
+                .clickable(onClick = onActivity)
+                .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painterResource(R.drawable.ic_repeat),
+            contentDescription = null,
+            tint = colours.onSecondaryContainer,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(
+            pluralStringResource(R.plurals.suggestions_waiting, count, count),
+            style = MaterialTheme.typography.bodyLarge,
+            color = colours.onSecondaryContainer,
+            modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+        )
+        TextButton(onClick = onActivity) { Text(stringResource(R.string.suggestions_review)) }
     }
 }
 

@@ -47,8 +47,8 @@ enum class Destination(@param:DrawableRes val icon: Int, @param:StringRes val la
  * before it does.
  *
  * @param onBack leaves the group, from the overview.
- * @param attention whether Activity holds something to look at: unseen changes or a halted sync
- *   (ui-design 4).
+ * @param attention whether Activity holds something to look at: unseen changes, a halted sync or
+ *   suggestions waiting (ui-design 4, RE-10).
  * @param content the destination, given what its back arrow does and how to switch to another; it
  *   must apply the modifier it is given.
  */

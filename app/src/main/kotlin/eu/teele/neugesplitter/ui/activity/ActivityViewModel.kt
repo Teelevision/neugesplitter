@@ -2,13 +2,20 @@ package eu.teele.neugesplitter.ui.activity
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.teele.neugesplitter.domain.Malformed
+import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.history.Happening
 import eu.teele.neugesplitter.domain.history.history
+import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
+import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.storage.ListedEntry
 import eu.teele.neugesplitter.storage.settings.SyncState
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +33,9 @@ import kotlinx.coroutines.launch
  * @property history newest first.
  * @property unseen the places in [history] of the changes not seen yet (HI-5).
  * @property deleted the entries deleted now, which open in their history rather than their detail.
+ * @property suggestions the suggested occurrences waiting to be confirmed or declined, oldest first
+ *   (RE-4, RE-10), as the overview would list them once confirmed.
+ * @property scale the group's decimal places, which amounts are shown with.
  * @property sync how the group's sync stands; null for a group kept only on this device.
  * @property now when this state was read, which relative times count back from.
  */
@@ -36,17 +46,24 @@ data class ActivityState(
     val history: List<Happening> = emptyList(),
     val unseen: Set<Int> = emptySet(),
     val deleted: Set<EntryId> = emptySet(),
+    val suggestions: List<Suggestion> = emptyList(),
+    val scale: Scale = Scale.of(2),
     val sync: SyncState? = null,
     val now: Instant = Instant.EPOCH,
 )
 
+/** The occurrence of [series] due on [due], offered as [entry] (RE-4). */
+data class Suggestion(val series: SeriesId, val due: EntryDate, val entry: ListedEntry)
+
 /**
- * What changed in a group and by whom (HI-2), which of it has not been seen yet (HI-5, HI-7), and
- * how its sync stands (SY-6, ui-design 4).
+ * What changed in a group and by whom (HI-2), which of it has not been seen yet (HI-5, HI-7), the
+ * suggestions waiting for someone (RE-4, RE-10), and how its sync stands (SY-6, ui-design 4).
  */
 class ActivityViewModel(
     private val repository: GroupRepository,
     private val group: GroupId,
+    private val identifier: () -> String,
+    private val today: () -> EntryDate,
     private val now: () -> Instant,
     /** Runs a pass over a group at once (SY-9, TR-13). */
     private val syncNow: (GroupId) -> Unit,
@@ -60,6 +77,8 @@ class ActivityViewModel(
             ) { events, unseen, sync ->
                 if (events.isEmpty()) return@combine ActivityState(loaded = true)
                 val replayed = Group.replay(events)
+                val me = repository.actingAs(group)
+                fun name(member: MemberId) = replayed.members[member]?.name ?: member.hex.take(8)
                 ActivityState(
                     loaded = true,
                     title = listOfNotNull(replayed.emoji, replayed.name).joinToString(" "),
@@ -67,6 +86,29 @@ class ActivityViewModel(
                     history = history(events).asReversed(),
                     unseen = unseen.mapTo(mutableSetOf()) { events.lastIndex - it },
                     deleted = replayed.deleted.keys,
+                    suggestions =
+                        replayed
+                            .occurrences(today())
+                            .filter { it.pending }
+                            .map { occurrence ->
+                                val entry = occurrence.entry
+                                val listed =
+                                    ListedEntry(
+                                        id = entry.id,
+                                        kind = entry.kind,
+                                        description = entry.description,
+                                        date = entry.date,
+                                        amount = entry.amount,
+                                        payers = entry.payers.members.map(::name),
+                                        own =
+                                            me?.let { entry.beneficiaries.parts(entry.amount)[it] },
+                                        repeats = true,
+                                        edited = false,
+                                        unseen = false,
+                                    )
+                                Suggestion(occurrence.series, occurrence.due, listed)
+                            },
+                    scale = replayed.scale,
                     sync = sync,
                     now = now(),
                 )
@@ -75,6 +117,31 @@ class ActivityViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActivityState())
 
     fun sync() = syncNow(group)
+
+    /** Counts [suggestion] from now on (RE-4). */
+    fun confirm(suggestion: Suggestion) = decide { id, by, at ->
+        Event.OccurrenceConfirmed(id, by, at, suggestion.series, suggestion.due)
+    }
+
+    /** Leaves [suggestion] out; its series carries on (RE-5). */
+    fun decline(suggestion: Suggestion) = decide { id, by, at ->
+        Event.OccurrenceDeleted(id, by, at, suggestion.series, suggestion.due)
+    }
+
+    private fun decide(event: (EventId, MemberId, Instant) -> Event) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val by = repository.actingAs(group) ?: return@launch
+            try {
+                repository.append(
+                    group,
+                    listOf(event(EventId.parse(identifier()), by, now())),
+                    today(),
+                )
+            } catch (_: Malformed) {
+                // Decided already, by a second tap or by someone else whose decision arrived first.
+            }
+        }
+    }
 
     /** Marks the change at [index] in the history as seen. */
     fun read(index: Int) {

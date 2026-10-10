@@ -184,6 +184,12 @@ LEFT JOIN acting_as a ON a.group_id = e.group_id
 WHERE e.group_id = ? AND e.deleted = 0 AND coalesce(o.pending, 0) = 0
 ORDER BY e.date DESC, e.position DESC, e.id DESC, p.position;
 
+-- How many of a group's occurrences are offered and wait for someone to confirm them (RE-10).
+pending:
+SELECT count(*)
+FROM occurrence
+WHERE group_id = ? AND pending = 1;
+
 -- The group list (ui-design 3): each group, how many entries it holds that count, the settled
 -- balance of the member this installation acts as in it (BA-7), whether it holds changes not seen
 -- yet (HI-5) and how its sync stands, if it is shared (SY-6). A group being joined, with nobody
