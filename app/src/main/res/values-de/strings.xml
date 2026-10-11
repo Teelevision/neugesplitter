@@ -389,7 +389,7 @@
     <string name="import_passphrase_text">Diese Datei ist verschlüsselt. Gib ihre Passphrase ein.</string>
     <string name="import_wrong_passphrase">Diese Passphrase öffnet die Datei nicht.</string>
     <string name="import_unreadable">Datei nicht lesbar</string>
-    <string name="import_unreadable_text">Das ist kein Neugesplitter-Export, oder er ist beschädigt. Es wurde nichts importiert.</string>
+    <string name="import_unreadable_text">Das ist kein Neugesplitter- oder Splitwise-Export, oder er ist beschädigt. Es wurde nichts importiert.</string>
     <string name="import_unsupported">Datei zu neu</string>
     <string name="import_unsupported_text">Eine neuere Version der App hat diese Datei geschrieben. Aktualisiere die App, um sie zu importieren.</string>
     <string name="import_empty">Keine Gruppen</string>
@@ -400,6 +400,24 @@
     <string name="import_group_unreadable">Nicht lesbar</string>
     <string name="import_group_unsupported">Braucht eine neuere Version der App</string>
     <string name="import_imported">Importiert</string>
+    <string name="import_currencies">Mehrere Währungen</string>
+    <string name="import_currencies_text">Dieser Export mischt Währungen, und eine Gruppe hier hat keine. Es wurde nichts importiert.</string>
+    <string name="import_splitwise">Splitwise-Export</string>
+    <string name="import_splitwise_text">Daraus wird eine neue Gruppe auf diesem Gerät, mit niemandem geteilt. Kategorien fallen weg, und jeder Eintrag gilt als von dir angelegt.</string>
+    <plurals name="import_transfers">
+        <item quantity="one">%d Übertrag</item>
+        <item quantity="other">%d Überträge</item>
+    </plurals>
+    <plurals name="import_skipped">
+        <item quantity="one">%d Zeile bewegt kein Geld und fällt weg.</item>
+        <item quantity="other">%d Zeilen bewegen kein Geld und fallen weg.</item>
+    </plurals>
+    <string name="import_matches">Salden stimmen</string>
+    <string name="import_matches_text">Jeder Saldo kommt so heraus, wie die Summen im Export sagen.</string>
+    <string name="import_differs">Salden weichen ab</string>
+    <string name="import_differs_text">Ein Saldo weicht um bis zu %1$s von den Summen im Export ab. Du kannst trotzdem importieren.</string>
+    <string name="import_differs_corrected">Ein Saldo weicht um bis zu %1$s von den Summen im Export ab. Ein weiterer Eintrag gleicht das aus; lösch ihn nach dem Import, wenn du ihn nicht willst.</string>
+    <string name="import_correction_entry">Korrektur auf die Splitwise-Summen</string>
 
     <!-- App settings -->
     <string name="theme">Design</string>

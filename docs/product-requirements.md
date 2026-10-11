@@ -467,6 +467,10 @@ there is no backup, the group is gone.
   nothing about any backend (PR-6).
 - **DA-4** (Optional): The user MUST be able to encrypt an export with a
   passphrase, generated or their own as for a group (PR-12a, PR-12b).
+- **DA-5** (Optional): The user MUST be able to import a group from a Splitwise
+  CSV export. It becomes a new group, shared with no one, and the app MUST show
+  before importing whether the balances come out as the export's totals say.
+  Splitwise is a trademark of its owner, named only to say what the app reads.
 
 ### 4.13 Platform and Usability
 

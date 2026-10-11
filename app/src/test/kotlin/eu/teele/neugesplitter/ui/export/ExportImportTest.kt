@@ -136,6 +136,7 @@ class ExportImportTest {
                 { id(0x200 + ids++) },
                 { today },
                 { at },
+                "Correction",
             )
         compose.setContent {
             NeugesplitterTheme { ImportScreen(importing, onClose = {}, onDone = { done = it }) }
@@ -201,6 +202,76 @@ class ExportImportTest {
     fun `a file that is no export is refused, and nothing is imported`() {
         show("not a zip".encodeToByteArray())
         awaitText("File cannot be read")
+        assertTrue(groups.unclaimed().isEmpty())
+    }
+
+    /** A made-up Splitwise export: Anna's groceries for both, and Ben paying part of it back. */
+    private fun splitwise(total: String = "10.00", currency: String = "EUR") =
+        ("\uFEFFDate,Description,Category,Cost,Currency,Anna,Ben\r\n" +
+                "2024-01-05,\"Rice, beans\",Groceries,30.00,EUR,15.00,-15.00\r\n" +
+                "2024-01-07,Ben B. paid Anna A.,Payment,5.00,$currency,-5.00,5.00\r\n" +
+                "\r\n" +
+                "2024-01-08,Total balance, , ,EUR,$total,-$total\r\n")
+            .encodeToByteArray()
+
+    @Test
+    fun `a Splitwise export becomes a new group, named by the user, as the member chosen (DA-5)`() {
+        show(splitwise())
+        awaitText("Splitwise export")
+        compose.onNodeWithText("2 members").assertExists()
+        compose.onNodeWithText("1 entry").assertExists()
+        compose.onNodeWithText("1 transfer").assertExists()
+        compose.onNodeWithText("Balances match").assertExists()
+        compose.onNodeWithText("Next").assertIsNotEnabled()
+
+        compose.onAllNodesWithText("Name")[0].performTextInput("Flat")
+        click("Next")
+        awaitText("Who are you?")
+        click("Ben")
+        click("Import")
+        await { done != null }
+
+        val group = groups.load(done!!.single())!!
+        val me = assertNotNull(groups.actingAs(group.id))
+        assertEquals("Flat", group.name)
+        assertEquals("Ben", group.members.getValue(me).name)
+        assertEquals(listOf("Ben", "Anna"), group.members.values.map { it.name })
+        assertEquals(listOf(Kind.EXPENSE, Kind.TRANSFER), group.entries.values.map { it.kind })
+        assertEquals(
+            mapOf(me to Amount.ofUnits(-1_000_000_000L)),
+            group.settlement(today).filterKeys { it == me },
+        )
+        assertNull(groups.backends.settings(group.id))
+    }
+
+    @Test
+    fun `a Splitwise export whose totals do not come out is corrected by one more entry (DA-5)`() {
+        show(splitwise(total = "10.03"))
+        awaitText("Balances differ")
+        awaitText(
+            "A balance comes out up to 0.03 off the export's totals. One more entry is added " +
+                "that corrects it; delete it after the import if you do not want it."
+        )
+        compose.onAllNodesWithText("Name")[0].performTextInput("Flat")
+        click("Next")
+        awaitText("Who are you?")
+        click("Ben")
+        click("Import")
+        await { done != null }
+
+        val group = groups.load(done!!.single())!!
+        assertEquals(3, group.entries.size)
+        assertEquals("Correction", group.entries.values.last().description)
+        assertEquals(
+            setOf(Amount.ofUnits(1_003_000_000L), Amount.ofUnits(-1_003_000_000L)),
+            group.settlement(today).values.toSet(),
+        )
+    }
+
+    @Test
+    fun `a Splitwise export in several currencies is refused (DA-5)`() {
+        show(splitwise(currency = "USD"))
+        awaitText("Several currencies")
         assertTrue(groups.unclaimed().isEmpty())
     }
 

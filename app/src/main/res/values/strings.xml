@@ -391,7 +391,7 @@
     <string name="import_passphrase_text">This file is encrypted. Enter its passphrase.</string>
     <string name="import_wrong_passphrase">This passphrase does not open the file.</string>
     <string name="import_unreadable">File cannot be read</string>
-    <string name="import_unreadable_text">This is no Neugesplitter export, or it is damaged. Nothing has been imported.</string>
+    <string name="import_unreadable_text">This is no Neugesplitter or Splitwise export, or it is damaged. Nothing has been imported.</string>
     <string name="import_unsupported">File too new</string>
     <string name="import_unsupported_text">A newer version of the app wrote this file. Update the app to import it.</string>
     <string name="import_empty">No groups</string>
@@ -402,6 +402,24 @@
     <string name="import_group_unreadable">Cannot be read</string>
     <string name="import_group_unsupported">Needs a newer version of the app</string>
     <string name="import_imported">Imported</string>
+    <string name="import_currencies">Several currencies</string>
+    <string name="import_currencies_text">This export mixes currencies, and a group here has none. Nothing has been imported.</string>
+    <string name="import_splitwise">Splitwise export</string>
+    <string name="import_splitwise_text">It becomes a new group on this device, shared with no one. Categories are left out, and every entry is recorded as added by you.</string>
+    <plurals name="import_transfers">
+        <item quantity="one">%d transfer</item>
+        <item quantity="other">%d transfers</item>
+    </plurals>
+    <plurals name="import_skipped">
+        <item quantity="one">%d row moves no money and is left out.</item>
+        <item quantity="other">%d rows move no money and are left out.</item>
+    </plurals>
+    <string name="import_matches">Balances match</string>
+    <string name="import_matches_text">Every balance comes out as the export\'s totals say.</string>
+    <string name="import_differs">Balances differ</string>
+    <string name="import_differs_text">A balance comes out up to %1$s off the export\'s totals. You can import anyway.</string>
+    <string name="import_differs_corrected">A balance comes out up to %1$s off the export\'s totals. One more entry is added that corrects it; delete it after the import if you do not want it.</string>
+    <string name="import_correction_entry">Correction to Splitwise\'s totals</string>
 
     <!-- App settings -->
     <string name="theme">Theme</string>

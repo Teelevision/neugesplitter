@@ -14,8 +14,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,6 +29,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,9 +43,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
@@ -49,6 +56,7 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.ui.GroupAvatar
 import eu.teele.neugesplitter.ui.backend.Found
 import eu.teele.neugesplitter.ui.backend.Secret
+import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.join.GroupSummary
 import eu.teele.neugesplitter.ui.join.WhoFields
 import eu.teele.neugesplitter.ui.join.candidates
@@ -56,7 +64,8 @@ import eu.teele.neugesplitter.ui.join.sizeOf
 
 /**
  * Imports groups from an export file: its passphrase if it is encrypted, which of its groups, and
- * who the user is in each (ui-design 3, DA-3).
+ * who the user is in each (ui-design 3, DA-3). A Splitwise export is named instead of chosen from
+ * (DA-5).
  *
  * @param onDone called with the groups imported, once every one chosen is.
  */
@@ -120,6 +129,7 @@ fun ImportScreen(viewModel: ImportViewModel, onClose: () -> Unit, onDone: (List<
                 ImportStep.PASSPHRASE -> Passphrase(state, viewModel)
                 ImportStep.FAILED -> Problem(state.problem)
                 ImportStep.GROUPS -> Groups(state, viewModel)
+                ImportStep.SPLITWISE -> Splitwise(state, viewModel)
                 ImportStep.WHO -> {
                     val group = state.group ?: return@Column
                     GroupSummary(group)
@@ -169,9 +179,96 @@ private fun Problem(problem: ImportProblem?) {
             ImportProblem.UNSUPPORTED ->
                 R.string.import_unsupported to R.string.import_unsupported_text
             ImportProblem.EMPTY -> R.string.import_empty to R.string.import_empty_text
+            ImportProblem.CURRENCIES ->
+                R.string.import_currencies to R.string.import_currencies_text
             null -> return
         }
     Found(R.drawable.ic_warning, title, listOf(text), MaterialTheme.colorScheme.errorContainer)
+}
+
+/**
+ * What a Splitwise export becomes, and whether its balances come out as the file's totals say, to
+ * name the group (DA-5).
+ */
+@Composable
+private fun Splitwise(state: ImportState, viewModel: ImportViewModel) {
+    val preview = state.splitwise ?: return
+    val colours = MaterialTheme.colorScheme
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            stringResource(R.string.import_splitwise),
+            style = MaterialTheme.typography.headlineSmall,
+        )
+        Text(stringResource(R.string.import_splitwise_text), color = colours.onSurfaceVariant)
+    }
+    OutlinedTextField(
+        value = state.title,
+        onValueChange = viewModel::title,
+        label = { Text(stringResource(R.string.group_name)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    val members = preview.group.members.size
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(pluralStringResource(R.plurals.join_members, members, members))
+            Text(pluralStringResource(R.plurals.join_entries, preview.expenses, preview.expenses))
+            Text(
+                pluralStringResource(
+                    R.plurals.import_transfers,
+                    preview.transfers,
+                    preview.transfers,
+                )
+            )
+            if (preview.skipped > 0) {
+                Text(
+                    pluralStringResource(
+                        R.plurals.import_skipped,
+                        preview.skipped,
+                        preview.skipped,
+                    ),
+                    color = colours.onSurfaceVariant,
+                )
+            }
+        }
+    }
+    val difference = preview.difference ?: return
+    val matches = difference.roundedTo(preview.group.scale).isZero
+    Card(
+        colors =
+            CardDefaults.cardColors(
+                containerColor = if (matches) colours.secondaryContainer else colours.errorContainer
+            ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(20.dp)) {
+            Icon(painterResource(if (matches) R.drawable.ic_check else R.drawable.ic_warning), null)
+            Spacer(Modifier.width(16.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    stringResource(
+                        if (matches) R.string.import_matches else R.string.import_differs
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    if (matches) stringResource(R.string.import_matches_text)
+                    else
+                        stringResource(
+                            if (preview.correction != null) R.string.import_differs_corrected
+                            else R.string.import_differs_text,
+                            formatted(
+                                difference.roundedTo(preview.group.scale),
+                                preview.group.scale,
+                                LocalConfiguration.current.locales[0],
+                            ),
+                        ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
 }
 
 /** The groups in the file, to choose which to import; those that cannot be, greyed out. */

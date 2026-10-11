@@ -129,6 +129,14 @@ read greyed out with why; then, for each group chosen in turn, who the user is
 in it, exactly as when joining. Each becomes a new group that is not shared. One
 group imported opens; several return to the list.
 
+A file that is no zip is read as a Splitwise export (DA-5). In place of the
+groups, the flow asks for the group's name, since the export has none, and shows
+its members, entries and transfers, any rows left out, and a card saying whether
+the balances match the export's totals or by how much they differ; a difference
+does not stop the import, and an entry is added that corrects it, which the card
+says. Who the user is follows, with a new member offered as always. A file in
+several currencies is refused.
+
 ## 4. Inside a group
 
 All four destinations show the group's emoji and name in their top bar, after

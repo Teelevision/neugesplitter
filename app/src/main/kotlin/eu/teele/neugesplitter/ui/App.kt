@@ -169,7 +169,16 @@ fun App(graph: AppGraph) {
                         onSettings = { stack.add(AppSettings) },
                         onExport = { ids -> stack.add(Export(ids.map { it.hex })) },
                         // Some providers name a zip file otherwise, so any file can be chosen.
-                        onImport = { file.launch(arrayOf("application/zip", "*/*")) },
+                        onImport = {
+                            file.launch(
+                                arrayOf(
+                                    "application/zip",
+                                    "text/csv",
+                                    "text/comma-separated-values",
+                                    "*/*",
+                                )
+                            )
+                        },
                     )
                 }
                 entry<Export> { key ->
@@ -188,6 +197,7 @@ fun App(graph: AppGraph) {
                 }
                 entry<Import> { key ->
                     val resolver = LocalContext.current.contentResolver
+                    val correction = stringResource(R.string.import_correction_entry)
                     ImportScreen(
                         viewModel {
                             ImportViewModel(
@@ -199,6 +209,7 @@ fun App(graph: AppGraph) {
                                 graph::identifier,
                                 graph::today,
                                 graph::now,
+                                correction,
                             )
                         },
                         onClose = { pop() },
