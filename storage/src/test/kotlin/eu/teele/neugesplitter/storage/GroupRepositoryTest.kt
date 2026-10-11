@@ -370,6 +370,21 @@ class GroupRepositoryTest {
     }
 
     @Test
+    fun `an entry not for the member acted as has no part of theirs in the overview (BA-7)`() {
+        val log =
+            Log(BEN, trip)
+                .create("Wochenende")
+                .add(BEN, "Ben")
+                .add(ANNA, "Anna")
+                .record(entry(1, euros(30), equal(listOf(BEN)), equal(listOf(ANNA)), Kind.TRANSFER))
+        groups.create(log.events(), TODAY)
+
+        val overview = assertNotNull(runBlocking { groups.overview(trip, { TODAY }).first() })
+
+        assertNull(overview.entries.single().own)
+    }
+
+    @Test
     fun `the overview lists what counts, newest first, with the part acted as (BA-7, HI-4, RE-9)`() {
         appendedOneByOne(GROUP, household)
         groups.actAs(GROUP, ANNA)

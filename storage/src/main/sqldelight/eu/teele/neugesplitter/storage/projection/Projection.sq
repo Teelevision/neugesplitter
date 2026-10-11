@@ -171,9 +171,7 @@ SELECT
     e.amount,
     e.edited,
     o.series IS NOT NULL AS repeats,
-    (SELECT s.part FROM side s
-     WHERE s.group_id = e.group_id AND s.entry = e.id
-       AND s.role = 'beneficiaries' AND s.member = a.member) AS own,
+    b.part AS own,
     m.name AS payer,
     EXISTS (SELECT 1 FROM unseen u WHERE u.group_id = e.group_id AND u.entry = e.id) AS unseen
 FROM entry e
@@ -181,6 +179,9 @@ JOIN side p ON p.group_id = e.group_id AND p.entry = e.id AND p.role = 'payers'
 JOIN member m ON m.group_id = p.group_id AND m.id = p.member
 LEFT JOIN occurrence o ON o.group_id = e.group_id AND o.entry = e.id
 LEFT JOIN acting_as a ON a.group_id = e.group_id
+-- A join rather than a subquery, which SQLDelight would take for never null.
+LEFT JOIN side b ON b.group_id = e.group_id AND b.entry = e.id
+    AND b.role = 'beneficiaries' AND b.member = a.member
 WHERE e.group_id = ? AND e.deleted = 0 AND coalesce(o.pending, 0) = 0
 ORDER BY e.date DESC, e.position DESC, e.id DESC, p.position;
 
