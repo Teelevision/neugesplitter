@@ -176,8 +176,10 @@ are described in [sync-design.md](sync-design.md).
   to another location keeps its interval.
 - **What if a backend location already holds something else?** The app inspects
   it and refuses to attach a group to a location holding a different group or
-  unrelated data (BE-9). Another state of the same group is not an error — it
-  simply syncs (BE-10).
+  unrelated data (BE-9). A newer state of the same group is not an error — it
+  simply syncs (BE-10). An older one lacks something the installation holds, so
+  it halts like a backend that lost data (SY-15), and the app says so before
+  connecting; restoring it is SY-11.
 - **Backends inside a home network only?** Supported later, with the "syncs only
   when I am home" behaviour presented as normal (SY-12).
 - **Where do attachments live?** On the group's backend, next to its entries

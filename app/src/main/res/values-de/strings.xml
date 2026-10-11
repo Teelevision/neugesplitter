@@ -302,7 +302,7 @@
     <string name="setup_same">Diese Gruppe</string>
     <string name="setup_same_text">Der Speicher enthält diese Gruppe, genau wie dieses Gerät.</string>
     <string name="setup_other_state">Anderer Stand dieser Gruppe</string>
-    <string name="setup_older_text">Der Speicher enthält eine ältere Version. Die Unterschiede werden beim nächsten Abgleich übernommen.</string>
+    <string name="setup_older_text">Dem Speicher fehlt ein Teil dessen, was dieses Gerät hat. Der Abgleich hält an, bis er zurückgelegt ist. Das geht vorerst nur mit den Werkzeugen des Speicheranbieters.</string>
     <string name="setup_newer_text">Der Speicher enthält eine neuere Version. Die Unterschiede werden beim nächsten Abgleich übernommen.</string>
     <string name="setup_foreign">Fremde Daten</string>
     <string name="setup_foreign_text">An diesem Ort liegen Daten, die nicht zu dieser Gruppe gehören. Sie werden nicht überschrieben.</string>

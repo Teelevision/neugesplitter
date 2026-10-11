@@ -370,11 +370,13 @@ a backend later (BE-2, BE-15).
    wrong, not an error code (BE-7). A read-only backend is accepted with a
    standing note that local changes cannot be uploaded (BE-8); its third line
    says the check was not needed rather than claiming it passed.
-3. **What is there**: nothing, this group, another state of this group — which
-   simply syncs (BE-10) — or foreign data, which is refused (BE-9). Nothing is
-   refused too when the group cannot be created there: with read access only, or
-   when the group is shared already and this would be a move (BE-15). A location
-   that turns out foreign only when connecting lands back on this step.
+3. **What is there**: nothing, this group, a newer state of this group — which
+   simply syncs (BE-10) — an older one, shown as a warning that syncing will
+   stop until what is missing is put back (SY-15), or foreign data, which is
+   refused (BE-9). Nothing is refused too when the group cannot be created
+   there: with read access only, or when the group is shared already and this
+   would be a move (BE-15). A location that turns out foreign only when
+   connecting lands back on this step.
 4. **Encryption**: off, or a passphrase (PR-11). Choosing it opens passphrase
    setup. A location that holds this group skips the step, since the group's
    encryption was decided where it was first shared.

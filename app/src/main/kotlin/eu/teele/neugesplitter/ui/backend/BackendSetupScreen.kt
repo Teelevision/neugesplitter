@@ -491,15 +491,18 @@ private fun WhatIsThere(state: BackendSetupState) {
                 listOf(R.string.setup_same_text),
                 colours.secondaryContainer,
             )
-        Contents.OLDER,
+        Contents.OLDER ->
+            Found(
+                R.drawable.ic_warning,
+                R.string.setup_other_state,
+                listOf(R.string.setup_older_text),
+                colours.errorContainer,
+            )
         Contents.NEWER ->
             Found(
                 R.drawable.ic_sync,
                 R.string.setup_other_state,
-                listOf(
-                    if (state.contents == Contents.OLDER) R.string.setup_older_text
-                    else R.string.setup_newer_text
-                ),
+                listOf(R.string.setup_newer_text),
                 colours.secondaryContainer,
             )
         Contents.FOREIGN ->

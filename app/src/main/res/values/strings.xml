@@ -304,7 +304,7 @@
     <string name="setup_same">This group</string>
     <string name="setup_same_text">The storage holds this group, just as this device does.</string>
     <string name="setup_other_state">Another state of this group</string>
-    <string name="setup_older_text">The storage holds an older version. The differences are carried over at the next sync.</string>
+    <string name="setup_older_text">The storage is missing part of what this device holds. Syncing stops until it is put back, which for now only the storage provider\'s own tools can do.</string>
     <string name="setup_newer_text">The storage holds a newer version. The differences are carried over at the next sync.</string>
     <string name="setup_foreign">Foreign data</string>
     <string name="setup_foreign_text">There is data at this location that does not belong to this group. It will not be overwritten.</string>

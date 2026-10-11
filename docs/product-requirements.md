@@ -155,8 +155,10 @@ of everyone entering the same backend settings.
   what it contains — nothing, another state of the same group, or something else
   — and MUST report it. Pointing a group at a location that holds a different
   group or unrelated data MUST be prevented.
-- **BE-10** (Core): Connecting to a location that holds an older or newer state
-  of the same group MUST simply sync; it is not an error.
+- **BE-10** (Core): Connecting to a location that holds a newer state of the
+  same group MUST simply sync; it is not an error. A location holding an older
+  state lacks something the installation holds, so the app MUST say before
+  connecting that syncing will stop there (SY-15) until it is restored (SY-11).
 - **BE-11** (Core): Configuring a group's backend on a fresh installation MUST
   restore that group in full, without duplicating entries or members. This is
   also how a lost device is recovered and how an additional device is added.
@@ -373,7 +375,8 @@ of everyone entering the same backend settings.
 - **SY-11** (Later): Every installation holds the complete history, so if a
   backend loses data, an installation MUST be able to restore it — by putting
   the objects back exactly as they were, so that the other installations see the
-  history they already had.
+  history they already had. This includes a location connected to while it held
+  an older state of the group (BE-10).
 - **SY-12** (Later): Backends that are only reachable from certain networks
   (e.g. a NAS at home) MUST be supported. The app MUST present the resulting
   "syncs only when I am home" behaviour as normal, not as a failure.
