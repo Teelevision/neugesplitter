@@ -178,6 +178,12 @@ of everyone entering the same backend settings.
   encrypted one. No container format of the app's own SHOULD be wrapped around
   them, and decrypting a whole history SHOULD NOT require a key derivation per
   file.
+- **BE-17** (Later): The user MUST be able to stop sharing a group, turning it
+  into a purely local group with its whole history, under a new id and with
+  nothing kept of the backend. The app MUST say before doing so that the others
+  keep syncing without this installation, that this copy cannot be connected to
+  that location again, and that taking part again means joining the group anew,
+  next to the copy.
 
 ### 4.4 Entries
 
@@ -397,6 +403,10 @@ of everyone entering the same backend settings.
   own copy, and it MUST say when a repair can only be made with the storage
   provider's own tools. Syncing resumes once the backend agrees with the
   installation again.
+- **SY-16** (Later): The user MUST be able to pause syncing a group and resume
+  it later. A paused group MUST NOT contact its backend, MUST keep everything
+  syncing needs, and MUST show that it is paused rather than failing. Local
+  changes wait and are uploaded once it resumes.
 
 ### 4.11 Privacy and Security
 

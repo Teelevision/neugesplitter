@@ -375,6 +375,13 @@ are described in [sync-design.md](sync-design.md).
   log forked. For the same reason nothing is deduplicated: importing twice makes
   two groups, which the user can see and delete. Restoring a shared group is
   joining it again (BE-11), not importing.
+- **Does a group that stops being shared keep its id?** No (BE-17). The old
+  location and every other installation still hold the group under that id, so
+  keeping it would make joining it again from this device find a group it holds
+  already, and sharing the copy elsewhere would put two diverging logs under one
+  id. It becomes a new group the way an import does, every event waiting for
+  upload, and the backend's objects, settings and secrets go. Only pausing
+  (SY-16) keeps a group connected, with nothing removed.
 
 ## Open Questions
 
