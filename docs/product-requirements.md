@@ -400,7 +400,8 @@ of everyone entering the same backend settings.
 - **PR-1** (Core): This project MUST NOT operate any server, and the app MUST
   NOT contact any infrastructure of its authors.
 - **PR-2** (Core): The app MUST send a group's data only to the backend
-  configured for that group, and nowhere else.
+  configured for that group, and nowhere else. An export (DA-3) goes only to the
+  file the user saves it to.
 - **PR-3** (Core): The app MUST NOT require an account with anyone. Credentials
   for a backend belong to the users' own storage, not to this product.
 - **PR-4** (Core): Group content is stored on the backend unencrypted unless the
@@ -447,9 +448,12 @@ there is no backup, the group is gone.
   and without a backup is lost together with the device.
 - **DA-2** (Later): The user MUST be able to export a group's data in a text
   format (e.g. CSV, JSON).
-- **DA-3** (Later): The user MUST be able to create a local backup of all groups
-  and restore it on another device.
-- **DA-4** (Optional): The user MUST be able to encrypt a local backup.
+- **DA-3** (Optional): The user MUST be able to export any of their groups to a
+  file and import them from it on any device. An imported group is a new group,
+  shared with no one, with the whole history the export held; the file holds
+  nothing about any backend (PR-6).
+- **DA-4** (Optional): The user MUST be able to encrypt an export with a
+  passphrase, generated or their own as for a group (PR-12a, PR-12b).
 
 ### 4.13 Platform and Usability
 

@@ -2,9 +2,13 @@ package eu.teele.neugesplitter.format.json
 
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.event.Event
+import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.format.Unsupported
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 
 /**
  * One event as JSON text in the wire schema, which is what the local event log keeps (TR-17b).
@@ -33,4 +37,21 @@ object EventJson {
      */
     fun read(text: String): Event =
         Events.decode(Json.parseToJsonElement(restricted(text.encodeToByteArray())))
+
+    /**
+     * [text], a `group.created`, founding group [id] instead, with every other field as it was. An
+     * imported group starts a history of its own (DA-3).
+     *
+     * @throws Malformed if [text] is not a valid `group.created`.
+     * @throws Unsupported as [read] does.
+     */
+    fun regrouped(text: String, id: GroupId): String {
+        if (read(text) !is Event.GroupCreated)
+            throw Malformed("the first event is no group.created")
+        val json = Json.parseToJsonElement(text).jsonObject
+        val group = json.getValue("group").jsonObject
+        val changed =
+            JsonObject(json + ("group" to JsonObject(group + ("id" to JsonPrimitive(id.hex)))))
+        return Json.encodeToString(JsonElement.serializer(), changed)
+    }
 }

@@ -102,6 +102,7 @@ internal val NOTICES =
             listOf("com.michael-bull.kotlin-result:"),
         ),
         Notice("zxcvbn4j", "MIT", listOf("zxcvbn4j.txt"), listOf("com.nulab-inc:zxcvbn")),
+        Notice("zip4j", "Apache-2.0", listOf("zip4j.txt"), listOf("net.lingala.zip4j:")),
         Notice(
             "Guava ListenableFuture",
             "Apache-2.0",

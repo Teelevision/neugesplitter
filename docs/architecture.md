@@ -32,7 +32,7 @@ graph TD
 | Module        | Kind                | Holds                                                                                               |
 | ------------- | ------------------- | --------------------------------------------------------------------------------------------------- |
 | `:domain`     | Kotlin JVM          | the group aggregate, entries and sides, split arithmetic, balances, recurrence, event types, replay |
-| `:format`     | Kotlin JVM          | the wire format: JSON codec, the parser limits, age encryption, the hash chain, derived ids         |
+| `:format`     | Kotlin JVM          | the wire format: JSON codec, the parser limits, age encryption, the hash chain, derived ids, export |
 | `:sync`       | Kotlin JVM          | the sync algorithm, and the ports it needs: `LogStore`, `LocalLog`                                  |
 | `:backend-s3` | Kotlin JVM          | HTTP, SigV4, `ListObjectsV2`, `If-None-Match`, the backend probe                                    |
 | `:storage`    | Android library     | SQLite: local event log, retained object bytes, projections, settings, sealed credentials           |
@@ -71,6 +71,7 @@ neugesplitter/
 │   ├── json/         envelope and payload codec, JSON restrictions, parser limits
 │   ├── chain/        chainKey, prev, verification
 │   ├── crypto/       AgeCodec port and binding, key pair, passphrase generation and estimate
+│   ├── export/       the export file: a zip of groups' logs, optionally AES-encrypted
 │   └── derived/      occurrence ids
 ├── sync/src/main/kotlin/eu/teele/neugesplitter/sync/
 │   ├── LogStore.kt   the backend port: createIfAbsent, get, listFrom, createProbe
@@ -106,6 +107,7 @@ module _is_ the layer.
 | Which occurrences a series is due             | `:domain`                   | event-model 6        |
 | Serialising an event, enforcing parser limits | `:format`                   | TR-39                |
 | Encrypting, decrypting, chain verification    | `:format`                   | TR-26a, TR-26b       |
+| Writing and reading an export file            | `:format`                   | format-spec 11, DA-3 |
 | Retaining exact bytes                         | `:storage`, port in `:sync` | TR-17                |
 | Picking the next number, conditional write    | `:sync`                     | sync-design 4        |
 | Detecting truncation, halting                 | `:sync`                     | TR-40                |

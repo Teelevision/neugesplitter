@@ -288,6 +288,35 @@ class GroupRepository(private val driver: SqlDriver) {
         database.actingAsQueries.actAs(id.hex, member.hex)
     }
 
+    /** The text of each event in group [id]'s log, in order and exactly as kept (TR-17c). */
+    fun texts(id: GroupId): List<String> = database.eventRowQueries.inGroup(id.hex).executeAsList()
+
+    /**
+     * Stores an exported group's log [texts] as new group [id], with none of it written to any
+     * backend, followed by [added]; acts from then on as [me] (DA-3, ID-3).
+     *
+     * @throws Malformed if the log is not a valid history, or [added] does not apply to it.
+     * @throws eu.teele.neugesplitter.format.Unsupported if a later version wrote any of it.
+     */
+    fun importGroup(
+        id: GroupId,
+        texts: List<String>,
+        me: MemberId,
+        added: List<Event>,
+        today: EntryDate,
+    ): Group =
+        database.transactionWithResult {
+            require(texts.isNotEmpty()) { "a group has at least its group.created" }
+            require(replayed(id) == null) { "group $id exists already" }
+            val log = listOf(EventJson.regrouped(texts.first(), id)) + texts.drop(1)
+            val group = Group.replay(log.map(EventJson::read) + added)
+            log.forEach { database.eventRowQueries.append(id.hex, it) }
+            added.forEach { database.eventRowQueries.append(id.hex, EventJson.write(it)) }
+            actAs(id, me)
+            projection.write(null, group, today)
+            group
+        }
+
     fun actingAs(id: GroupId): MemberId? =
         database.actingAsQueries.member(id.hex).executeAsOneOrNull()?.let(MemberId::parse)
 

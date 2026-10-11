@@ -366,6 +366,43 @@
     <string name="join_name_rejected">This name is too long.</string>
     <string name="join">Join</string>
 
+    <!-- Export and import -->
+    <string name="export_action">Export</string>
+    <string name="import_action">Import</string>
+    <string name="export_title">Export groups</string>
+    <string name="import_title">Import groups</string>
+    <string name="export_group">Export group</string>
+    <string name="export_group_text">To a file, with its whole history</string>
+    <plurals name="export_groups">
+        <item quantity="one">%d group is exported to a file with its whole history. Where it is shared is not.</item>
+        <item quantity="other">%d groups are exported to a file with their whole history. Where they are shared is not.</item>
+    </plurals>
+    <string name="export_plain">Without passphrase</string>
+    <string name="export_plain_text">Anyone who has the file can read it.</string>
+    <string name="export_encrypted">With passphrase</string>
+    <string name="export_encrypted_text">The file is encrypted. Opening it takes the passphrase.</string>
+    <string name="export_passphrase_lost">Without this passphrase, nobody can open the file — us included.</string>
+    <string name="export_save">Save file</string>
+    <string name="export_failed">The file could not be written. Choose another one.</string>
+    <string name="export_done">Export saved</string>
+    <string name="export_done_text">The file holds the groups with their whole history.</string>
+    <string name="export_done_encrypted">Keep the passphrase: without it, the file cannot be opened.</string>
+    <string name="import_reading">Reading the file…</string>
+    <string name="import_passphrase_text">This file is encrypted. Enter its passphrase.</string>
+    <string name="import_wrong_passphrase">This passphrase does not open the file.</string>
+    <string name="import_unreadable">File cannot be read</string>
+    <string name="import_unreadable_text">This is no Neugesplitter export, or it is damaged. Nothing has been imported.</string>
+    <string name="import_unsupported">File too new</string>
+    <string name="import_unsupported_text">A newer version of the app wrote this file. Update the app to import it.</string>
+    <string name="import_empty">No groups</string>
+    <string name="import_empty_text">This file holds no groups.</string>
+    <string name="import_choose">Which groups do you want to import?</string>
+    <string name="import_choose_text">Each becomes a new group on this device, shared with no one.</string>
+    <string name="import_group_unknown">Unknown group</string>
+    <string name="import_group_unreadable">Cannot be read</string>
+    <string name="import_group_unsupported">Needs a newer version of the app</string>
+    <string name="import_imported">Imported</string>
+
     <!-- App settings -->
     <string name="theme">Theme</string>
     <string name="system_default">System default</string>

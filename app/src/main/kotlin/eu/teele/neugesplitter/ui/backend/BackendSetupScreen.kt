@@ -564,8 +564,9 @@ private fun Encryption(state: BackendSetupState, viewModel: BackendSetupViewMode
     )
 }
 
+/** One of a few cards to choose from, with what choosing it means. */
 @Composable
-private fun Choice(
+internal fun Choice(
     @DrawableRes icon: Int,
     title: Int,
     text: Int,
@@ -600,7 +601,11 @@ private fun Choice(
 
 @Composable
 private fun ColumnScope.Passphrase(state: BackendSetupState, viewModel: BackendSetupViewModel) {
-    if (state.custom) Custom(state, viewModel) else Generated(state, viewModel)
+    if (state.custom) {
+        OwnPassphrase(state.passphrase, viewModel::passphrase, state.strength)
+    } else {
+        GeneratedPassphrase(state.words, state.saved, viewModel::saved)
+    }
     Button(
         onClick = viewModel::next,
         enabled = state.canContinue,
@@ -623,8 +628,11 @@ private fun ColumnScope.Passphrase(state: BackendSetupState, viewModel: BackendS
     }
 }
 
+/**
+ * A passphrase made for the user, word by word, and their word that they have saved it (PR-12a).
+ */
 @Composable
-private fun Generated(state: BackendSetupState, viewModel: BackendSetupViewModel) {
+internal fun GeneratedPassphrase(words: List<String>, saved: Boolean, onSaved: (Boolean) -> Unit) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val label = stringResource(R.string.passphrase)
@@ -644,7 +652,7 @@ private fun Generated(state: BackendSetupState, viewModel: BackendSetupViewModel
             IconButton(
                 onClick = {
                     // Marked sensitive, so the system does not show it in its copy preview.
-                    val clip = ClipData.newPlainText(label, viewModel.generatedText())
+                    val clip = ClipData.newPlainText(label, words.joinToString(" "))
                     clip.description.extras =
                         PersistableBundle().apply {
                             putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
@@ -658,7 +666,7 @@ private fun Generated(state: BackendSetupState, viewModel: BackendSetupViewModel
                     stringResource(R.string.passphrase_copy),
                 )
             }
-            state.words.chunked(3).forEach { row ->
+            words.chunked(3).forEach { row ->
                 Row(Modifier.fillMaxWidth()) {
                     row.forEach {
                         Text(
@@ -675,26 +683,27 @@ private fun Generated(state: BackendSetupState, viewModel: BackendSetupViewModel
     Row(
         modifier =
             Modifier.fillMaxWidth()
-                .toggleable(
-                    value = state.saved,
-                    onValueChange = viewModel::saved,
-                    role = Role.Checkbox,
-                )
+                .toggleable(value = saved, onValueChange = onSaved, role = Role.Checkbox)
                 .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Checkbox(checked = state.saved, onCheckedChange = null)
+        Checkbox(checked = saved, onCheckedChange = null)
         Spacer(Modifier.width(16.dp))
         Text(stringResource(R.string.passphrase_saved))
     }
 }
 
+/**
+ * A passphrase the user types, and a warning while it is weak (PR-12b).
+ *
+ * @param strength how far [passphrase] is from being weak, from 0 to 1.
+ */
 @Composable
-private fun Custom(state: BackendSetupState, viewModel: BackendSetupViewModel) {
+internal fun OwnPassphrase(passphrase: String, onPassphrase: (String) -> Unit, strength: Float) {
     var shown by rememberSaveable { mutableStateOf(false) }
     Text(stringResource(R.string.passphrase_own_text))
-    Secret(state.passphrase, viewModel::passphrase, R.string.passphrase, shown, { shown = it })
-    if (state.passphrase.isNotEmpty() && state.strength < 1f) {
+    Secret(passphrase, onPassphrase, R.string.passphrase, shown, { shown = it })
+    if (passphrase.isNotEmpty() && strength < 1f) {
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -715,7 +724,7 @@ private fun Custom(state: BackendSetupState, viewModel: BackendSetupViewModel) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 LinearProgressIndicator(
-                    progress = { state.strength },
+                    progress = { strength },
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.fillMaxWidth(),
                 )

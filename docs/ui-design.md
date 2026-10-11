@@ -14,7 +14,7 @@ There are two levels, and only one of them has a bottom bar.
 
 **Outside a group** the group list is the root screen. There is nothing to
 switch between there, so it carries no navigation bar — just a list, a FAB and
-an overflow into app settings.
+an overflow into export, import and app settings.
 
 **Inside a group** a navigation bar carries four destinations with the new-entry
 action docked in the middle:
@@ -49,6 +49,8 @@ screen or opened as a bottom sheet, and the bar is hidden while it is up.
 | App settings        | pushed      | group list overflow                      |
 | New group           | pushed flow | group list FAB                           |
 | Join group          | pushed flow | group list FAB → "join existing"         |
+| Export              | pushed flow | group list overflow, group settings      |
+| Import              | pushed flow | group list overflow, after a file picker |
 | Group overview      | destination | opening a group                          |
 | People and balances | destination | navigation bar                           |
 | Activity            | destination | navigation bar                           |
@@ -79,7 +81,7 @@ only on this device shows no icon.
 - Tap opens the group at its Overview.
 - Long press selects, for the two bulk-ish actions worth having: archive (GR-13,
   later) and delete (GR-11).
-- Overflow: app settings.
+- Overflow: **export**, **import** and app settings.
 - Empty state: one line explaining that a group can be local or shared, and the
   two FAB choices spelled out as buttons.
 
@@ -109,6 +111,23 @@ code to type. An encrypted group asks for its passphrase before anything is
 fetched, and says so on the spot when it is wrong. An empty location offers to
 create a new group there, with the location already filled in; a group already
 on the device is offered to open, and nothing is changed.
+
+### Export and import
+
+**Export** turns the list into a selection with every group selected and an
+export action in place of delete; the user deselects what should stay out. Group
+settings offer the same for one group. A short pushed flow follows: without or
+with a passphrase, as two cards; for a passphrase, the same generated one or own
+one as backend setup (PR-12a, PR-12b); then the system's save dialog, offering
+`neugesplitter-<date>.zip`. Nothing about a backend goes into the file, and the
+flow says so (DA-3, DA-4).
+
+**Import** opens the system's file picker first, then a pushed flow: the
+passphrase if the file is encrypted, said on the spot when it is wrong; the
+groups in the file with a checkbox each, all checked, and those that cannot be
+read greyed out with why; then, for each group chosen in turn, who the user is
+in it, exactly as when joining. Each becomes a new group that is not shared. One
+group imported opens; several return to the list.
 
 ## 4. Inside a group
 
@@ -221,6 +240,7 @@ Plain list, grouped:
 - **Backend**: current backend summary, sync interval (SY-13), edit or configure
   (BE-2, BE-15), and the encryption state (PR-11). A local group shows that it
   is local and a row that starts backend setup.
+- **Export**: the group to a file (DA-3, section 3)
 - **Danger**: leave group (GR-12, later, warning when unsettled), delete group
   from this device (GR-11, confirmation)
 

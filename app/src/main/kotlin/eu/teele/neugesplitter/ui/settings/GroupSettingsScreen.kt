@@ -93,6 +93,8 @@ fun GroupSettingsScreen(
     onBackend: () -> Unit = {},
     /** Opens a recurring series (RE-7). */
     onSeries: (SeriesId) -> Unit = {},
+    /** Exports the group to a file (DA-3). */
+    onExport: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var dialog by rememberSaveable { mutableStateOf<Dialog?>(null) }
@@ -277,6 +279,13 @@ fun GroupSettingsScreen(
                         onClick = { dialog = Dialog.INTERVAL },
                     )
                 }
+            }
+            item(key = "export") {
+                SettingRow(
+                    stringResource(R.string.export_group),
+                    stringResource(R.string.export_group_text),
+                    onClick = onExport,
+                )
             }
             item(key = "delete") {
                 SettingRow(

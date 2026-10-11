@@ -777,3 +777,31 @@ E = {"id":"00000000000000000000000000000001","type":"member.renamed",
 | `string`        | a `name` of _n_ letters `a`                                                             |
 | `escapedString` | a `name` of ⌊_n_ / 3⌋ escapes `\u20ac` followed by _n_ mod 3 letters `a`                |
 | `events`        | _n_ copies of E in `events`, the _i_-th with `id` _i_ in 32 hex digits, counting from 1 |
+
+## 11. The export file
+
+An export (DA-3) is a zip file, independent of any backend, holding groups' logs
+and nothing about where they are shared:
+
+```
+manifest.json                         {"neugesplitter-export":1}
+groups/<group id>/events/0001.json    {"neugesplitter":1,"events":[…]}
+groups/<group id>/events/0002.json    …
+attachments/<name>                    as section 9, once there are any
+```
+
+- **The manifest is the first entry.** A file that does not start with it is no
+  export. A later `neugesplitter-export` version is unsupported (section 8).
+- **A batch** holds the events of one group in log order, each event's text
+  exactly as the log keeps it (TR-17c), and follows every rule and limit of a
+  log object's JSON (section 2.2); it carries no `batch` field and no chain,
+  because nothing is uploaded from it. Batches are numbered from 1 with at least
+  four digits, without gaps, and a writer starts a new one before the limits are
+  reached. A group's events are its batches in order.
+- **Encryption** is optional and is zip's AES-256 on every entry, with one
+  passphrase. Entry names stay readable.
+- A reader ignores entries it does not know, refuses an entry larger than a log
+  object may be, and holds no more than 64 MiB of a file uncompressed.
+- **Importing** stores a group as a new one, with a new id written into its
+  `group.created` and every other field kept, unshared; its events wait to be
+  uploaded like any written on the device, if it is ever shared.

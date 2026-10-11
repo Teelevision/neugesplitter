@@ -1,5 +1,7 @@
 package eu.teele.neugesplitter.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -12,6 +14,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -39,6 +42,10 @@ import eu.teele.neugesplitter.ui.detail.EntryDetailScreen
 import eu.teele.neugesplitter.ui.detail.EntryDetailViewModel
 import eu.teele.neugesplitter.ui.editor.EntryEditorScreen
 import eu.teele.neugesplitter.ui.editor.EntryEditorViewModel
+import eu.teele.neugesplitter.ui.export.ExportScreen
+import eu.teele.neugesplitter.ui.export.ExportViewModel
+import eu.teele.neugesplitter.ui.export.ImportScreen
+import eu.teele.neugesplitter.ui.export.ImportViewModel
 import eu.teele.neugesplitter.ui.grouplist.GroupListScreen
 import eu.teele.neugesplitter.ui.grouplist.GroupListViewModel
 import eu.teele.neugesplitter.ui.history.EntryHistoryScreen
@@ -59,6 +66,7 @@ import eu.teele.neugesplitter.ui.settings.GroupSettingsScreen
 import eu.teele.neugesplitter.ui.settings.GroupSettingsViewModel
 import eu.teele.neugesplitter.ui.sync.SyncProblemScreen
 import eu.teele.neugesplitter.ui.sync.SyncProblemViewModel
+import java.io.IOException
 import java.text.DecimalFormatSymbols
 import kotlinx.coroutines.flow.combine
 import kotlinx.serialization.Serializable
@@ -111,6 +119,12 @@ data class EntryEditor(
 /** @property group the group's id, as hex. */
 @Serializable data class SyncProblem(val group: String) : NavKey
 
+/** @property groups the ids of the groups to export, as hex. */
+@Serializable data class Export(val groups: List<String>) : NavKey
+
+/** @property file the content URI of the file to import from. */
+@Serializable data class Import(val file: String) : NavKey
+
 /**
  * An empty location joining found, for the new group to be shared at. It holds the secret key, so
  * it stays in memory and out of the saved navigation state.
@@ -142,12 +156,56 @@ fun App(graph: AppGraph) {
         entryProvider =
             entryProvider {
                 entry<GroupList> {
+                    val file =
+                        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
+                            uri ->
+                            if (uri != null) stack.add(Import(uri.toString()))
+                        }
                     GroupListScreen(
                         viewModel { GroupListViewModel(graph.groups, graph::today) },
                         onNewGroup = { stack.add(NewGroup) },
                         onJoin = { stack.add(JoinGroup) },
                         onOpen = { stack.add(GroupOverview(it.hex)) },
                         onSettings = { stack.add(AppSettings) },
+                        onExport = { ids -> stack.add(Export(ids.map { it.hex })) },
+                        // Some providers name a zip file otherwise, so any file can be chosen.
+                        onImport = { file.launch(arrayOf("application/zip", "*/*")) },
+                    )
+                }
+                entry<Export> { key ->
+                    val locale = LocalConfiguration.current.locales[0]
+                    ExportScreen(
+                        viewModel {
+                            ExportViewModel(
+                                graph.groups,
+                                key.groups.map(GroupId::parse),
+                                graph::today,
+                                locale,
+                            )
+                        },
+                        onClose = { pop() },
+                    )
+                }
+                entry<Import> { key ->
+                    val resolver = LocalContext.current.contentResolver
+                    ImportScreen(
+                        viewModel {
+                            ImportViewModel(
+                                graph.groups,
+                                {
+                                    resolver.openInputStream(key.file.toUri())
+                                        ?: throw IOException("no stream for ${key.file}")
+                                },
+                                graph::identifier,
+                                graph::today,
+                                graph::now,
+                            )
+                        },
+                        onClose = { pop() },
+                        onDone = {
+                            pop()
+                            it.singleOrNull()?.let { id -> stack.add(GroupOverview(id.hex)) }
+                        },
                     )
                 }
                 entry<AppSettings> {
@@ -346,6 +404,7 @@ fun App(graph: AppGraph) {
                                     onBack = back,
                                     onBackend = { stack.add(BackendSetup(key.group)) },
                                     onSeries = { stack.add(RecurringSeries(key.group, it.hex)) },
+                                    onExport = { stack.add(Export(listOf(key.group))) },
                                     onDeleted = { while (stack.size > 1) pop() },
                                     modifier = modifier,
                                 )

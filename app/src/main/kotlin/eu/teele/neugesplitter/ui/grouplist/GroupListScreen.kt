@@ -69,11 +69,16 @@ fun GroupListScreen(
     onJoin: () -> Unit,
     onOpen: (GroupId) -> Unit,
     onSettings: () -> Unit,
+    /** Exports the groups chosen, in the order of the list (DA-3). */
+    onExport: (List<GroupId>) -> Unit = {},
+    /** Imports groups from a file (DA-3). */
+    onImport: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val selecting = state.selected.isNotEmpty()
+    val selecting = state.selecting
     var confirming by rememberSaveable { mutableStateOf(false) }
     var adding by rememberSaveable { mutableStateOf(false) }
+    var menu by rememberSaveable { mutableStateOf(false) }
 
     BackHandler(enabled = selecting) { viewModel.clearSelection() }
 
@@ -92,11 +97,20 @@ fun GroupListScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { confirming = true }) {
-                            Icon(
-                                painterResource(R.drawable.ic_delete),
-                                stringResource(R.string.delete),
-                            )
+                        if (state.exporting) {
+                            TextButton(
+                                onClick = { onExport(viewModel.export()) },
+                                enabled = count > 0,
+                            ) {
+                                Text(stringResource(R.string.export_action))
+                            }
+                        } else {
+                            IconButton(onClick = { confirming = true }) {
+                                Icon(
+                                    painterResource(R.drawable.ic_delete),
+                                    stringResource(R.string.delete),
+                                )
+                            }
                         }
                     },
                 )
@@ -104,11 +118,37 @@ fun GroupListScreen(
                 TopAppBar(
                     title = { Text(stringResource(R.string.app_name)) },
                     actions = {
-                        IconButton(onClick = onSettings) {
-                            Icon(
-                                painterResource(R.drawable.ic_settings),
-                                stringResource(R.string.destination_settings),
-                            )
+                        Box {
+                            IconButton(onClick = { menu = true }) {
+                                Icon(
+                                    painterResource(R.drawable.ic_more_vert),
+                                    stringResource(R.string.more_options),
+                                )
+                            }
+                            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.export_action)) },
+                                    enabled = !state.groups.isNullOrEmpty(),
+                                    onClick = {
+                                        menu = false
+                                        viewModel.startExport()
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.import_action)) },
+                                    onClick = {
+                                        menu = false
+                                        onImport()
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.destination_settings)) },
+                                    onClick = {
+                                        menu = false
+                                        onSettings()
+                                    },
+                                )
+                            }
                         }
                     },
                 )
@@ -165,7 +205,7 @@ fun GroupListScreen(
         }
     }
 
-    if (confirming && selecting) {
+    if (confirming && selecting && !state.exporting) {
         val count = state.selected.size
         AlertDialog(
             onDismissRequest = { confirming = false },

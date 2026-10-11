@@ -16,10 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,12 +24,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,18 +39,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
-import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.value.GroupId
-import eu.teele.neugesplitter.ui.GroupAvatar
 import eu.teele.neugesplitter.ui.backend.Checks
 import eu.teele.neugesplitter.ui.backend.Failure
 import eu.teele.neugesplitter.ui.backend.Found as FoundCard
@@ -277,96 +263,15 @@ private fun Who(state: JoinState, viewModel: JoinViewModel) {
         Spacer(Modifier.width(12.dp))
         Text(stringResource(R.string.join_found), style = MaterialTheme.typography.titleMedium)
     }
-    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            GroupAvatar(group.name, group.emoji, group.colour)
-            Column(Modifier.padding(start = 16.dp)) {
-                Text(group.name, style = MaterialTheme.typography.titleLarge)
-                val members = state.members.size
-                val entries = group.entries.size
-                Text(
-                    pluralStringResource(R.plurals.join_members, members, members) +
-                        " · " +
-                        pluralStringResource(R.plurals.join_entries, entries, entries),
-                    color = colours.onSurfaceVariant,
-                )
-            }
-        }
-    }
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(stringResource(R.string.join_who), style = MaterialTheme.typography.headlineSmall)
-        Text(stringResource(R.string.join_who_text), color = colours.onSurfaceVariant)
-    }
-    OutlinedCard(modifier = Modifier.fillMaxWidth().selectableGroup()) {
-        state.members.forEach { member ->
-            Choice(
-                selected = state.chosen == member.id,
-                onClick = { viewModel.choose(member.id) },
-                leading = { Initial(member) },
-                name = member.name,
-            )
-            HorizontalDivider()
-        }
-        Choice(
-            selected = state.adding,
-            onClick = viewModel::adding,
-            leading = {
-                Icon(
-                    painterResource(R.drawable.ic_add),
-                    null,
-                    modifier = Modifier.size(40.dp).padding(8.dp),
-                )
-            },
-            name = stringResource(R.string.join_new_member),
-        )
-    }
-    if (state.adding) {
-        OutlinedTextField(
-            value = state.name,
-            onValueChange = viewModel::name,
-            label = { Text(stringResource(R.string.member_name)) },
-            isError = state.rejected,
-            supportingText =
-                if (state.rejected) {
-                    { Text(stringResource(R.string.join_name_rejected)) }
-                } else null,
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-@Composable
-private fun Choice(
-    selected: Boolean,
-    onClick: () -> Unit,
-    leading: @Composable () -> Unit,
-    name: String,
-) {
-    ListItem(
-        headlineContent = { Text(name) },
-        leadingContent = leading,
-        trailingContent = { RadioButton(selected = selected, onClick = null) },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier.selectable(selected, onClick = onClick, role = Role.RadioButton),
+    GroupSummary(group)
+    WhoFields(
+        state.members,
+        state.chosen,
+        state.adding,
+        state.name,
+        state.rejected,
+        viewModel::choose,
+        viewModel::adding,
+        viewModel::name,
     )
-}
-
-/** A member's first letter, which repeats the name beside it. */
-@Composable
-private fun Initial(member: Member) {
-    Box(
-        modifier =
-            Modifier.size(40.dp)
-                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
-                .clearAndSetSemantics {},
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            member.name.trim().take(1).uppercase(),
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            style = MaterialTheme.typography.titleMedium,
-        )
-    }
 }

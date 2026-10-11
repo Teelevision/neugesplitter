@@ -85,7 +85,7 @@ data class JoinState(
 
     /** Who the user can be: every member not removed (BE-6). */
     val members: List<Member>
-        get() = group?.let { g -> g.members.values.filter { it.id !in g.removed } }.orEmpty()
+        get() = group?.let(::candidates).orEmpty()
 
     val canContinue: Boolean
         get() =

@@ -93,11 +93,21 @@ class GroupListScreenTest {
         onJoin: () -> Unit = {},
         onOpen: (GroupId) -> Unit = {},
         onSettings: () -> Unit = {},
+        onExport: (List<GroupId>) -> Unit = {},
+        onImport: () -> Unit = {},
     ) {
         val viewModel = GroupListViewModel(groups) { today }
         compose.setContent {
             NeugesplitterTheme {
-                GroupListScreen(viewModel, onNewGroup, onJoin, onOpen, onSettings)
+                GroupListScreen(
+                    viewModel,
+                    onNewGroup,
+                    onJoin,
+                    onOpen,
+                    onSettings,
+                    onExport,
+                    onImport,
+                )
             }
         }
     }
@@ -177,11 +187,37 @@ class GroupListScreenTest {
     }
 
     @Test
-    fun `the settings button opens the app settings (UX-3)`() {
+    fun `the menu opens the app settings and importing (UX-3, DA-3)`() {
         var opened = 0
-        show(onSettings = { opened++ })
-        compose.onNodeWithContentDescription("Settings").performClick()
+        var imported = 0
+        show(onSettings = { opened++ }, onImport = { imported++ })
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Settings").performClick()
         assertEquals(1, opened)
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Import").performClick()
+        assertEquals(1, imported)
+    }
+
+    @Test
+    fun `exporting starts with every group selected and hands over those left (DA-3)`() {
+        seed(trip, "Trip")
+        seed(flat, "Flat")
+        var exported: List<GroupId>? = null
+        show(onExport = { exported = it })
+        waitForText("Flat")
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Export").performClick()
+        compose.onNodeWithText("2 selected").assertExists()
+        compose.onNodeWithContentDescription("Delete").assertDoesNotExist()
+
+        compose.onNodeWithText("Flat").performClick()
+        compose.onNodeWithText("1 selected").assertExists()
+        compose.onNodeWithText("Export").performClick()
+
+        assertEquals(listOf(trip), exported)
+        compose.onNodeWithText("Neugesplitter").assertExists()
+        assertNotNull(groups.load(flat))
     }
 
     @Test

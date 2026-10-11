@@ -20,12 +20,14 @@ import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.event.GroupChanges
 import eu.teele.neugesplitter.domain.group.Group
+import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.recurrence.Interval
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.segment
 import eu.teele.neugesplitter.domain.template
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.Colour
+import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
@@ -507,6 +509,59 @@ class GroupRepositoryTest {
         assertEquals(weekend, seen[0])
         assertEquals(weekend + written, seen[1])
         assertEquals(emptyList(), groups.events(GroupId.parse("%032x".format(0xdead))))
+    }
+
+    @Test
+    fun `an imported group is a new group with the same history, none of it written (DA-3)`() {
+        appendedOneByOne(GROUP, household)
+        val copy = GroupId.parse("%032x".format(0xc0a3))
+        val texts = groups.texts(GROUP)
+
+        val imported = groups.importGroup(copy, texts, BEN, emptyList(), TODAY)
+
+        assertEquals(groups.load(GROUP)!!.copy(id = copy), imported)
+        assertEquals(imported, groups.load(copy))
+        assertEquals(texts.drop(1), groups.texts(copy).drop(1))
+        assertEquals(texts.size.toLong(), database.eventRowQueries.waiting(copy.hex).executeAsOne())
+        assertEquals(BEN, groups.actingAs(copy))
+        assertNull(groups.backends.settings(copy))
+        val before = projection()
+        groups.rebuild(TODAY)
+        assertEquals(before, projection())
+    }
+
+    @Test
+    fun `importing may add the member the user is, after the history (DA-3, BE-6)`() {
+        val copy = GroupId.parse("%032x".format(0xc0a3))
+        val joined =
+            Event.MemberAdded(
+                EventId.parse("%032x".format(0xadd)),
+                CLARA,
+                Instant.EPOCH,
+                Member(CLARA, "Clara"),
+            )
+
+        val imported =
+            groups.importGroup(copy, weekend.map(EventJson::write), CLARA, listOf(joined), TODAY)
+
+        assertEquals("Clara", imported.members.getValue(CLARA).name)
+        assertEquals(EventJson.write(joined), groups.texts(copy).last())
+        assertEquals(CLARA, groups.actingAs(copy))
+    }
+
+    @Test
+    fun `an import that is no valid history keeps nothing`() {
+        val copy = GroupId.parse("%032x".format(0xc0a3))
+        val broken = weekend.map(EventJson::write).let { it.take(1) + it.drop(3) }
+
+        assertFailsWith<Malformed> { groups.importGroup(copy, broken, BEN, emptyList(), TODAY) }
+
+        assertEquals(emptyList(), groups.texts(copy))
+        assertNull(groups.actingAs(copy))
+        assertFailsWith<IllegalArgumentException> {
+            groups.append(trip, weekend, TODAY)
+            groups.importGroup(trip, weekend.map(EventJson::write), BEN, emptyList(), TODAY)
+        }
     }
 
     @Test

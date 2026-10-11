@@ -80,11 +80,11 @@ class AppTest {
         compose.onNodeWithText("Trip").performClick()
         awaitText("Settings")
         compose.onNodeWithText("Settings").performClick()
-        awaitText("Delete group from this device")
+        awaitText("Export group")
         Espresso.pressBack()
         compose.waitForIdle()
         compose.onNodeWithText("Overview").assertExists()
-        compose.onNodeWithText("Delete group from this device").assertDoesNotExist()
+        compose.onNodeWithText("Export group").assertDoesNotExist()
 
         compose.onNodeWithText("People").performClick()
         compose.onNodeWithContentDescription("Back").performClick()

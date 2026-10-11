@@ -364,6 +364,43 @@
     <string name="join_name_rejected">Dieser Name ist zu lang.</string>
     <string name="join">Beitreten</string>
 
+    <!-- Export and import -->
+    <string name="export_action">Exportieren</string>
+    <string name="import_action">Importieren</string>
+    <string name="export_title">Gruppen exportieren</string>
+    <string name="import_title">Gruppen importieren</string>
+    <string name="export_group">Gruppe exportieren</string>
+    <string name="export_group_text">In eine Datei, mit dem ganzen Verlauf</string>
+    <plurals name="export_groups">
+        <item quantity="one">%d Gruppe wird mit ihrem ganzen Verlauf in eine Datei exportiert. Wo sie geteilt wird, nicht.</item>
+        <item quantity="other">%d Gruppen werden mit ihrem ganzen Verlauf in eine Datei exportiert. Wo sie geteilt werden, nicht.</item>
+    </plurals>
+    <string name="export_plain">Ohne Passphrase</string>
+    <string name="export_plain_text">Wer die Datei hat, kann sie lesen.</string>
+    <string name="export_encrypted">Mit Passphrase</string>
+    <string name="export_encrypted_text">Die Datei wird verschlüsselt. Zum Öffnen braucht es die Passphrase.</string>
+    <string name="export_passphrase_lost">Ohne diese Passphrase kann niemand die Datei öffnen — auch wir nicht.</string>
+    <string name="export_save">Datei speichern</string>
+    <string name="export_failed">Die Datei konnte nicht geschrieben werden. Wähle eine andere.</string>
+    <string name="export_done">Export gespeichert</string>
+    <string name="export_done_text">Die Datei enthält die Gruppen mit ihrem ganzen Verlauf.</string>
+    <string name="export_done_encrypted">Bewahre die Passphrase auf: Ohne sie lässt sich die Datei nicht öffnen.</string>
+    <string name="import_reading">Die Datei wird gelesen…</string>
+    <string name="import_passphrase_text">Diese Datei ist verschlüsselt. Gib ihre Passphrase ein.</string>
+    <string name="import_wrong_passphrase">Diese Passphrase öffnet die Datei nicht.</string>
+    <string name="import_unreadable">Datei nicht lesbar</string>
+    <string name="import_unreadable_text">Das ist kein Neugesplitter-Export, oder er ist beschädigt. Es wurde nichts importiert.</string>
+    <string name="import_unsupported">Datei zu neu</string>
+    <string name="import_unsupported_text">Eine neuere Version der App hat diese Datei geschrieben. Aktualisiere die App, um sie zu importieren.</string>
+    <string name="import_empty">Keine Gruppen</string>
+    <string name="import_empty_text">Diese Datei enthält keine Gruppen.</string>
+    <string name="import_choose">Welche Gruppen möchtest du importieren?</string>
+    <string name="import_choose_text">Jede wird zu einer neuen Gruppe auf diesem Gerät, mit niemandem geteilt.</string>
+    <string name="import_group_unknown">Unbekannte Gruppe</string>
+    <string name="import_group_unreadable">Nicht lesbar</string>
+    <string name="import_group_unsupported">Braucht eine neuere Version der App</string>
+    <string name="import_imported">Importiert</string>
+
     <!-- App settings -->
     <string name="theme">Design</string>
     <string name="system_default">Systemstandard</string>
