@@ -1,6 +1,7 @@
 package eu.teele.neugesplitter.ui.settings
 
 import android.os.Looper
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasScrollAction
@@ -12,25 +13,18 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextReplacement
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
-import eu.teele.neugesplitter.domain.entry.Kind
-import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.event.Change
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.event.GroupChanges
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
-import eu.teele.neugesplitter.domain.recurrence.Interval
-import eu.teele.neugesplitter.domain.recurrence.Mode
-import eu.teele.neugesplitter.domain.recurrence.Segment
-import eu.teele.neugesplitter.domain.recurrence.Template
-import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
-import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.storage.settings.BackendSettings
@@ -62,7 +56,7 @@ class GroupSettingsScreenTest {
     private var deleted = false
     private var backend = 0
     private val intervals = mutableListOf<Duration>()
-    private val seriesOpened = mutableListOf<SeriesId>()
+    private lateinit var viewModel: GroupSettingsViewModel
 
     private fun id(n: Int) = "%032x".format(n)
 
@@ -84,7 +78,7 @@ class GroupSettingsScreenTest {
             Group.create(trip, "Trip", null, null, null, listOf(anna, ben, clara), at, ::eventId)
         groups.create(created, today)
         before()
-        val viewModel =
+        viewModel =
             GroupSettingsViewModel(
                 groups,
                 trip,
@@ -103,7 +97,6 @@ class GroupSettingsScreenTest {
                     onBack = {},
                     onDeleted = { deleted = true },
                     onBackend = { backend++ },
-                    onSeries = { seriesOpened += it },
                 )
             }
         }
@@ -156,82 +149,6 @@ class GroupSettingsScreenTest {
     private fun scrollTo(text: String) =
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(text))
 
-    private fun monthly(description: String) =
-        Segment(
-            Interval.MonthlyOn(setOf(1)),
-            Mode.AUTOMATIC,
-            Template(
-                Kind.EXPENSE,
-                description,
-                Amount.ofUnits(10_000_000_000L),
-                Side.Equal(listOf(anna.id)),
-                Side.Equal(listOf(anna.id, ben.id)),
-            ),
-        )
-
-    @Test
-    fun `running series are listed, and stopped ones fold away below them (RE-7)`() {
-        val rent = SeriesId.parse(id(20))
-        val cleaning = SeriesId.parse(id(21))
-        show {
-            val events =
-                listOf(
-                    Event.SeriesCreated(
-                        eventId(),
-                        anna.id,
-                        at,
-                        rent,
-                        date("2026-09-01"),
-                        monthly("Rent"),
-                    ),
-                    Event.SeriesCreated(
-                        eventId(),
-                        anna.id,
-                        at,
-                        cleaning,
-                        date("2026-08-01"),
-                        monthly("Cleaning"),
-                    ),
-                    Event.SeriesStopped(eventId(), anna.id, at, cleaning, date("2026-10-01")),
-                    Event.SeriesStopped(
-                        eventId(),
-                        anna.id,
-                        at,
-                        rent,
-                        date("2026-12-01"),
-                        date("2027-01-01"),
-                    ),
-                )
-            groups.append(trip, events, today)
-        }
-        scrollTo("1 stopped")
-        compose
-            .onNodeWithText(
-                "Every month on the 1st · Pauses from Tuesday, December 1, 2026, continues on " +
-                    "Friday, January 1, 2027"
-            )
-            .assertExists()
-        compose.onNodeWithText("Cleaning").assertDoesNotExist()
-
-        open("1 stopped")
-        scrollTo("Cleaning")
-        compose
-            .onNodeWithText("Every month on the 1st · Stopped since Thursday, October 1, 2026")
-            .assertExists()
-        open("Cleaning")
-        open("Rent")
-        assertEquals(listOf(cleaning, rent), seriesOpened)
-    }
-
-    @Test
-    fun `without a series the list says how one is made (RE-1)`() {
-        show()
-        scrollTo("Recurring series")
-        compose.onNodeWithText("None yet. Switch on Repeats when adding an entry.").assertExists()
-    }
-
-    private fun date(text: String) = EntryDate.parse(text)
-
     @Test
     fun `renaming stores only the name, trimmed, and the same name writes nothing (GR-2)`() {
         show()
@@ -282,33 +199,69 @@ class GroupSettingsScreenTest {
     }
 
     @Test
-    fun `choosing an emoji stores it and choosing it again clears it (GR-2)`() {
+    fun `an emoji shows at once, is written on leaving, and choosing it again clears it (GR-2)`() {
         show()
+        val written = count()
         compose.onNodeWithText("🏠").performClick()
+        awaitText("🏠 Trip")
+        assertEquals(written, count())
+        viewModel.commit()
         await { stored().emoji == "🏠" }
         assertEquals(GroupChanges(emoji = Change.To("🏠")), lastChange())
-        awaitText("🏠 Trip")
 
         compose.onNodeWithText("🏠").performClick()
+        awaitGone("🏠 Trip")
+        viewModel.commit()
         await { stored().emoji == null }
         assertEquals(GroupChanges(emoji = Change.To(null)), lastChange())
     }
 
     @Test
-    fun `choosing a colour stores it, and the one the group has writes nothing (GR-2)`() {
+    fun `any other emoji can be typed, and only its first is taken (GR-2)`() {
         show()
+        compose.onNodeWithContentDescription("Other emoji").performClick()
+        typeInto("🦊🐻")
+        compose.onNodeWithContentDescription("Save").performClick()
+        awaitText("🦊 Trip")
+        viewModel.commit()
+        await { stored().emoji == "🦊" }
+    }
+
+    @Test
+    fun `trying several colours writes only the last, and the one the group has writes nothing (GR-2)`() {
+        show()
+        val written = count()
+        compose.onNodeWithContentDescription("Berry").performClick()
         compose.onNodeWithContentDescription("Blue").performClick()
-        await { stored().colour == GROUP_COLOURS[2] }
-        assertEquals(GroupChanges(colour = Change.To(GROUP_COLOURS[2])), lastChange())
         compose.waitUntil(5_000) {
             runCatching { compose.onNodeWithContentDescription("Blue").assertIsSelected() }
                 .isSuccess
         }
-
-        val written = count()
-        compose.onNodeWithContentDescription("Blue").performClick()
-        compose.waitForIdle()
         assertEquals(written, count())
+        viewModel.commit()
+        await { stored().colour == GROUP_COLOURS[2] }
+        assertEquals(written + 1, count())
+        assertEquals(GroupChanges(colour = Change.To(GROUP_COLOURS[2])), lastChange())
+
+        compose.onNodeWithContentDescription("Blue").performClick()
+        viewModel.commit()
+        compose.waitForIdle()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(written + 1, count())
+    }
+
+    @Test
+    fun `any other colour can be mixed (GR-2)`() {
+        show()
+        compose.onNodeWithContentDescription("Other colour").performClick()
+        compose.onNodeWithContentDescription("Saturation").performSemanticsAction(
+            SemanticsActions.SetProgress
+        ) {
+            it(1f)
+        }
+        compose.onNodeWithContentDescription("Other colour").assertIsSelected()
+        viewModel.commit()
+        await { stored().colour.let { it != null && it !in GROUP_COLOURS } }
     }
 
     @Test
@@ -352,14 +305,16 @@ class GroupSettingsScreenTest {
     }
 
     @Test
-    fun `the group is kept on this device only, and says what that risks (DA-1)`() {
+    fun `a group kept only here says what that risks, and the row sets up sharing (DA-1)`() {
         show()
         compose.onNode(hasScrollAction()).performScrollToNode(hasText("Only on this device"))
-        compose.onNodeWithText("Only on this device").assertExists()
         compose
-            .onNodeWithText("Quick to set up. This group is lost if the device is lost.")
+            .onNodeWithText(
+                "This group is lost if the device is lost. Tap to set up shared storage."
+            )
             .assertExists()
-        open("Set up shared storage")
+        compose.onNodeWithText("Set up shared storage").assertDoesNotExist()
+        open("Only on this device")
         assertEquals(1, backend)
     }
 

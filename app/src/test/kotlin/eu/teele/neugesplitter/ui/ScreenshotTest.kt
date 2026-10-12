@@ -367,21 +367,24 @@ class ScreenshotTest(private val scale: Float) {
         compose.onNodeWithText(s(R.string.destination_settings)).performClick()
         awaitText(s(R.string.group_name))
         shot("09-gruppen-einstellungen")
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Miete"))
-        shot("10-serien")
 
-        compose.onNode(hasText("Miete") and hasClickAction()).performClick()
-        awaitText(s(R.string.series_pause))
-        shot("11-serie")
-        back()
-
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText(s(R.string.storage_set_up)))
-        compose.onNodeWithText(s(R.string.storage_set_up)).performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(s(R.string.storage_local)))
+        compose.onNodeWithText(s(R.string.storage_local)).performClick()
         awaitText(s(R.string.setup_paste))
         shot("12-speicher")
         back()
 
         compose.onNodeWithText(s(R.string.destination_overview)).performClick()
+        awaitText(s(R.string.total_spending))
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Miete"))
+        compose.onAllNodesWithText("Miete")[0].performSemanticsAction(SemanticsActions.OnClick)
+        awaitText(s(R.string.series_open))
+        compose.onNodeWithText(s(R.string.series_open)).performClick()
+        awaitText(s(R.string.series_pause))
+        shot("11-serie")
+        back()
+        back()
+
         awaitText(s(R.string.total_spending))
         compose.onNode(hasScrollAction()).performScrollToNode(hasText("Wocheneinkauf"))
         // At the largest text the row can sit under the navigation bar, where a tap would land.

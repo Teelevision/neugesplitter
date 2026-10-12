@@ -221,7 +221,8 @@ of everyone entering the same backend settings.
   — MUST be recorded as an immutable event. Events are never rewritten; a
   correction is a new event.
 - **HI-2** (Core): Members MUST be able to view the history of a group: what was
-  changed, by which member, and when.
+  changed, by which member, and when. What one action changed at once SHOULD be
+  shown as one change.
 - **HI-3** (Core): Members MUST be able to view the history of a single entry,
   including its previous versions and its deletion.
 - **HI-4** (Core): The current entry list MUST show who created an entry and
@@ -349,7 +350,8 @@ of everyone entering the same backend settings.
 - **BA-6** (Core): A suggested transfer MUST be convertible into a recorded
   transfer entry with one action.
 - **BA-7** (Core): The app MUST show a personal summary ("you owe / you are
-  owed") on the group screen.
+  owed") on the group screen, and for each entry what it does to the user's
+  balance.
 - **BA-8** (Later): The app MUST show group statistics: total spending, spending
   per member, and spending per category over a period.
 

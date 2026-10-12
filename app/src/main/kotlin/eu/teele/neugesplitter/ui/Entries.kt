@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,12 +22,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.entry.Kind
+import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.storage.ListedEntry
@@ -65,6 +68,20 @@ fun sideLabels(kind: Kind): Pair<Int, Int> =
 /** "Monday, 31 August 2026", as [locale] writes it. */
 fun longDate(date: EntryDate, locale: Locale): String =
     DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale).format(date.value)
+
+/** The day above the entries that fall on it. */
+@Composable
+fun DayHeading(date: EntryDate, locale: Locale) {
+    Text(
+        longDate(date, locale),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier =
+            Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp).semantics {
+                heading()
+            },
+    )
+}
 
 /** Marks a change not seen yet (HI-5), by a shape and a label rather than colour alone (UX-6). */
 @Composable
@@ -164,12 +181,34 @@ private fun EntryAmounts(
             style = MaterialTheme.typography.titleMedium.merge(TABULAR),
         )
         val own = entry.own
-        if (own != null && !own.isZero && entry.kind != Kind.TRANSFER) {
-            Text(
-                stringResource(R.string.entry_own_share, formatted(own, scale, locale)),
-                style = MaterialTheme.typography.bodySmall.merge(TABULAR),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        if (own != null) Balance(own, scale, locale, Modifier.padding(top = 2.dp))
     }
+}
+
+/**
+ * What one entry does to the user's balance, signed and on accent when in credit, secondary when
+ * owed and neutral when even (ui-design 8).
+ */
+@Composable
+private fun Balance(own: Amount, scale: Scale, locale: Locale, modifier: Modifier = Modifier) {
+    val colours = MaterialTheme.colorScheme
+    val rounded = own.roundedTo(scale)
+    val (container, content) =
+        when {
+            rounded.isPositive -> colours.tertiaryContainer to colours.onTertiaryContainer
+            rounded.isNegative -> colours.secondaryContainer to colours.onSecondaryContainer
+            else -> colours.surfaceContainerHigh to colours.onSurfaceVariant
+        }
+    val said = position(rounded, scale).text
+    Text(
+        signed(rounded, scale, locale),
+        style = MaterialTheme.typography.labelMedium.merge(TABULAR),
+        color = content,
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(container)
+                .padding(horizontal = 6.dp, vertical = 2.dp)
+                .semantics { contentDescription = said },
+    )
 }

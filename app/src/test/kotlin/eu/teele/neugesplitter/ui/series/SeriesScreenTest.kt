@@ -81,7 +81,7 @@ class SeriesScreenTest {
         )
 
     /** Anna's rent, monthly on the 1st from 1 August, so three are due by 7 October. */
-    private fun show(vararg after: Event) {
+    private fun show(vararg after: Event, repeats: String = "Every month on the 1st · Automatic") {
         groups.create(
             Group.create(trip, "Trip", null, null, null, listOf(anna, ben), at, ::eventId),
             today,
@@ -95,7 +95,7 @@ class SeriesScreenTest {
                 SeriesScreen(viewModel, onBack = { back++ }, onOpen = { opened += it })
             }
         }
-        awaitText("Every month on the 1st · Automatic")
+        awaitText(repeats)
     }
 
     private fun date(text: String) = EntryDate.parse(text)
@@ -108,10 +108,12 @@ class SeriesScreenTest {
     private fun series() = groups.load(trip)!!.series.getValue(rent)
 
     @Test
-    fun `a series shows what it produces, how it repeats, and the entries it made (RE-9)`() {
+    fun `a series shows what it produces, how it repeats, and the entries it made under their days (RE-9)`() {
         show()
         compose.onNodeWithText("Running").assertExists()
         compose.onNodeWithText("Its entries").assertExists()
+        compose.onNodeWithText("Thursday, October 1, 2026").assertExists()
+        compose.onNodeWithText("Tuesday, September 1, 2026").assertExists()
         // The header, and one row for each of August, September and October.
         assertEquals(4, compose.onAllNodesWithText("Rent").fetchSemanticsNodes().size)
         assertEquals(4, compose.onAllNodesWithText("Paid by Anna").fetchSemanticsNodes().size)
@@ -122,6 +124,29 @@ class SeriesScreenTest {
 
     private fun inDialog(text: String) =
         compose.onNode(hasText(text) and hasAnyAncestor(isDialog()))
+
+    @Test
+    fun `a series says when it is next due and what became of a due date without an entry (RE-5, RE-9)`() {
+        show(Event.OccurrenceDeleted(eventId(), anna.id, at, rent, date("2026-09-01")))
+        compose.onNodeWithText("Next due on Sunday, November 1, 2026").assertExists()
+        compose.onNodeWithText("Tuesday, September 1, 2026").assertExists()
+        compose.onNodeWithText("Left out: declined or deleted").assertExists()
+        assertEquals(3, compose.onAllNodesWithText("Rent").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `a suggestion nobody decided yet is listed as waiting (RE-4, RE-9)`() {
+        val suggested = monthly.copy(mode = Mode.SUGGESTED)
+        show(
+            Event.SeriesAmended(eventId(), anna.id, at, rent, date("2026-10-01"), suggested),
+            repeats = "Every month on the 1st · Suggested",
+        )
+        compose.onNodeWithText("Thursday, October 1, 2026").assertExists()
+        compose
+            .onNodeWithText("Suggested, waiting to be confirmed or declined in Activity")
+            .assertExists()
+        assertEquals(3, compose.onAllNodesWithText("Rent").fetchSemanticsNodes().size)
+    }
 
     @Test
     fun `stopping offers today, says what stays, and leaves only continuing (RE-7)`() {

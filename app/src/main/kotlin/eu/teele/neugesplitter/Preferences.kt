@@ -50,6 +50,11 @@ class Preferences(context: Context) {
         _theme.value = theme
     }
 
+    /** The group open when the app was last left, as hex, which a fresh start opens again. */
+    var lastGroup: String?
+        get() = store.getString(LAST_GROUP, null)
+        set(value) = store.edit().putString(LAST_GROUP, value).apply()
+
     /** Forgets every setting. */
     fun clear() {
         store.edit().clear().apply()
@@ -58,5 +63,6 @@ class Preferences(context: Context) {
 
     private companion object {
         const val THEME = "theme"
+        const val LAST_GROUP = "last_group"
     }
 }

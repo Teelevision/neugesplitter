@@ -178,11 +178,10 @@ fun ActivityScreen(
             }
             section("history", R.string.history, history) { history = !history }
             if (history) {
-                itemsIndexed(state.history, key = { index, _ -> "happened-$index" }) {
-                    index,
-                    happening ->
+                itemsIndexed(state.history, key = { index, _ -> "happened-$index" }) { index, step
+                    ->
                     HappeningRow(
-                        happening,
+                        step.happening,
                         index in state.unseen,
                         state,
                         locale,
@@ -337,6 +336,8 @@ private fun sentence(happening: Happening, names: Map<MemberId, String>): String
                 happened.description,
             )
         Happened.Recurring -> stringResource(R.string.happened_recurring, by)
+        is Happened.MadeRecurring ->
+            stringResource(R.string.happened_made_recurring, by, happened.description)
     }
 }
 

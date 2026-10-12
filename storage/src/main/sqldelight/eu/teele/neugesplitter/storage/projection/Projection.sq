@@ -160,8 +160,8 @@ LEFT JOIN balance b ON b.group_id = g.id AND b.member = a.member
 WHERE g.id = ?;
 
 -- The overview's entries, newest first, one row per payer in the order they were entered: every
--- entry that counts, with the part of it that falls to the member this installation acts as, and
--- whether a change to it has not been seen yet (HI-5).
+-- entry that counts, with what the member this installation acts as paid of it and owes of it,
+-- and whether a change to it has not been seen yet (HI-5).
 entries:
 SELECT
     e.id,
@@ -171,7 +171,8 @@ SELECT
     e.amount,
     e.edited,
     o.series IS NOT NULL AS repeats,
-    b.part AS own,
+    mp.part AS paid,
+    mb.part AS owed,
     m.name AS payer,
     EXISTS (SELECT 1 FROM unseen u WHERE u.group_id = e.group_id AND u.entry = e.id) AS unseen
 FROM entry e
@@ -179,9 +180,11 @@ JOIN side p ON p.group_id = e.group_id AND p.entry = e.id AND p.role = 'payers'
 JOIN member m ON m.group_id = p.group_id AND m.id = p.member
 LEFT JOIN occurrence o ON o.group_id = e.group_id AND o.entry = e.id
 LEFT JOIN acting_as a ON a.group_id = e.group_id
--- A join rather than a subquery, which SQLDelight would take for never null.
-LEFT JOIN side b ON b.group_id = e.group_id AND b.entry = e.id
-    AND b.role = 'beneficiaries' AND b.member = a.member
+-- Joins rather than subqueries, which SQLDelight would take for never null.
+LEFT JOIN side mp ON mp.group_id = e.group_id AND mp.entry = e.id
+    AND mp.role = 'payers' AND mp.member = a.member
+LEFT JOIN side mb ON mb.group_id = e.group_id AND mb.entry = e.id
+    AND mb.role = 'beneficiaries' AND mb.member = a.member
 WHERE e.group_id = ? AND e.deleted = 0 AND coalesce(o.pending, 0) = 0
 ORDER BY e.date DESC, e.position DESC, e.id DESC, p.position;
 

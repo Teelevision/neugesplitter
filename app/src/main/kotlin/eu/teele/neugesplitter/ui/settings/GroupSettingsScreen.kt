@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
@@ -26,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,28 +34,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.value.MemberId
-import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.ui.ChoiceDialog
 import eu.teele.neugesplitter.ui.ColourPicker
 import eu.teele.neugesplitter.ui.EmojiPicker
 import eu.teele.neugesplitter.ui.InlineEditor
-import eu.teele.neugesplitter.ui.editor.recurrenceText
-import eu.teele.neugesplitter.ui.series.stopText
 import eu.teele.neugesplitter.ui.sync.GroupTitle
-import java.util.Locale
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -76,9 +71,9 @@ private enum class Field {
 }
 
 /**
- * A group's name, look and default participants, its recurring series, where it is kept, and how it
- * is removed from this device (ui-design 4, GR-2, SP-8, RE-7, GR-11). Name and description are
- * edited in place; the look takes effect as soon as it is tapped.
+ * A group's name, look and default participants, where it is kept, and how it is removed from this
+ * device (ui-design 4, GR-2, SP-8, GR-11). Name and description are edited in place; a new look
+ * shows at once and is written on leaving the screen or the app.
  *
  * @param onDeleted called once the group is gone from this device.
  */
@@ -91,19 +86,17 @@ fun GroupSettingsScreen(
     modifier: Modifier = Modifier,
     /** Opens backend setup: to share the group, or to give its location a new secret. */
     onBackend: () -> Unit = {},
-    /** Opens a recurring series (RE-7). */
-    onSeries: (SeriesId) -> Unit = {},
     /** Exports the group to a file (DA-3). */
     onExport: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var dialog by rememberSaveable { mutableStateOf<Dialog?>(null) }
     var editing by rememberSaveable { mutableStateOf<Field?>(null) }
-    var stopped by rememberSaveable { mutableStateOf(false) }
-    val locale = LocalConfiguration.current.locales[0]
 
     // Deleted while open, which this screen or another can do.
     LaunchedEffect(state) { if (state.loaded && state.title == null) onBack() }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.commit() }
+    DisposableEffect(viewModel) { onDispose { viewModel.commit() } }
 
     Scaffold(
         modifier = modifier,
@@ -181,74 +174,13 @@ fun GroupSettingsScreen(
                     onClick = { dialog = Dialog.PARTICIPANTS },
                 )
             }
-            item(key = "series") {
-                Text(
-                    stringResource(R.string.series_list),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier =
-                        Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp)
-                            .semantics { heading() },
-                )
-            }
-            if (state.series.isEmpty() && state.stopped.isEmpty()) {
-                item(key = "series-none") {
-                    Text(
-                        stringResource(R.string.series_none),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
-            }
-            items(state.series, key = { "series-${it.id.hex}" }) {
-                SeriesRow(it, locale, onClick = { onSeries(it.id) })
-            }
-            if (state.stopped.isNotEmpty()) {
-                item(key = "stopped") {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                pluralStringResource(
-                                    R.plurals.series_stopped_count,
-                                    state.stopped.size,
-                                    state.stopped.size,
-                                )
-                            )
-                        },
-                        trailingContent = {
-                            Icon(
-                                painterResource(
-                                    if (stopped) R.drawable.ic_expand_less
-                                    else R.drawable.ic_expand_more
-                                ),
-                                stringResource(if (stopped) R.string.collapse else R.string.expand),
-                            )
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        modifier = Modifier.clickable { stopped = !stopped },
-                    )
-                }
-                if (stopped) {
-                    items(state.stopped, key = { "stopped-${it.id.hex}" }) {
-                        SeriesRow(it, locale, onClick = { onSeries(it.id) })
-                    }
-                }
-            }
             val backend = state.backend
             if (backend == null) {
                 item(key = "local") {
                     SettingRow(
                         stringResource(R.string.storage_local),
-                        stringResource(R.string.storage_local_warning),
-                    )
-                }
-                item(key = "share") {
-                    SettingRow(
-                        stringResource(R.string.storage_set_up),
-                        supporting = null,
+                        stringResource(R.string.storage_local_share),
                         onClick = onBackend,
-                        headlineColour = MaterialTheme.colorScheme.primary,
                     )
                 }
             } else {
@@ -365,20 +297,6 @@ private fun atMostEvery(interval: Duration): String {
     if (interval == hours.hours) return pluralStringResource(R.plurals.poll_hours, hours, hours)
     val minutes = interval.inWholeMinutes.toInt()
     return pluralStringResource(R.plurals.poll_minutes, minutes, minutes)
-}
-
-/** A series, how it repeats, and how a stop holds it (RE-7). */
-@Composable
-private fun SeriesRow(series: SeriesSummary, locale: Locale, onClick: () -> Unit) {
-    SettingRow(
-        series.description,
-        listOfNotNull(
-                recurrenceText(series.interval, locale),
-                series.stop?.let { stopText(it, series.held, locale) },
-            )
-            .joinToString(" · "),
-        onClick = onClick,
-    )
 }
 
 /** A label and its value; a row with no [onClick] only informs. */

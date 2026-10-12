@@ -34,8 +34,9 @@ data class Overview(
  * An entry as the overview lists it (ui-design 4).
  *
  * @property payers the names of whoever paid, in the order they were entered.
- * @property own the part of it that falls to the member this installation acts as, or null if none
- *   does.
+ * @property own what it does to the balance of the member this installation acts as: what they paid
+ *   of it less what they owe of it, the other way round for an income (format-spec 7.1); null if
+ *   they are on neither side.
  * @property repeats whether it is an occurrence of a series (RE-9).
  * @property edited whether it was changed after it was created (HI-4).
  * @property unseen whether another installation changed it and that has not been seen yet (HI-5).

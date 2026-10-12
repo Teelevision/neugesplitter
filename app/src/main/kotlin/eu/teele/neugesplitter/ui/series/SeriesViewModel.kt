@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
+import eu.teele.neugesplitter.domain.recurrence.Decision
 import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Series
 import eu.teele.neugesplitter.domain.recurrence.Stop
@@ -52,6 +53,35 @@ data class SeriesDetail(
     /** Whether it is stopped for good as of today, so that only continuing it is left. */
     val ended: Boolean
         get() = stopped && stop?.until == null
+
+    /** The next day after today it makes something due, past its stops; null if none. */
+    val next: EntryDate?
+        get() {
+            var next = series.nextDue(today.plusDays(1))
+            while (next != null) {
+                val due: EntryDate = next
+                val stop = series.stops.find { due in it } ?: break
+                next = stop.until?.let(series::nextDue)
+            }
+            return next
+        }
+
+    /** The due dates whose suggestion nobody confirmed or declined yet (RE-4). */
+    val waiting: List<EntryDate>
+        get() = series.occurrences(today).filter { it.pending }.map { it.due }
+
+    /** The due dates so far whose occurrence was declined or deleted (RE-5, RE-15). */
+    val leftOut: List<EntryDate>
+        get() =
+            series.decisions
+                .filter { (due, decision) ->
+                    decision == Decision.Deleted &&
+                        due <= today &&
+                        series.stops.none { due in it } &&
+                        series.nextDue(due) == due
+                }
+                .keys
+                .sorted()
 
     /** The earliest it can stop: after its first occurrence, as stopping before is deleting it. */
     val earliestStop: EntryDate

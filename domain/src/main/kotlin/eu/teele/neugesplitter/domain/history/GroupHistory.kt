@@ -37,10 +37,52 @@ sealed interface Happened {
 
     /** A recurring series or one of its occurrences changed (RE-1). */
     data object Recurring : Happened
+
+    /** Entry [entry], which said [description], made way for a series repeating it (RE-1). */
+    data class MadeRecurring(val entry: EntryId, val description: String) : Happened
 }
 
 /** One step in the history of a group: what [happened], by which member, and when (HI-2). */
 data class Happening(val happened: Happened, val by: MemberId, val at: Instant)
+
+/** [happening], told by the events at [events] in the log (HI-2). */
+data class Step(val happening: Happening, val events: IntRange)
+
+/**
+ * [history] with what one action wrote at once told as one step (HI-2): neighbouring steps by one
+ * member at one moment merge where together they tell one thing — settings changed, an entry made
+ * recurring, a series changed.
+ */
+fun steps(history: List<Happening>): List<Step> {
+    val steps = mutableListOf<Step>()
+    history.forEachIndexed { index, happening ->
+        val last =
+            steps.lastOrNull()?.takeIf {
+                it.happening.by == happening.by && it.happening.at == happening.at
+            }
+        val merged = last?.let { merge(it.happening.happened, happening.happened) }
+        if (last != null && merged != null) {
+            steps[steps.lastIndex] =
+                Step(last.happening.copy(happened = merged), last.events.first..index)
+        } else {
+            steps += Step(happening, index..index)
+        }
+    }
+    return steps
+}
+
+/** What [first] and then [second] tell as one step, if they tell one thing. */
+private fun merge(first: Happened, second: Happened): Happened? =
+    when {
+        first is Happened.Changed && second is Happened.Changed ->
+            Happened.Changed(first.settings + second.settings)
+        first is Happened.Entry &&
+            first.change == Revision.DELETED &&
+            second is Happened.Recurring -> Happened.MadeRecurring(first.entry, first.description)
+        first is Happened.MadeRecurring && second is Happened.Recurring -> first
+        first is Happened.Recurring && second is Happened.Recurring -> first
+        else -> null
+    }
 
 /**
  * The history of the group [events] make, one step per event, oldest first (HI-2). The log is

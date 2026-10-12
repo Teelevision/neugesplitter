@@ -7,6 +7,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import eu.teele.neugesplitter.domain.value.Colour
 
@@ -92,15 +93,25 @@ internal val Dark =
     )
 
 /**
- * The six colours a group may choose, in the order they are offered: Grün, Petrol, Blau, Violett,
- * Beere, Ocker. They carry identity and nothing else, and always take white text (ui-design 8).
+ * The six colours offered first, in that order: Grün, Petrol, Blau, Violett, Beere, Ocker. A group
+ * may take any other. They carry identity and nothing else (ui-design 8).
  */
 val GROUP_COLOURS: List<Colour> =
     listOf("#4C7A3F", "#2A6E6B", "#3A6EA5", "#6A55A0", "#9C4270", "#9A5F1E").map(Colour::parse)
 
-/** [colour] for drawing; one another installation chose outside the six is drawn as it is. */
+/** [colour] for drawing. */
 fun groupColour(colour: Colour?): Color =
     Color(0xFF000000 or (colour ?: GROUP_COLOURS.first()).text.drop(1).toLong(16))
+
+/**
+ * Text and icons on [colour]: white or black, whichever stands out more, which is at least 4.58 to
+ * 1 by WCAG for any colour a group may take (ui-design 8).
+ */
+fun onGroupColour(colour: Colour?): Color {
+    val background = groupColour(colour).luminance()
+    return if (1.05f / (background + 0.05f) >= (background + 0.05f) / 0.05f) Color.White
+    else Color.Black
+}
 
 @Composable
 fun NeugesplitterTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {

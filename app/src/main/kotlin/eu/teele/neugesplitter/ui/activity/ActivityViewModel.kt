@@ -5,8 +5,9 @@ import androidx.lifecycle.viewModelScope
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
-import eu.teele.neugesplitter.domain.history.Happening
+import eu.teele.neugesplitter.domain.history.Step
 import eu.teele.neugesplitter.domain.history.history
+import eu.teele.neugesplitter.domain.history.steps
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
@@ -30,8 +31,8 @@ import kotlinx.coroutines.launch
  * @property title the group's emoji and name; null once loaded only if this device no longer holds
  *   the group.
  * @property names every member of the group by name, removed ones too.
- * @property history newest first.
- * @property unseen the places in [history] of the changes not seen yet (HI-5).
+ * @property history newest first, what one action wrote at once as one step (HI-2).
+ * @property unseen the places in [history] of the steps holding changes not seen yet (HI-5).
  * @property deleted the entries deleted now, which open in their history rather than their detail.
  * @property suggestions the suggested occurrences waiting to be confirmed or declined, oldest first
  *   (RE-4, RE-10), as the overview would list them once confirmed.
@@ -43,7 +44,7 @@ data class ActivityState(
     val loaded: Boolean = false,
     val title: String? = null,
     val names: Map<MemberId, String> = emptyMap(),
-    val history: List<Happening> = emptyList(),
+    val history: List<Step> = emptyList(),
     val unseen: Set<Int> = emptySet(),
     val deleted: Set<EntryId> = emptySet(),
     val suggestions: List<Suggestion> = emptyList(),
@@ -80,12 +81,16 @@ class ActivityViewModel(
                 val replayed = Group.replay(events)
                 val me = repository.actingAs(group)
                 fun name(member: MemberId) = replayed.members[member]?.name ?: member.hex.take(8)
+                val history = steps(history(events)).asReversed()
                 ActivityState(
                     loaded = true,
                     title = listOfNotNull(replayed.emoji, replayed.name).joinToString(" "),
                     names = replayed.members.mapValues { it.value.name },
-                    history = history(events).asReversed(),
-                    unseen = unseen.mapTo(mutableSetOf()) { events.lastIndex - it },
+                    history = history,
+                    unseen =
+                        history.indices.filterTo(mutableSetOf()) { index ->
+                            history[index].events.any { it in unseen }
+                        },
                     deleted = replayed.deleted.keys,
                     suggestions =
                         replayed
@@ -101,8 +106,7 @@ class ActivityViewModel(
                                         date = entry.date,
                                         amount = entry.amount,
                                         payers = entry.payers.members.map(::name),
-                                        own =
-                                            me?.let { entry.beneficiaries.parts(entry.amount)[it] },
+                                        own = me?.let { entry.contributions()[it] },
                                         repeats = true,
                                         edited = false,
                                         unseen = false,
@@ -144,10 +148,10 @@ class ActivityViewModel(
         }
     }
 
-    /** Marks the change at [index] in the history as seen. */
+    /** Marks the step at [index] in the history as seen, every change it holds. */
     fun read(index: Int) {
-        val position = state.value.history.lastIndex - index
-        viewModelScope.launch(Dispatchers.IO) { repository.seen(group, position) }
+        val events = state.value.history[index].events
+        viewModelScope.launch(Dispatchers.IO) { events.forEach { repository.seen(group, it) } }
     }
 
     fun readAll() {

@@ -26,6 +26,7 @@ import eu.teele.neugesplitter.sync.ObjectNumber
 import eu.teele.neugesplitter.sync.writer.Halt
 import eu.teele.neugesplitter.sync.writer.Upload
 import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -47,6 +48,9 @@ class GroupRepository(private val driver: SqlDriver) {
     private val projection = Projection(driver, database.projectionQueries)
 
     val backends = Backends(database)
+
+    /** Each group's latest replay, and how many events of its log it took. */
+    private val replays = ConcurrentHashMap<GroupId, Pair<Long, Group>>()
 
     /** Group [id] as its log produces it, or null if this installation holds no such group. */
     fun load(id: GroupId): Group? = database.transactionWithResult { replayed(id) }
@@ -181,17 +185,24 @@ class GroupRepository(private val driver: SqlDriver) {
                 amount,
                 edited,
                 repeats,
-                own,
+                paid,
+                owed,
                 payer,
                 unseen ->
+                val type = Kind.valueOf(kind.uppercase())
                 ListedEntry(
                     id = EntryId.parse(entry),
-                    kind = Kind.valueOf(kind.uppercase()),
+                    kind = type,
                     description = description,
                     date = EntryDate.parse(date),
                     amount = Amount.ofUnits(amount),
                     payers = listOf(payer),
-                    own = own?.let(Amount::ofUnits),
+                    own =
+                        if (paid == null && owed == null) null
+                        else {
+                            val own = Amount.ofUnits((paid ?: 0) - (owed ?: 0))
+                            if (type == Kind.INCOME) -own else own
+                        },
                     repeats = repeats,
                     edited = edited != 0L,
                     unseen = unseen,
@@ -280,6 +291,8 @@ class GroupRepository(private val driver: SqlDriver) {
                 database.eventRowQueries.append(id.hex, EventJson.write(event))
             }
             projection.write(before, after, today)
+            val length = database.eventRowQueries.length(id.hex).executeAsOne()
+            afterCommit { replays[id] = length to after }
             after
         }
 
@@ -360,6 +373,7 @@ class GroupRepository(private val driver: SqlDriver) {
             database.syncStateQueries.forget(id.hex)
             database.unseenQueries.forget(id.hex)
             database.projectionQueries.forget(id.hex)
+            afterCommit { replays.remove(id) }
         }
     }
 
@@ -373,6 +387,7 @@ class GroupRepository(private val driver: SqlDriver) {
             database.syncStateQueries.forgetAll()
             database.unseenQueries.forgetAll()
             database.projectionQueries.forgetAll()
+            afterCommit { replays.clear() }
         }
     }
 
@@ -384,6 +399,15 @@ class GroupRepository(private val driver: SqlDriver) {
         database.projectionQueries.setVersion(Projection.VERSION)
     }
 
-    private fun replayed(id: GroupId): Group? =
-        events(id).takeIf { it.isNotEmpty() }?.let(Group::replay)
+    /**
+     * Group [id] as its log produces it. A log only ever grows until it is deleted, so a replay
+     * holds for as long as the log has as many events as it took.
+     */
+    private fun replayed(id: GroupId): Group? {
+        val length = database.eventRowQueries.length(id.hex).executeAsOne()
+        replays[id]?.let { (at, group) -> if (at == length) return group }
+        val group = events(id).takeIf { it.isNotEmpty() }?.let(Group::replay) ?: return null
+        replays[id] = length to group
+        return group
+    }
 }

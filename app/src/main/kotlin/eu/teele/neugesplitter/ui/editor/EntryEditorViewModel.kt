@@ -386,17 +386,13 @@ class EntryEditorViewModel(
         val start = written.date
         val segment = Segment(recurrence.interval, recurrence.mode, Template.of(written))
         val first = recurrence.interval.dates(start.value, start.value).any()
+        // One moment for all, which tells the history they are one step (HI-2).
+        val at = now()
         return listOfNotNull(
-            if (editing) Event.EntryDeleted(event(), by, now(), id) else null,
-            Event.SeriesCreated(event(), by, now(), series, start, segment),
+            if (editing) Event.EntryDeleted(event(), by, at, id) else null,
+            Event.SeriesCreated(event(), by, at, series, start, segment),
             if (recurrence.mode == Mode.SUGGESTED && first) {
-                Event.OccurrenceConfirmed(
-                    EventId.occurrence(series, start),
-                    by,
-                    now(),
-                    series,
-                    start,
-                )
+                Event.OccurrenceConfirmed(EventId.occurrence(series, start), by, at, series, start)
             } else null,
         )
     }
@@ -420,19 +416,20 @@ class EntryEditorViewModel(
         val series = checkNotNull(series)
         val due = occurrence.due
         val template = Template.of(written)
+        val at = now()
         val (change, after) =
             when {
                 recurrence == null ->
                     if (was == null) null to series
                     else {
                         val next = EntryDate.of(due.value.plusDays(1))
-                        Event.SeriesStopped(event(), by, now(), series.id, next) to
+                        Event.SeriesStopped(event(), by, at, series.id, next) to
                             series.stopped(Stop(next))
                     }
                 fixed -> null to series
                 recurrence != was || following -> {
                     val segment = Segment(recurrence.interval, recurrence.mode, template)
-                    Event.SeriesAmended(event(), by, now(), series.id, due, segment) to
+                    Event.SeriesAmended(event(), by, at, series.id, due, segment) to
                         series.from(due, segment).restored()
                 }
                 else -> null to series
@@ -442,16 +439,8 @@ class EntryEditorViewModel(
         val decision =
             when {
                 produced?.entry != written ->
-                    Event.OccurrenceAmended(
-                        decided,
-                        by,
-                        now(),
-                        series.id,
-                        due,
-                        written.date,
-                        template,
-                    )
-                produced.pending -> Event.OccurrenceConfirmed(decided, by, now(), series.id, due)
+                    Event.OccurrenceAmended(decided, by, at, series.id, due, written.date, template)
+                produced.pending -> Event.OccurrenceConfirmed(decided, by, at, series.id, due)
                 else -> null
             }
         return listOfNotNull(change, decision)

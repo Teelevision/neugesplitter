@@ -2,8 +2,13 @@ package eu.teele.neugesplitter.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -133,10 +138,23 @@ private class Handover {
     var location: Location? = null
 }
 
+/** How long a screen takes to slide in or out, in milliseconds. */
+private const val SLIDE = 250
+
+/**
+ * What a fresh start shows: the group list, and over it the group last opened if this device still
+ * holds it. A screen left in the background is returned to as it was instead.
+ */
+private fun opening(graph: AppGraph): Array<NavKey> {
+    val last =
+        graph.preferences.lastGroup?.takeIf { graph.groups.actingAs(GroupId.parse(it)) != null }
+    return listOfNotNull(GroupList, last?.let(::GroupOverview)).toTypedArray()
+}
+
 /** Every screen, and how one leads to the next (ui-design 2). */
 @Composable
 fun App(graph: AppGraph) {
-    val stack = rememberNavBackStack(GroupList)
+    val stack = rememberNavBackStack(*remember { opening(graph) })
     // Several screens may react to one deletion, so a pop can arrive when only the root is left.
     val pop = { if (stack.size > 1) stack.removeLastOrNull() }
     // An entry deleted from its detail screen, for the overview under it to offer undo for.
@@ -146,6 +164,19 @@ fun App(graph: AppGraph) {
     NavDisplay(
         backStack = stack,
         onBack = { pop() },
+        // Each screen covers the last rather than fading through it, which showed the background.
+        transitionSpec = {
+            slideInHorizontally(tween(SLIDE)) { it } togetherWith
+                slideOutHorizontally(tween(SLIDE)) { -it / 4 }
+        },
+        popTransitionSpec = {
+            slideInHorizontally(tween(SLIDE)) { -it / 4 } togetherWith
+                slideOutHorizontally(tween(SLIDE)) { it }
+        },
+        predictivePopTransitionSpec = {
+            slideInHorizontally(tween(SLIDE)) { -it / 4 } togetherWith
+                slideOutHorizontally(tween(SLIDE)) { it }
+        },
         // A tap nothing else takes, on the background, puts the keyboard away.
         modifier = Modifier.pointerInput(Unit) { detectTapGestures { focus.clearFocus() } },
         entryDecorators =
@@ -314,6 +345,7 @@ fun App(graph: AppGraph) {
                 }
                 entry<GroupOverview> { key ->
                     val group = GroupId.parse(key.group)
+                    LaunchedEffect(key.group) { graph.preferences.lastGroup = key.group }
                     val attention by
                         remember(group) {
                                 combine(
@@ -354,6 +386,7 @@ fun App(graph: AppGraph) {
                                     onHistory = { stack.add(EntryHistory(key.group, it.hex)) },
                                     onSyncProblem = { stack.add(SyncProblem(key.group)) },
                                     onActivity = { go(Destination.ACTIVITY) },
+                                    onBalances = { go(Destination.PEOPLE) },
                                     modifier = modifier,
                                 )
                             Destination.PEOPLE ->
@@ -410,11 +443,11 @@ fun App(graph: AppGraph) {
                                             graph::now,
                                             graph.syncing::forget,
                                             graph.syncing::interval,
+                                            graph.scope,
                                         )
                                     },
                                     onBack = back,
                                     onBackend = { stack.add(BackendSetup(key.group)) },
-                                    onSeries = { stack.add(RecurringSeries(key.group, it.hex)) },
                                     onExport = { stack.add(Export(listOf(key.group))) },
                                     onDeleted = { while (stack.size > 1) pop() },
                                     modifier = modifier,

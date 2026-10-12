@@ -370,13 +370,14 @@ class GroupRepositoryTest {
     }
 
     @Test
-    fun `an entry not for the member acted as has no part of theirs in the overview (BA-7)`() {
+    fun `an entry the member acted as is on neither side of changes no balance of theirs (BA-7)`() {
         val log =
             Log(BEN, trip)
                 .create("Wochenende")
                 .add(BEN, "Ben")
                 .add(ANNA, "Anna")
-                .record(entry(1, euros(30), equal(listOf(BEN)), equal(listOf(ANNA)), Kind.TRANSFER))
+                .add(CLARA, "Clara")
+                .record(entry(1, euros(30), equal(listOf(ANNA)), equal(listOf(CLARA))))
         groups.create(log.events(), TODAY)
 
         val overview = assertNotNull(runBlocking { groups.overview(trip, { TODAY }).first() })
@@ -385,7 +386,7 @@ class GroupRepositoryTest {
     }
 
     @Test
-    fun `the overview lists what counts, newest first, with the part acted as (BA-7, HI-4, RE-9)`() {
+    fun `the overview lists what counts, newest first, with what each does to the balance acted as (BA-7, HI-4, RE-9)`() {
         appendedOneByOne(GROUP, household)
         groups.actAs(GROUP, ANNA)
         val group = Group.replay(household)
@@ -405,6 +406,7 @@ class GroupRepositoryTest {
                     TODAY,
                     euros(90),
                     payers = listOf("Benedikt"),
+                    // Anna's two thirds of what Ben received are hers.
                     own = euros(60),
                     repeats = false,
                     edited = false,
@@ -417,7 +419,7 @@ class GroupRepositoryTest {
                     TODAY,
                     euros(10),
                     payers = listOf("Anna"),
-                    own = groceries.beneficiaries.parts(groceries.amount).getValue(ANNA),
+                    own = groceries.contributions().getValue(ANNA),
                     repeats = false,
                     edited = true,
                     unseen = false,

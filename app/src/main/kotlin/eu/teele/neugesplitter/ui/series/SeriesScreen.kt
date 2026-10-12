@@ -1,6 +1,7 @@
 package eu.teele.neugesplitter.ui.series
 
 import android.icu.text.ListFormatter
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -53,6 +54,7 @@ import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
+import eu.teele.neugesplitter.ui.DayHeading
 import eu.teele.neugesplitter.ui.EntryRow
 import eu.teele.neugesplitter.ui.editor.DatePick
 import eu.teele.neugesplitter.ui.editor.recurrenceText
@@ -142,10 +144,28 @@ fun SeriesScreen(viewModel: SeriesViewModel, onBack: () -> Unit, onOpen: (EntryI
                     StopRow(stop, locale, onRemove = { removing = stop.from.toString() })
                 }
             }
-            if (detail.entries.isNotEmpty()) {
+            // Every due date so far, with what became of it, so that a missing entry is explained.
+            val waiting = detail.waiting.toSet()
+            val leftOut = detail.leftOut.toSet()
+            val days = (detail.entries.map { it.date } + waiting + leftOut).distinct()
+            if (days.isNotEmpty()) {
                 item(key = "entries") { Heading(stringResource(R.string.series_entries)) }
-                items(detail.entries, key = { it.id.hex }) { entry ->
-                    EntryRow(entry, detail.scale, locale, Modifier.clickable { onOpen(entry.id) })
+                for (date in days.sortedDescending()) {
+                    item(key = "day-$date") { DayHeading(date, locale) }
+                    items(detail.entries.filter { it.date == date }, key = { it.id.hex }) { entry ->
+                        EntryRow(
+                            entry,
+                            detail.scale,
+                            locale,
+                            Modifier.clickable { onOpen(entry.id) },
+                        )
+                    }
+                    if (date in waiting) {
+                        item(key = "waiting-$date") { Note(R.string.series_waiting) }
+                    }
+                    if (date in leftOut) {
+                        item(key = "left-$date") { Note(R.string.series_left_out) }
+                    }
                 }
             }
         }
@@ -247,6 +267,17 @@ private fun Heading(text: String) {
     }
 }
 
+/** What became of a due date that has no entry. */
+@Composable
+private fun Note(@StringRes text: Int) {
+    Text(
+        stringResource(text),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+    )
+}
+
 /** One pause or stop, past, in force or ahead, which can be taken back as a whole (RE-7). */
 @Composable
 private fun StopRow(stop: Stop, locale: Locale, onRemove: () -> Unit) {
@@ -329,6 +360,13 @@ private fun Header(detail: SeriesDetail, locale: Locale) {
             style = MaterialTheme.typography.bodyMedium,
             color = if (detail.ended) colours.error else colours.onSurfaceVariant,
         )
+        detail.next?.let { next ->
+            Text(
+                stringResource(R.string.series_next, longDate(next, locale)),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colours.onSurfaceVariant,
+            )
+        }
     }
 }
 

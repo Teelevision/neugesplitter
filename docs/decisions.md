@@ -402,6 +402,25 @@ are described in [sync-design.md](sync-design.md).
   is told from an export by the zip signature at its start. Naming Splitwise to
   describe what is read is descriptive use of a trademark; the app shows no logo
   and claims no endorsement, and the tests use made-up files.
+- **Why does swiping an entry only reveal a delete button?** A swipe that
+  deletes on its own fires on a sloppy vertical scroll, and the undo snackbar
+  does not help when the user did not see which entry went. Revealing the button
+  costs one tap and makes deleting deliberate.
+- **When is a group's emoji or colour written?** When the user leaves the
+  settings screen or the app, not on each tap. Every write is an event every
+  member downloads and keeps forever (HI-1), and trying five colours should not
+  leave five changes in everyone's history. The choice shows at once all the
+  same. A group may take any emoji and any colour (GR-2); the six colours are
+  offered first because they separate well, and text on any colour is white or
+  black by contrast.
+- **How is a history line made of several events?** (HI-2) An action that writes
+  several events writes them by one member at one moment, and neighbouring
+  events like that merge where they tell one thing: settings changed together,
+  an entry deleted to make way for its series ("made recurring"), or a series
+  changed along with its occurrence. Anything else stays apart, so that an
+  import of many entries, which also shares a moment, still lists each. A merged
+  line is unseen while any of its events is, and reading it reads them all
+  (HI-5).
 
 ## Open Questions
 

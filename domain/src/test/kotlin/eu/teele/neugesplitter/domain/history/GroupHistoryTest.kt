@@ -126,4 +126,56 @@ class GroupHistoryTest {
     fun `an empty log has no history`() {
         assertEquals(emptyList(), history(emptyList()))
     }
+
+    private val later = AT.plusSeconds(1)
+
+    @Test
+    fun `an entry deleted for a series at the same moment is one step, made recurring (HI-2, RE-1)`() {
+        val history =
+            listOf(
+                Happening(Happened.Created, ANNA, AT),
+                Happening(Happened.Entry(entryId(1), Revision.DELETED, "Rent"), ANNA, later),
+                Happening(Happened.Recurring, ANNA, later),
+                Happening(Happened.Recurring, ANNA, later),
+            )
+        assertEquals(
+            listOf(
+                Step(Happening(Happened.Created, ANNA, AT), 0..0),
+                Step(Happening(Happened.MadeRecurring(entryId(1), "Rent"), ANNA, later), 1..3),
+            ),
+            steps(history),
+        )
+    }
+
+    @Test
+    fun `settings changed at one moment are one step naming them all (HI-2)`() {
+        val history =
+            listOf(
+                Happening(Happened.Changed(setOf(Setting.EMOJI)), ANNA, AT),
+                Happening(Happened.Changed(setOf(Setting.COLOUR)), ANNA, AT),
+            )
+        assertEquals(
+            listOf(
+                Step(
+                    Happening(Happened.Changed(setOf(Setting.EMOJI, Setting.COLOUR)), ANNA, AT),
+                    0..1,
+                )
+            ),
+            steps(history),
+        )
+    }
+
+    @Test
+    fun `changes at other moments, by others, or telling different things stay apart (HI-2)`() {
+        val history =
+            listOf(
+                Happening(Happened.Recurring, ANNA, AT),
+                Happening(Happened.Recurring, ANNA, later),
+                Happening(Happened.Recurring, BEN, later),
+                Happening(Happened.Entry(entryId(1), Revision.DELETED, "Rent"), BEN, later),
+                Happening(Happened.Entry(entryId(2), Revision.DELETED, "Taxi"), BEN, later),
+                Happening(Happened.Recurring, ANNA, later),
+            )
+        assertEquals(history.indices.map { it..it }, steps(history).map { it.events })
+    }
 }

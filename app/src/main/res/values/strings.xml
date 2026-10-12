@@ -40,6 +40,11 @@
     <string name="colour_violet">Violet</string>
     <string name="colour_berry">Berry</string>
     <string name="colour_ochre">Ochre</string>
+    <string name="colour_other">Other colour</string>
+    <string name="colour_hue">Hue</string>
+    <string name="colour_saturation">Saturation</string>
+    <string name="colour_brightness">Brightness</string>
+    <string name="emoji_other">Other emoji</string>
     <string name="members_title">Who\'s in?</string>
     <string name="members_header">Members</string>
     <string name="members_later">You can add members later too.</string>
@@ -55,6 +60,7 @@
     <string name="storage_hint">Choose where the new group keeps its data.</string>
     <string name="storage_local">Only on this device</string>
     <string name="storage_local_warning">Quick to set up. This group is lost if the device is lost.</string>
+    <string name="storage_local_share">This group is lost if the device is lost. Tap to set up shared storage.</string>
     <string name="storage_shared">Shared storage (S3)</string>
     <string name="storage_shared_hint">All members use the same storage. You need its credentials.</string>
     <string name="create_group">Create group</string>
@@ -65,7 +71,6 @@
     <string name="entry_paid_by">Paid by %1$s</string>
     <string name="entry_received_by">Received by %1$s</string>
     <string name="entry_transfer_from">From %1$s</string>
-    <string name="entry_own_share">Your share %1$s</string>
     <string name="entry_edited">edited</string>
     <string name="entry_repeats">Recurring</string>
     <string name="kind_expense">Expense</string>
@@ -131,12 +136,6 @@
     </plurals>
     <string name="suggestions_review">Review</string>
     <!-- Recurring series -->
-    <string name="series_list">Recurring series</string>
-    <string name="series_none">None yet. Switch on Repeats when adding an entry.</string>
-    <plurals name="series_stopped_count">
-        <item quantity="one">%d stopped</item>
-        <item quantity="other">%d stopped</item>
-    </plurals>
     <string name="series_open">Open its series</string>
     <string name="series_running">Running</string>
     <string name="series_starts">Starts on %1$s</string>
@@ -168,6 +167,9 @@
     <string name="series_remove_pause">Remove this pause?</string>
     <string name="series_remove_stop">Remove this stop?</string>
     <string name="series_entries">Its entries</string>
+    <string name="series_next">Next due on %1$s</string>
+    <string name="series_waiting">Suggested, waiting to be confirmed or declined in Activity</string>
+    <string name="series_left_out">Left out: declined or deleted</string>
     <string name="series_delete_title">Delete this series?</string>
     <string name="series_delete_text">The series and every entry it produced, past ones included, are removed. To keep what already happened, stop it instead.</string>
 
@@ -466,6 +468,7 @@
     <string name="happened_entry_deleted">%1$s deleted \'%2$s\'</string>
     <string name="happened_entry_restored">%1$s restored \'%2$s\'</string>
     <string name="happened_recurring">%1$s changed a recurring entry</string>
+    <string name="happened_made_recurring">%1$s made \'%2$s\' recurring</string>
     <string name="sync_in_sync">In sync</string>
     <string name="sync_pending">Changes waiting</string>
     <string name="sync_problem">Sync problem</string>

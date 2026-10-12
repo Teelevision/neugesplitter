@@ -38,6 +38,11 @@
     <string name="colour_violet">Violett</string>
     <string name="colour_berry">Beere</string>
     <string name="colour_ochre">Ocker</string>
+    <string name="colour_other">Andere Farbe</string>
+    <string name="colour_hue">Farbton</string>
+    <string name="colour_saturation">Sättigung</string>
+    <string name="colour_brightness">Helligkeit</string>
+    <string name="emoji_other">Anderes Emoji</string>
     <string name="members_title">Wer ist dabei?</string>
     <string name="members_header">Mitglieder</string>
     <string name="members_later">Du kannst Mitglieder auch später hinzufügen.</string>
@@ -53,6 +58,7 @@
     <string name="storage_hint">Wähle, wo die neue Gruppe ihre Daten ablegt.</string>
     <string name="storage_local">Nur auf diesem Gerät</string>
     <string name="storage_local_warning">Schnell eingerichtet. Diese Gruppe geht verloren, wenn das Gerät verloren geht.</string>
+    <string name="storage_local_share">Diese Gruppe geht verloren, wenn das Gerät verloren geht. Tippe, um gemeinsamen Speicher einzurichten.</string>
     <string name="storage_shared">Gemeinsamer Speicher (S3)</string>
     <string name="storage_shared_hint">Alle Mitglieder greifen auf denselben Speicher zu. Du brauchst Zugangsdaten.</string>
     <string name="create_group">Gruppe erstellen</string>
@@ -63,7 +69,6 @@
     <string name="entry_paid_by">Bezahlt von %1$s</string>
     <string name="entry_received_by">Erhalten von %1$s</string>
     <string name="entry_transfer_from">Von %1$s</string>
-    <string name="entry_own_share">Dein Anteil %1$s</string>
     <string name="entry_edited">bearbeitet</string>
     <string name="entry_repeats">Wiederkehrend</string>
     <string name="kind_expense">Ausgabe</string>
@@ -129,12 +134,6 @@
     </plurals>
     <string name="suggestions_review">Ansehen</string>
     <!-- Recurring series -->
-    <string name="series_list">Wiederkehrende Serien</string>
-    <string name="series_none">Noch keine. Beim Hinzufügen eines Eintrags „Wiederholen“ einschalten.</string>
-    <plurals name="series_stopped_count">
-        <item quantity="one">%d beendet</item>
-        <item quantity="other">%d beendet</item>
-    </plurals>
     <string name="series_open">Zur Serie</string>
     <string name="series_running">Läuft</string>
     <string name="series_starts">Beginnt am %1$s</string>
@@ -166,6 +165,9 @@
     <string name="series_remove_pause">Diese Pause entfernen?</string>
     <string name="series_remove_stop">Dieses Ende entfernen?</string>
     <string name="series_entries">Ihre Einträge</string>
+    <string name="series_next">Als Nächstes fällig am %1$s</string>
+    <string name="series_waiting">Vorgeschlagen, wartet in Aktivität auf Bestätigen oder Ablehnen</string>
+    <string name="series_left_out">Ausgelassen: abgelehnt oder gelöscht</string>
     <string name="series_delete_title">Diese Serie löschen?</string>
     <string name="series_delete_text">Die Serie und alle Einträge, die sie erzeugt hat, auch vergangene, werden entfernt. Um Vergangenes zu behalten, beende sie stattdessen.</string>
 
@@ -461,6 +463,7 @@
     <string name="happened_entry_deleted">%1$s hat \'%2$s\' gelöscht</string>
     <string name="happened_entry_restored">%1$s hat \'%2$s\' wiederhergestellt</string>
     <string name="happened_recurring">%1$s hat einen wiederkehrenden Eintrag geändert</string>
+    <string name="happened_made_recurring">%1$s hat \'%2$s\' wiederkehrend gemacht</string>
     <string name="sync_in_sync">Synchronisiert</string>
     <string name="sync_pending">Änderungen warten</string>
     <string name="sync_problem">Problem beim Synchronisieren</string>

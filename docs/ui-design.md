@@ -147,22 +147,25 @@ in the error colour on a failure or a halt, and absent for a local group (SY-6).
 
 The default destination and the one the user sees most.
 
-A header shows the group's total spending — one number, not a dashboard;
-per-member and per-category statistics are BA-8 and come later — and, next to
-it, the user's own position ("you owe 12.30", BA-7). Under it, a shared group
-says in one line how its sync stands: when a pass last succeeded, or why the
-last ones failed ("Not reachable") in the error colour (SY-6, TR-12). The line
-opens Activity. If suggestions are pending, a banner sits directly under the
-header saying how many, and leads to Activity, where they are decided (RE-10).
-Until then they are not listed and count nowhere. A group whose sync has halted
-shows an error banner there instead of the line, which opens the sync problem
-screen (SY-15).
+A header shows the user's own position first and large ("you owe 12.30", BA-7),
+and under it the group's total spending — one number, not a dashboard;
+per-member and per-category statistics are BA-8 and come later. Tapping the
+header opens People, where the balances are. Under it, a shared group says in
+one line how its sync stands: when a pass last succeeded, or why the last ones
+failed ("Not reachable") in the error colour (SY-6, TR-12). The line opens
+Activity. If suggestions are pending, a banner sits directly under the header
+saying how many, and leads to Activity, where they are decided (RE-10). Until
+then they are not listed and count nowhere. A group whose sync has halted shows
+an error banner there instead of the line, which opens the sync problem screen
+(SY-15).
 
 Below that, entries newest first, grouped under date headers. Each row carries:
 
 - description, and who paid, in the group's names
 - the amount, right-aligned, with no currency symbol anywhere (AM-1)
-- the user's own share underneath if they are involved
+- what the entry does to the user's balance, if anything, as a small signed pill
+  under the amount: tinted for a gain, another tint for a loss, neutral for
+  zero, and the sign carries it without colour (BA-7, UX-6)
 - a small repeat glyph when the entry came from a series (RE-9)
 - "edited" when it was changed after creation (HI-4)
 - a dot while the change has not been seen (HI-5)
@@ -175,9 +178,10 @@ Interactions:
 - **Tap** opens entry detail.
 - **Long press** opens a context sheet: edit, duplicate, delete, history (but
   not for an occurrence, which has no versions of its own).
-- **Swipe left** deletes, with an undo snackbar. The deletion event is not
-  written until the snackbar goes, so undo leaves no trace in the history
-  (HI-1).
+- **Swipe left** moves the row aside and shows a delete button, and only tapping
+  that deletes, so that a sloppy scroll cannot. Deleting offers an undo
+  snackbar. The deletion event is not written until the snackbar goes, so undo
+  leaves no trace in the history (HI-1).
 - Swipe right is unassigned on purpose. One swipe means one thing.
 - Empty state: "No entries yet" and an arrow toward the centre FAB.
 
@@ -227,11 +231,12 @@ stacked in collapsible sections below it:
    editor, and saving there confirms it, as it was or changed. Declining does
    not stop the series and the section says so once (RE-5).
 3. **History**: what changed, by which member, and when (HI-2), as a reverse
-   chronological list covering entries, membership and group settings. A line
-   about an entry opens it, or its history once it is deleted (HI-3). Unseen
-   items are highlighted; tapping one clears it, and opening an entry clears
-   every line about it (HI-5, HI-6). The overflow holds **mark all as read**
-   (HI-7).
+   chronological list covering entries, membership and group settings. What one
+   action wrote at once is one line: settings changed together, or an entry made
+   recurring rather than "deleted" and "changed a recurring entry". A line about
+   an entry opens it, or its history once it is deleted (HI-3). Unseen items are
+   highlighted; tapping one clears it, and opening an entry clears every line
+   about it (HI-5, HI-6). The overflow holds **mark all as read** (HI-7).
 
 The navigation bar's Activity icon carries a badge while anything above is
 pending.
@@ -240,14 +245,13 @@ pending.
 
 Plain list, grouped:
 
-- **Group**: name, description, emoji, colour (GR-2)
+- **Group**: name, description, emoji, colour (GR-2). A chosen emoji or colour
+  shows at once and is written when the user leaves the screen or the app, so
+  trying several writes one change.
 - **Entries**: default participants for new entries (SP-8)
-- **Recurring series**: those that run, each with how it repeats and a pause or
-  stop in force or ahead if it has one, and under them those stopped for good,
-  folded away. Each opens its series (RE-7)
 - **Backend**: current backend summary, sync interval (SY-13), edit or configure
-  (BE-2, BE-15), and the encryption state (PR-11). A local group shows that it
-  is local and a row that starts backend setup.
+  (BE-2, BE-15), and the encryption state (PR-11). A local group shows one row
+  saying that it is lost with the device, which starts backend setup.
 - **Export**: the group to a file (DA-3, section 3)
 - **Danger**: leave group (GR-12, later, warning when unsettled), delete group
   from this device (GR-11, confirmation)
@@ -360,8 +364,11 @@ become one.
 
 Under the actions, every pause and stop, past ones included, each with
 **Remove**, which asks first and says how many entries it held back come back;
-removing takes it back as a whole. Below them, the entries it produced, newest
-first, each opening its detail.
+removing takes it back as a whole. Below them, every due date so far, newest
+first under its day: the entry it produced, opening its detail, or else why
+there is none — a suggestion still waiting in Activity, or one declined or
+deleted (RE-4, RE-5). The header says when it is next due, past its stops, so
+that a missing entry is never a mystery.
 
 ## 6. Backend setup
 
@@ -427,7 +434,7 @@ on this screen happens automatically.
 | --------------- | ------------------ | ----------------------------------------------- |
 | Tap             | entry row          | open detail                                     |
 | Long press      | entry row          | context sheet: edit, duplicate, delete, history |
-| Swipe left      | entry row          | delete, with undo                               |
+| Swipe left      | entry row          | show delete button; it deletes, with undo       |
 | Tap             | member row         | member sheet                                    |
 | Long press      | member row         | inline rename                                   |
 | Tap             | group row          | open group                                      |
@@ -529,9 +536,10 @@ Three things the palette did not supply, now decided:
   label, so colour is the second signal and never the only one (UX-6).
 - **Error** is for faults only: a halted sync (SY-15), a refused backend (BE-7),
   a warning before plain HTTP (PR-5). Owing money is not an error.
-- A **group's own colour** (GR-2) is chosen from a fixed set of six, not from a
-  free colour picker. It tints that group's avatar and its overview header, and
-  nothing else — otherwise the app has as many themes as the user has groups.
+- A **group's own colour** (GR-2) is offered from a set of six first, and any
+  other colour can be mixed by hue, saturation and brightness. It tints that
+  group's avatar and its overview header, and nothing else — otherwise the app
+  has as many themes as the user has groups.
 
 **The six group colours are deliberately off-palette.** Drawing them from the
 brand ramps produced three greens, a teal and two greys, which is exactly the
@@ -545,7 +553,9 @@ each clears 2.9:1 against both surfaces, which is enough for a filled shape that
 never has to be read. Ocker is kept clearly brown-orange rather than red so that
 it cannot be mistaken for the error colour, and none of the six is ever used for
 anything but a group's own avatar and header — they carry identity, never
-meaning, and the emoji and name are always present beside them (UX-6).
+meaning, and the emoji and name are always present beside them (UX-6). On a
+colour the user mixed, text is white or black, whichever contrasts more; one of
+the two always reaches 4.5:1, which no tinted ink does on every colour.
 
 **The navigation bar's selected destination is marked by hue, not by
 brightness.** Material 3 would fill the indicator pill with `secondaryContainer`

@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
@@ -81,6 +82,7 @@ class OverviewScreenTest {
     private var taken = 0
     private var problems = 0
     private var activities = 0
+    private var balances = 0
 
     private fun eventId() = EventId.parse(id(0x100 + events++))
 
@@ -145,6 +147,7 @@ class OverviewScreenTest {
                     { history = it },
                     { problems++ },
                     { activities++ },
+                    { balances++ },
                 )
             }
         }
@@ -254,23 +257,29 @@ class OverviewScreenTest {
     }
 
     @Test
-    fun `the header shows the total and where the user stands (BA-7)`() {
+    fun `the header shows where the user stands above the total and leads to the balances (BA-7)`() {
         show()
         compose.onNodeWithText("⛺ Trip").assertExists()
         compose.onNodeWithText("42.00").assertExists()
         compose.onNodeWithText("You are owed 9.00").assertExists()
+        // The header is one clickable node, so its texts are told apart in the unmerged tree.
+        fun unmerged(text: String) =
+            compose.onNodeWithText(text, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertTrue(unmerged("You are owed 9.00").bottom <= unmerged("42.00").top)
+        compose.onNodeWithText("You are owed 9.00").performClick()
+        assertEquals(1, balances)
     }
 
     @Test
-    fun `entries are listed newest day first with who paid and the user's share (EN-2, EN-3)`() {
+    fun `entries are listed newest day first with who paid and what each does to the user's balance (EN-2, EN-3)`() {
         show()
         compose.onNodeWithText("Wednesday, October 7, 2026").assertExists()
         compose.onNodeWithText("Tuesday, October 6, 2026").assertExists()
         compose.onNodeWithText("Paid by Anna").assertExists()
         compose.onNodeWithText("Paid by Ben").assertExists()
         compose.onNodeWithText("30.00").assertExists()
-        compose.onNodeWithText("Your share 15.00").assertExists()
-        compose.onNodeWithText("Your share 6.00").assertExists()
+        compose.onNodeWithText("+15.00").assertExists()
+        compose.onNodeWithText("−6.00").assertExists()
         assertTrue(top("Dinner") < top("Taxi"))
     }
 
@@ -334,6 +343,21 @@ class OverviewScreenTest {
         compose.onNodeWithText("Dinner").assertExists()
         compose.onNodeWithText("You are owed 9.00").assertExists()
         assertTrue(dinner in stored())
+    }
+
+    @Test
+    fun `swiping an entry aside only shows its delete button, which deletes it (EN-9)`() {
+        show()
+        compose.onNodeWithText("Taxi").performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        compose.onNodeWithText("Taxi").assertExists()
+        compose.onNodeWithText("Entry deleted").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("Delete").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Entry deleted").fetchSemanticsNodes().isNotEmpty()
+        }
+        assertEquals(0, compose.onAllNodesWithText("Taxi").fetchSemanticsNodes().size)
     }
 
     @Test

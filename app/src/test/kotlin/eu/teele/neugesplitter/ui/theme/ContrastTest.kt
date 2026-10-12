@@ -3,6 +3,7 @@ package eu.teele.neugesplitter.ui.theme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import eu.teele.neugesplitter.domain.value.Colour
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -86,5 +87,20 @@ class ContrastTest {
     fun `the six group colours carry white text at 5 to 1 (GR-2, ui-design 8)`() {
         val pairs = GROUP_COLOURS.associate { it.text to (Color.White to groupColour(it)) }
         assertEquals(emptyList(), below(5.0, pairs))
+    }
+
+    @Test
+    fun `text on any group colour reaches 4_5 to 1 (GR-2, ui-design 8)`() {
+        val steps = (0..0xFF step 0x11)
+        val pairs =
+            steps
+                .flatMap { r ->
+                    steps.flatMap { g -> steps.map { b -> (r shl 16) or (g shl 8) or b } }
+                }
+                .associate { rgb ->
+                    val colour = Colour.parse("#%06X".format(rgb))
+                    colour.text to (onGroupColour(colour) to groupColour(colour))
+                }
+        assertEquals(emptyList(), below(4.5, pairs))
     }
 }
