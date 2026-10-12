@@ -93,16 +93,20 @@ class S3LogStoreTest {
     }
 
     @Test
-    fun `a write is never sent twice (sync-design 4)`(): Unit = runBlocking {
-        server.server.enqueue(
-            MockResponse.Builder().onResponseStart(SocketEffect.ShutdownConnection).build()
-        )
-        server.enqueue(200)
-        assertFailsWith<StoreException.Unreachable> {
-            server.store().createIfAbsent(ObjectNumber(1), ByteArray(0))
+    fun `a write goes again on a connection the backend closed while idle (sync-design 4)`() =
+        runBlocking {
+            val store = server.store()
+            server.server.enqueue(
+                MockResponse.Builder()
+                    .code(200)
+                    .onResponseEnd(SocketEffect.ShutdownConnection)
+                    .build()
+            )
+            server.enqueue(200)
+            assertEquals(Write.CREATED, store.createIfAbsent(ObjectNumber(1), ByteArray(0)))
+            assertEquals(Write.CREATED, store.createIfAbsent(ObjectNumber(2), ByteArray(0)))
+            assertEquals(2, server.server.requestCount)
         }
-        assertEquals(1, server.server.requestCount)
-    }
 
     @Test
     fun `virtual-hosted addressing puts the bucket in the host name (sync-design 10)`() =

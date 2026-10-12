@@ -92,16 +92,18 @@ are described in [sync-design.md](sync-design.md).
 - **Which HTTP client does `:backend-s3` use?** OkHttp. TR-27 wants exact
   control over each request, and OkHttp sends the headers it is given —
   `If-None-Match: *` included — and adds nothing that changes what a `PUT`
-  means: no `Expect: 100-continue`, no cache unless one is configured, and with
-  its retries switched off for writes nothing is resent behind the writer's
-  back. It is the same library on the JVM, where the integration suite runs, and
-  on Android, so what the tests exercise is what the phone sends, and its
-  `MockWebServer` is the backend that lacks conditional writes in TR-49's test.
-  Apache 2.0. `HttpURLConnection` needed no dependency, but it is a different
-  implementation on each of the two platforms; Ktor would have put an engine
-  abstraction over the same thing. SigV4 is a page of `MessageDigest` and `Mac`,
-  and the listing is parsed with the platform's SAX parser, so neither needs a
-  library.
+  means: no `Expect: 100-continue`, no cache unless one is configured. It
+  resends a request whose connection the backend dropped — servers close idle
+  ones after as little as five seconds — and that includes writes: a resent
+  write that had landed loses to itself, and the writer recognises its own batch
+  id in the object it lost to (sync-design 4). It is the same library on the
+  JVM, where the integration suite runs, and on Android, so what the tests
+  exercise is what the phone sends, and its `MockWebServer` is the backend that
+  lacks conditional writes in TR-49's test. Apache 2.0. `HttpURLConnection`
+  needed no dependency, but it is a different implementation on each of the two
+  platforms; Ktor would have put an engine abstraction over the same thing.
+  SigV4 is a page of `MessageDigest` and `Mac`, and the listing is parsed with
+  the platform's SAX parser, so neither needs a library.
 - **Which S3 server does the integration suite run against?** SeaweedFS. TR-48
   needs a real implementation in a container. MinIO was the obvious one, but its
   community images stopped being published in 2025, and an image that no longer

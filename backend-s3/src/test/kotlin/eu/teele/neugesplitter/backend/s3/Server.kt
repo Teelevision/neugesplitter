@@ -17,7 +17,7 @@ class Server : AutoCloseable {
 
     private val http =
         OkHttpClient.Builder()
-            .retryOnConnectionFailure(false)
+            .retryOnConnectionFailure(true)
             .followRedirects(false)
             // So that virtual-hosted names reach the server too.
             .dns { listOf(InetAddress.getLoopbackAddress()) }
