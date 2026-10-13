@@ -52,6 +52,14 @@ are described in [sync-design.md](sync-design.md).
   same: what every group depends on is age's file format, which any
   implementation reads, not kage, so replacing it later touches one adapter and
   no stored byte (architecture.md 1).
+- **Where does scrypt's memory come from?** The Java heap, with the app asking
+  for a large one. age's work factor takes 256 MiB, all of it in Bouncy Castle's
+  arrays, and some devices give an app no more than that by default — a
+  Fairphone 6 ran out unlocking a group. `android:largeHeap` raises the limit
+  where the device allows; where it does not, the app says the device lacks the
+  memory rather than crashing. A native scrypt would sit outside the heap, at
+  the cost of a native dependency and of handling age's scrypt stanza outside
+  kage; that waits for a device the large heap does not cover.
 - **How does `:storage` reach SQLite?** Through SQLDelight. The schema and every
   query are written as SQL and checked at build time, which suits a store whose
   most important column is event text that nothing may rewrite (TR-16, TR-17c):

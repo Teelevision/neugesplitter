@@ -26,6 +26,8 @@ class KageCodec : AgeCodec {
                 it.write("${key.identity}\n".toByteArray(Charsets.US_ASCII))
             }
             return out.toByteArray()
+        } catch (_: OutOfMemoryError) {
+            throw TooLittleMemory()
         } finally {
             password.fill(0)
         }
@@ -41,6 +43,8 @@ class KageCodec : AgeCodec {
                 throw e
             } catch (e: Unsupported) {
                 throw e
+            } catch (_: OutOfMemoryError) {
+                throw TooLittleMemory()
             } catch (_: Exception) {
                 throw Malformed("the root object is not an age file a passphrase opens")
             } finally {

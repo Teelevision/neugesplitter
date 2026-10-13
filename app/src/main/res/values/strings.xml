@@ -351,6 +351,7 @@
     <string name="join_passphrase_text">This group is encrypted. Enter the passphrase you were given.</string>
     <string name="join_unlocking">Unlocking… This takes a few seconds.</string>
     <string name="join_wrong_passphrase">This passphrase does not open the group.</string>
+    <string name="passphrase_too_little_memory">This device does not have enough memory for the passphrase.</string>
     <string name="join_fetching">Fetching the group\'s history…</string>
     <string name="try_again">Try again</string>
     <string name="join_found">Group found</string>

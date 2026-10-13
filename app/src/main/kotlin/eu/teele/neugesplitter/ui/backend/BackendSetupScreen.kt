@@ -619,6 +619,13 @@ private fun ColumnScope.Passphrase(state: BackendSetupState, viewModel: BackendS
     if (state.busy) {
         CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
     }
+    if (state.memory) {
+        Text(
+            stringResource(R.string.passphrase_too_little_memory),
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
     TextButton(
         onClick = { viewModel.custom(!state.custom) },
         modifier = Modifier.align(Alignment.CenterHorizontally),

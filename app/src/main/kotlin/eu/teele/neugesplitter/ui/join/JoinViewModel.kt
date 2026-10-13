@@ -9,6 +9,7 @@ import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.format.crypto.TooLittleMemory
 import eu.teele.neugesplitter.format.crypto.WrongPassphrase
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.storage.settings.BackendSettings
@@ -72,6 +73,7 @@ data class JoinState(
     val held: GroupId? = null,
     val passphrase: String = "",
     val wrong: Boolean = false,
+    val memory: Boolean = false,
     val failure: StoreException? = null,
     val group: Group? = null,
     val chosen: MemberId? = null,
@@ -137,7 +139,8 @@ class JoinViewModel(
         return true
     }
 
-    fun passphrase(text: String) = mutable.update { it.copy(passphrase = text, wrong = false) }
+    fun passphrase(text: String) =
+        mutable.update { it.copy(passphrase = text, wrong = false, memory = false) }
 
     fun choose(member: MemberId) = mutable.update { it.copy(chosen = member, adding = false) }
 
@@ -236,7 +239,7 @@ class JoinViewModel(
 
     private fun unlock(passphrase: String) {
         val root = (offer as Offer.Locked).root
-        mutable.update { it.copy(busy = true, wrong = false, failure = null) }
+        mutable.update { it.copy(busy = true, wrong = false, memory = false, failure = null) }
         work =
             viewModelScope.launch {
                 val chars = passphrase.toCharArray()
@@ -256,6 +259,8 @@ class JoinViewModel(
                     }
                 } catch (_: WrongPassphrase) {
                     mutable.update { it.copy(busy = false, wrong = true) }
+                } catch (_: TooLittleMemory) {
+                    mutable.update { it.copy(busy = false, memory = true) }
                 } catch (e: StoreException) {
                     mutable.update { it.copy(busy = false, failure = e) }
                 } finally {

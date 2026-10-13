@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.format.crypto.Passphrases
+import eu.teele.neugesplitter.format.crypto.TooLittleMemory
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.storage.settings.BackendSettings
 import eu.teele.neugesplitter.sync.LogStore
@@ -92,6 +93,7 @@ data class Location(
  * @property words the generated passphrase, word by word (PR-12a).
  * @property strength how far [passphrase] is from being weak, from 0 to 1 (PR-12b).
  * @property refused connecting found another group's root object there after all (BE-9).
+ * @property memory this device could not lock the passphrase for lack of memory.
  * @property failure why the last attempt to reach the backend failed.
  */
 data class BackendSetupState(
@@ -109,6 +111,7 @@ data class BackendSetupState(
     val passphrase: String = "",
     val strength: Float = 0f,
     val refused: Boolean = false,
+    val memory: Boolean = false,
     val failure: StoreException? = null,
     val done: Boolean = false,
 ) {
@@ -338,9 +341,15 @@ class BackendSetupViewModel(
             mutable.update { it.copy(step = SetupStep.CONFIRM) }
             return
         }
-        mutable.update { it.copy(busy = true) }
+        mutable.update { it.copy(busy = true, memory = false) }
         viewModelScope.launch {
-            val made = newKey(chosen.toCharArray())
+            val made =
+                try {
+                    newKey(chosen.toCharArray())
+                } catch (_: TooLittleMemory) {
+                    mutable.update { it.copy(busy = false, memory = true) }
+                    return@launch
+                }
             key?.wipe()
             key = made
             keyFor = chosen

@@ -249,6 +249,13 @@ private fun Passphrase(state: JoinState, viewModel: JoinViewModel) {
             style = MaterialTheme.typography.bodyMedium,
         )
     }
+    if (state.memory) {
+        Text(
+            stringResource(R.string.passphrase_too_little_memory),
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
     if (state.busy) Busy(R.string.join_unlocking)
     state.failure?.let { Failure(it) }
 }

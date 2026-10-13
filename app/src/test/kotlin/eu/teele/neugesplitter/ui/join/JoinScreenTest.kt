@@ -19,6 +19,7 @@ import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.format.crypto.AgeCodec
 import eu.teele.neugesplitter.format.crypto.GroupKey
 import eu.teele.neugesplitter.format.crypto.KageCodec
+import eu.teele.neugesplitter.format.crypto.TooLittleMemory
 import eu.teele.neugesplitter.format.crypto.WrongPassphrase
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
@@ -80,6 +81,7 @@ class JoinScreenTest {
     /** age without scrypt: a root object is its passphrase behind a dash. */
     private class FastCodec(private val key: GroupKey) : AgeCodec by KageCodec() {
         override fun unlock(root: ByteArray, passphrase: CharArray): GroupKey {
+            if (String(passphrase) == "huge") throw TooLittleMemory()
             if (root.decodeToString() != "-${String(passphrase)}") throw WrongPassphrase()
             return key
         }
@@ -244,6 +246,21 @@ class JoinScreenTest {
 
         assertEquals(created, groups.events(trip))
         assertContentEquals(passphrase.toCharArray(), secrets.passphrase(trip))
+    }
+
+    @Test
+    fun `a device short of memory for scrypt says so and can try again (TR-26)`() {
+        sharedElsewhere(encrypted = true)
+        show()
+        located()
+        awaitText("This group is encrypted. Enter the passphrase you were given.")
+        compose.onAllNodesWithText("Passphrase")[0].performTextInput("huge")
+        click("Next")
+        awaitText("This device does not have enough memory for the passphrase.")
+
+        viewModel.passphrase(passphrase)
+        click("Next")
+        awaitText("Group found")
     }
 
     @Test

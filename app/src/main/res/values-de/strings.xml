@@ -349,6 +349,7 @@
     <string name="join_passphrase_text">Diese Gruppe ist verschlüsselt. Gib die Passphrase ein, die du bekommen hast.</string>
     <string name="join_unlocking">Wird entsperrt… Das dauert einige Sekunden.</string>
     <string name="join_wrong_passphrase">Diese Passphrase öffnet die Gruppe nicht.</string>
+    <string name="passphrase_too_little_memory">Dieses Gerät hat nicht genug Arbeitsspeicher für die Passphrase.</string>
     <string name="join_fetching">Der Verlauf der Gruppe wird geladen…</string>
     <string name="try_again">Erneut versuchen</string>
     <string name="join_found">Gruppe gefunden</string>

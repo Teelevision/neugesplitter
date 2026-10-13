@@ -8,6 +8,7 @@ import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.format.Unsupported
 import eu.teele.neugesplitter.format.crypto.AgeCodec
 import eu.teele.neugesplitter.format.crypto.GroupKey
+import eu.teele.neugesplitter.format.crypto.TooLittleMemory
 import eu.teele.neugesplitter.format.crypto.WrongPassphrase
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.storage.settings.BackendSettings
@@ -159,6 +160,7 @@ class Syncing(
      * key is held for [fetch]. Null if no group's log follows it. [passphrase] stays the caller's.
      *
      * @throws WrongPassphrase if [passphrase] does not open [root].
+     * @throws eu.teele.neugesplitter.format.crypto.TooLittleMemory if scrypt does not fit.
      * @throws StoreException if the backend could not be asked.
      */
     suspend fun unlock(store: LogStore, root: ByteArray, passphrase: CharArray): GroupId? =
@@ -324,6 +326,8 @@ class Syncing(
                     try {
                         keyring.unlock(id, root, it)
                     } catch (_: WrongPassphrase) {
+                        null
+                    } catch (_: TooLittleMemory) {
                         null
                     }
                 }
