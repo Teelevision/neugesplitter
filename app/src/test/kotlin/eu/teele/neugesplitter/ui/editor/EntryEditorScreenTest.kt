@@ -476,6 +476,30 @@ class EntryEditorScreenTest {
     }
 
     @Test
+    fun `an entry on a day its rule does not fall on is the first all the same, and says when the next is (RE-1)`() {
+        show()
+        enterAmount("900")
+        compose.onNodeWithText("Description").performTextInput("Rent")
+        repeat()
+        compose.onNodeWithText("7").performClick()
+        compose.onNodeWithText("2").performClick()
+        compose.onNodeWithText("Every month on the 2nd").assertExists()
+        val next = "This entry is the first; the next is on Monday, November 2, 2026."
+        compose.onNodeWithText(next).assertExists()
+        confirmRecurrence()
+        compose.onNodeWithText(next).assertExists()
+        save()
+        val group = groups.load(trip)!!
+        val first = group.occurrences(today).single()
+        assertEquals(today, first.due)
+        assertEquals(today, first.entry.date)
+        assertEquals("Rent", first.entry.description)
+        assertEquals(false, first.pending)
+        val series = group.series.values.single()
+        assertEquals(EntryDate.parse("2026-11-02"), series.nextDue(EntryDate.parse("2026-10-08")))
+    }
+
+    @Test
     fun `an entry switched to repeating becomes the first occurrence of a series (RE-1)`() {
         show(existing = true, entry = dinner)
         repeat()

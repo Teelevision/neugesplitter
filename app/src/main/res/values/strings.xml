@@ -121,6 +121,7 @@
     <string name="recurrence_fewer_days">Fewer days</string>
     <string name="recurrence_more_days">More days</string>
     <string name="recurrence_month_end">In shorter months, on the last day.</string>
+    <string name="recurrence_first">This entry is the first; the next is on %1$s.</string>
     <string name="mode_automatic">Automatic</string>
     <string name="mode_suggested">Suggested</string>
     <string name="mode_automatic_hint">Each one is added on its date.</string>

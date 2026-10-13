@@ -119,6 +119,7 @@
     <string name="recurrence_fewer_days">Weniger Tage</string>
     <string name="recurrence_more_days">Mehr Tage</string>
     <string name="recurrence_month_end">In kürzeren Monaten am letzten Tag.</string>
+    <string name="recurrence_first">Dieser Eintrag ist der erste, der nächste ist am %1$s.</string>
     <string name="mode_automatic">Automatisch</string>
     <string name="mode_suggested">Vorgeschlagen</string>
     <string name="mode_automatic_hint">Jeder Termin wird an seinem Datum eingetragen.</string>

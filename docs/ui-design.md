@@ -289,11 +289,14 @@ unless more than one member is selected (EN-7).
 
 With Repeats on, the entry is the first occurrence of a new series starting on
 its date; a suggested one is confirmed at once, since someone just entered it
-(RE-1, RE-3). Switching it on for an existing entry turns that entry into the
-series' first occurrence. Editing an occurrence asks on save whether the change
-is for **only this one** or **this one and the following** (RE-6); a change to
-the rule itself always goes for the following. Switching Repeats off on an
-occurrence stops the series after it (RE-7).
+(RE-1, RE-3). That holds on a date the rule does not fall on, too — rent entered
+on the 5th that repeats on the 2nd — and then the editor says when the next one
+is, since the rule alone would suggest a different first date. Switching it on
+for an existing entry turns that entry into the series' first occurrence.
+Editing an occurrence asks on save whether the change is for **only this one**
+or **this one and the following** (RE-6); a change to the rule itself always
+goes for the following. Switching Repeats off on an occurrence stops the series
+after it (RE-7).
 
 Once somebody has confirmed or edited a later occurrence of the series, it can
 no longer change from this one, as that would rewrite their decision (RE-6): the
@@ -327,8 +330,10 @@ then the pattern as one of **every _x_ days**, **weekdays** (multi-select),
 **days of the month** (multi-select) (RE-2), then **automatic** or **suggested**
 (RE-3). A sentence at the bottom reads the rule back in plain language — "every
 month on the 1st and 15th" — and the same sentence stands under the Repeats
-switch once the sheet is closed. Days after the 28th note that shorter months
-use their last day. Times of day appear nowhere (RE-14).
+switch once the sheet is closed. Where a new series' start date is not one the
+pattern falls on, a line below it says that this entry is the first and when the
+next one is. Days after the 28th note that shorter months use their last day.
+Times of day appear nowhere (RE-14).
 
 ### Entry detail
 

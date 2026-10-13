@@ -374,7 +374,9 @@ class EntryEditorViewModel(
 
     /**
      * A new series, whose first occurrence is [written]: confirmed right away if the series only
-     * suggests, since it is being entered now. An entry [editing] makes way for it.
+     * suggests, since it is being entered now, and amended onto its date if the pattern does not
+     * produce that date, which would otherwise leave nothing of it (format-spec 4.2). An entry
+     * [editing] makes way for it.
      */
     private fun started(
         written: Entry,
@@ -384,16 +386,21 @@ class EntryEditorViewModel(
     ): List<Event> {
         val series = SeriesId.parse(identifier())
         val start = written.date
-        val segment = Segment(recurrence.interval, recurrence.mode, Template.of(written))
-        val first = recurrence.interval.dates(start.value, start.value).any()
+        val template = Template.of(written)
+        val segment = Segment(recurrence.interval, recurrence.mode, template)
+        val produced = recurrence.interval.dates(start.value, start.value).any()
+        val first = EventId.occurrence(series, start)
         // One moment for all, which tells the history they are one step (HI-2).
         val at = now()
         return listOfNotNull(
             if (editing) Event.EntryDeleted(event(), by, at, id) else null,
             Event.SeriesCreated(event(), by, at, series, start, segment),
-            if (recurrence.mode == Mode.SUGGESTED && first) {
-                Event.OccurrenceConfirmed(EventId.occurrence(series, start), by, at, series, start)
-            } else null,
+            when {
+                !produced -> Event.OccurrenceAmended(first, by, at, series, start, start, template)
+                recurrence.mode == Mode.SUGGESTED ->
+                    Event.OccurrenceConfirmed(first, by, at, series, start)
+                else -> null
+            },
         )
     }
 

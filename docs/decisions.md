@@ -340,6 +340,16 @@ are described in [sync-design.md](sync-design.md).
   somebody confirmed without their seeing it (RE-6). A refusal carries nothing
   and keeps following the calculation, because losing one only asks the question
   again.
+- **What becomes of an entry made recurring on a day its rule misses?** It is
+  the series' first occurrence all the same (RE-1): rent paid on the 5th that
+  repeats on the 2nd. The series starts on the entry's date and the app writes
+  an `occurrence.amended` for that date beside the `series.created`, since an
+  amended occurrence stands whether or not its date is due (format-spec 4.2).
+  Starting the series there alone would have dropped the entry, as the first
+  date due is the next 2nd; snapping the start back to the 2nd before it would
+  have made an entry paid early, on the 1st, last month's and the 2nd a second
+  one. No format change is needed. The editor says when the next one is, since
+  the rule alone suggests another first date.
 - **Does an entry need a schema version of its own?** No. The object header
   carries the format version, and a change to what an event _means_ is a change
   of `type`, which older installations already refuse rather than misread. If

@@ -461,6 +461,16 @@ private fun Repeats(
                     else -> null
                 }
             rule?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+            recurrence
+                ?.takeIf { !state.occurrence }
+                ?.let { offPatternText(state.date, it.interval, locale) }
+                ?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             if (recurrence != null && state.fixed) {
                 Text(
                     stringResource(R.string.series_fixed),

@@ -84,6 +84,17 @@ fun recurrenceText(interval: Interval, locale: Locale): String {
 }
 
 /**
+ * When the next one is, where [interval] does not fall on [date]: the entry there is the first all
+ * the same (RE-1). Null where it does.
+ */
+@Composable
+fun offPatternText(date: EntryDate, interval: Interval, locale: Locale): String? {
+    if (interval.dates(date.value, date.value).any()) return null
+    val next = interval.dates(date.value, date.value.plusYears(1)).firstOrNull() ?: return null
+    return stringResource(R.string.recurrence_first, longDate(EntryDate.of(next), locale))
+}
+
+/**
  * Edits [initial] and hands the result to [onDone]; leaving any other way drops it. With
  * [choosesStart], the first row picks the start date, which is the entry's own [date] (RE-2, RE-3).
  */
@@ -230,11 +241,22 @@ fun RecurrenceSheet(
             }
             HorizontalDivider()
             Row(padded, verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    interval?.let { recurrenceText(it, locale) }.orEmpty(),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.weight(1f).padding(end = 16.dp),
-                )
+                Column(Modifier.weight(1f).padding(end = 16.dp)) {
+                    Text(
+                        interval?.let { recurrenceText(it, locale) }.orEmpty(),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    interval
+                        ?.takeIf { choosesStart }
+                        ?.let { offPatternText(date, it, locale) }
+                        ?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                }
                 TextButton(
                     onClick = { interval?.let { onDone(Recurrence(it, mode)) } },
                     enabled = interval != null,
