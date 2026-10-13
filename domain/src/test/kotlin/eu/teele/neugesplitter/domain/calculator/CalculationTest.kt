@@ -57,6 +57,14 @@ class CalculationTest {
     }
 
     @Test
+    fun `an operator pressed first works on the zero shown, so a minus starts a negative number (AM-2, SP-4)`() {
+        assertEquals(amount("-5"), calculate("-5").value)
+        assertEquals(amount("-2.5"), calculate("-5/2").value)
+        assertEquals(amount("3"), calculate("+3").value)
+        assertEquals(Amount.ZERO, calculate("-").value)
+    }
+
+    @Test
     fun `an empty calculation has no value (AM-6)`() {
         assertNull(calculate("").value)
         assertNull(calculate("").fault)

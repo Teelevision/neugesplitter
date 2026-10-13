@@ -73,11 +73,14 @@ data class Calculation(
 
     /**
      * Commits the calculation so far and waits for the number [operator] takes. Pressed again
-     * before that number, it replaces the operator instead (AM-4). A calculation that has failed
-     * stays as it is, so the fault can be corrected (AM-6).
+     * before that number, it replaces the operator instead (AM-4). On an empty calculation it
+     * commits the zero shown, so that `-` first makes a negative number. A calculation that has
+     * failed stays as it is, so the fault can be corrected (AM-6).
      */
     fun operator(operator: Operator): Calculation {
-        if (typed.isEmpty()) return if (result == null) this else copy(operator = operator)
+        if (typed.isEmpty()) {
+            return copy(result = result ?: Amount.ZERO, operator = operator)
+        }
         val committed = combined() as? Outcome.Value ?: return this
         return Calculation(scale, committed.amount, operator)
     }
