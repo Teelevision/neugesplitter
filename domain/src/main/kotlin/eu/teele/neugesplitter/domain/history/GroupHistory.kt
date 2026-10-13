@@ -1,11 +1,20 @@
 package eu.teele.neugesplitter.domain.history
 
+import eu.teele.neugesplitter.domain.entry.Entry as Content
 import eu.teele.neugesplitter.domain.event.Change
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.event.GroupChanges
 import eu.teele.neugesplitter.domain.group.Group
+import eu.teele.neugesplitter.domain.recurrence.Decision
+import eu.teele.neugesplitter.domain.recurrence.Segment
+import eu.teele.neugesplitter.domain.recurrence.Series
+import eu.teele.neugesplitter.domain.recurrence.Stop
+import eu.teele.neugesplitter.domain.value.Colour
+import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.domain.value.SeriesId
 import java.time.Instant
 
 /** A group setting a `group.updated` can change. */
@@ -18,12 +27,53 @@ enum class Setting {
     DEFAULT_PARTICIPANTS,
 }
 
+/** A group's settings at one moment, which a `group.updated` changes. */
+data class Settings(
+    val scale: Scale,
+    val name: String,
+    val description: String?,
+    val emoji: String?,
+    val colour: Colour?,
+    val defaultParticipants: List<MemberId>?,
+) {
+    companion object {
+        fun of(group: Group): Settings =
+            with(group) { Settings(scale, name, description, emoji, colour, defaultParticipants) }
+    }
+}
+
+/** What one event did to a recurring series or one of its occurrences (RE-1, RE-7). */
+sealed interface SeriesChange {
+    /** It began on [from], doing [segment]. */
+    data class Started(val from: EntryDate, val segment: Segment) : SeriesChange
+
+    /** From [from] on it does [after], where it did [before]; null before its first day. */
+    data class Amended(val from: EntryDate, val before: Segment?, val after: Segment) :
+        SeriesChange
+
+    data class Stopped(val stop: Stop) : SeriesChange
+
+    /** It runs again on the days of [span]. */
+    data class Continued(val span: Stop) : SeriesChange
+
+    data object Deleted : SeriesChange
+
+    data class Confirmed(val due: EntryDate) : SeriesChange
+
+    /** The occurrence due on [due] was declined or deleted (RE-5, RE-15). */
+    data class LeftOut(val due: EntryDate) : SeriesChange
+
+    /** The occurrence due on [due] became [after]; it was [before], null if nothing was due. */
+    data class Edited(val due: EntryDate, val before: Content?, val after: Content) : SeriesChange
+}
+
 /** What one event did to a group, as its history tells it (HI-2). */
 sealed interface Happened {
     data object Created : Happened
 
-    /** Some of the group's settings changed, in [settings]. */
-    data class Changed(val settings: Set<Setting>) : Happened
+    /** Some of the group's settings changed, in [settings], from [before] to [after]. */
+    data class Changed(val settings: Set<Setting>, val before: Settings, val after: Settings) :
+        Happened
 
     data class MemberAdded(val member: MemberId) : Happened
 
@@ -32,15 +82,45 @@ sealed interface Happened {
 
     data class MemberRemoved(val member: MemberId) : Happened
 
-    /** Entry [entry] was [change]d; [description] is what it said just after, or at deletion. */
-    data class Entry(val entry: EntryId, val change: Revision, val description: String) : Happened
+    /**
+     * Entry [entry] was [change]d from [before], null when created, to [after]; for a deletion both
+     * are what it was at deletion.
+     */
+    data class Entry(
+        val entry: EntryId,
+        val change: Revision,
+        val before: Content?,
+        val after: Content,
+    ) : Happened {
+        /** What it said just after, or at deletion. */
+        val description: String
+            get() = after.description
+    }
 
-    /** A recurring series or one of its occurrences changed (RE-1). */
-    data object Recurring : Happened
+    /** Series [series], which said [description] then, underwent [change] (RE-1). */
+    data class Recurring(val series: SeriesId, val description: String, val change: SeriesChange) :
+        Happened
 
-    /** Entry [entry], which said [description], made way for a series repeating it (RE-1). */
-    data class MadeRecurring(val entry: EntryId, val description: String) : Happened
+    /**
+     * Entry [entry], which said [description], made way for series [series] repeating it as
+     * [segment] (RE-1).
+     */
+    data class MadeRecurring(
+        val entry: EntryId,
+        val description: String,
+        val series: SeriesId,
+        val segment: Segment,
+    ) : Happened
 }
+
+/** The series [this] concerns, if any. */
+val Happened.series: SeriesId?
+    get() =
+        when (this) {
+            is Happened.Recurring -> series
+            is Happened.MadeRecurring -> series
+            else -> null
+        }
 
 /** One step in the history of a group: what [happened], by which member, and when (HI-2). */
 data class Happening(val happened: Happened, val by: MemberId, val at: Instant)
@@ -51,7 +131,8 @@ data class Step(val happening: Happening, val events: IntRange)
 /**
  * [history] with what one action wrote at once told as one step (HI-2): neighbouring steps by one
  * member at one moment merge where together they tell one thing — settings changed, an entry made
- * recurring, a series changed.
+ * recurring, a series changed. A series change is told by its first event, the one that names the
+ * most.
  */
 fun steps(history: List<Happening>): List<Step> {
     val steps = mutableListOf<Step>()
@@ -75,12 +156,23 @@ fun steps(history: List<Happening>): List<Step> {
 private fun merge(first: Happened, second: Happened): Happened? =
     when {
         first is Happened.Changed && second is Happened.Changed ->
-            Happened.Changed(first.settings + second.settings)
+            Happened.Changed(first.settings + second.settings, first.before, second.after)
         first is Happened.Entry &&
             first.change == Revision.DELETED &&
-            second is Happened.Recurring -> Happened.MadeRecurring(first.entry, first.description)
-        first is Happened.MadeRecurring && second is Happened.Recurring -> first
-        first is Happened.Recurring && second is Happened.Recurring -> first
+            second is Happened.Recurring &&
+            second.change is SeriesChange.Started ->
+            Happened.MadeRecurring(
+                first.entry,
+                first.description,
+                second.series,
+                second.change.segment,
+            )
+        first is Happened.MadeRecurring &&
+            second is Happened.Recurring &&
+            first.series == second.series -> first
+        first is Happened.Recurring &&
+            second is Happened.Recurring &&
+            first.series == second.series -> first
         else -> null
     }
 
@@ -98,7 +190,8 @@ fun history(events: List<Event>): List<Happening> {
         val happened =
             when (event) {
                 is Event.GroupCreated -> Happened.Created
-                is Event.GroupUpdated -> Happened.Changed(settings(event.group))
+                is Event.GroupUpdated ->
+                    Happened.Changed(settings(event.group), Settings.of(before), Settings.of(group))
                 is Event.MemberAdded -> Happened.MemberAdded(event.member.id)
                 is Event.MemberRenamed ->
                     Happened.MemberRenamed(
@@ -108,31 +201,95 @@ fun history(events: List<Event>): List<Happening> {
                     )
                 is Event.MemberRemoved -> Happened.MemberRemoved(event.target)
                 is Event.EntryCreated ->
-                    Happened.Entry(event.entry.id, Revision.CREATED, event.entry.description)
+                    Happened.Entry(event.entry.id, Revision.CREATED, null, event.entry)
                 is Event.EntryUpdated ->
                     Happened.Entry(
                         event.target,
                         if (event.target in before.deleted) Revision.RESTORED else Revision.EDITED,
-                        group.entries.getValue(event.target).description,
+                        before.entries[event.target] ?: before.deleted.getValue(event.target),
+                        group.entries.getValue(event.target),
                     )
-                is Event.EntryDeleted ->
-                    Happened.Entry(
+                is Event.EntryDeleted -> {
+                    val deleted = group.deleted.getValue(event.target)
+                    Happened.Entry(event.target, Revision.DELETED, deleted, deleted)
+                }
+                is Event.SeriesCreated ->
+                    Happened.Recurring(
+                        event.series,
+                        event.segment.template.description,
+                        SeriesChange.Started(event.from, event.segment),
+                    )
+                is Event.SeriesAmended ->
+                    Happened.Recurring(
                         event.target,
-                        Revision.DELETED,
-                        group.deleted.getValue(event.target).description,
+                        event.segment.template.description,
+                        SeriesChange.Amended(
+                            event.from,
+                            before.series[event.target]?.segment(event.from),
+                            event.segment,
+                        ),
                     )
-                is Event.SeriesCreated,
-                is Event.SeriesAmended,
-                is Event.SeriesStopped,
-                is Event.SeriesContinued,
-                is Event.SeriesDeleted,
-                is Event.OccurrenceConfirmed,
-                is Event.OccurrenceDeleted,
-                is Event.OccurrenceAmended -> Happened.Recurring
+                is Event.SeriesStopped ->
+                    before.recurring(
+                        event.target,
+                        event.from,
+                        SeriesChange.Stopped(Stop(event.from, event.until)),
+                    )
+                is Event.SeriesContinued ->
+                    before.recurring(
+                        event.target,
+                        event.from,
+                        SeriesChange.Continued(Stop(event.from, event.until)),
+                    )
+                is Event.SeriesDeleted -> before.recurring(event.target, null, SeriesChange.Deleted)
+                is Event.OccurrenceConfirmed ->
+                    before.recurring(event.series, event.due, SeriesChange.Confirmed(event.due))
+                is Event.OccurrenceDeleted -> {
+                    val was = before.series[event.series]?.produced(event.due)
+                    Happened.Recurring(
+                        event.series,
+                        was?.description ?: before.described(event.series, event.due),
+                        SeriesChange.LeftOut(event.due),
+                    )
+                }
+                is Event.OccurrenceAmended -> {
+                    val after =
+                        event.entry.on(EntryId.occurrence(event.series, event.due), event.date)
+                    Happened.Recurring(
+                        event.series,
+                        after.description,
+                        SeriesChange.Edited(
+                            event.due,
+                            before.series[event.series]?.produced(event.due),
+                            after,
+                        ),
+                    )
+                }
             }
         history += Happening(happened, event.by, event.at)
     }
     return history
+}
+
+/** [change] to [series], described as it was on [on], or as it last was without one. */
+private fun Group.recurring(series: SeriesId, on: EntryDate?, change: SeriesChange) =
+    Happened.Recurring(series, described(series, on), change)
+
+private fun Group.described(series: SeriesId, on: EntryDate?): String {
+    val found = this.series.getValue(series)
+    val segment = on?.let(found::segment) ?: found.segments.last().second
+    return segment.template.description
+}
+
+/** What [due] holds as decided or scheduled, stops aside; null if nothing. */
+private fun Series.produced(due: EntryDate): Content? {
+    val id = EntryId.occurrence(this.id, due)
+    return when (val decision = decisions[due]) {
+        is Decision.Amended -> decision.entry.on(id, decision.date)
+        Decision.Deleted -> null
+        Decision.Confirmed,
+        null -> segment(due)?.template?.on(id, due)
+    }
 }
 
 private fun settings(changes: GroupChanges): Set<Setting> = buildSet {

@@ -10,6 +10,8 @@ import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
+import eu.teele.neugesplitter.domain.event.Change
+import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
@@ -158,15 +160,41 @@ class ActivityScreenTest {
         compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
 
     @Test
-    fun `every change is listed newest first, with who made it and when (HI-2)`() {
+    fun `every change is listed newest first under its day, with who made it and when (HI-2)`() {
         show()
-        val created = "Anna created the group · 2 hours ago"
-        val dinner = "Ben added 'Dinner' · 1 hour ago"
+        val created = "Anna created the group"
+        val dinner = "Ben added 'Dinner'"
         compose.onNodeWithText(created).assertExists()
-        compose.onNodeWithText("Anna added Ben · 2 hours ago").assertExists()
+        compose.onNodeWithText("Anna added Ben").assertExists()
         compose.onNodeWithText(dinner).assertExists()
+        compose.onNodeWithText("1:00", substring = true).assertExists()
+        assertTrue(top("Wednesday, October 7, 2026") < top(dinner))
         assertTrue(top(dinner) < top(created))
         assertEquals(0, count("Suggestions"))
+    }
+
+    @Test
+    fun `a change says what changed, cut off where it does not fit (HI-2, ui-design 4)`() {
+        show {
+            groups.append(
+                trip,
+                listOf(
+                    Event.EntryUpdated(
+                        eventId(),
+                        anna.id,
+                        hours(2),
+                        dinnerId,
+                        EntryChanges(description = Change.To("Supper")),
+                    )
+                ),
+                today,
+            )
+        }
+        compose.onNodeWithText("Anna edited 'Supper'").assertExists()
+        compose.onNodeWithText("Description changed to Supper (previous Dinner)").assertExists()
+        val row = compose.onNodeWithText("Anna edited 'Supper'").fetchSemanticsNode()
+        val other = compose.onNodeWithText("Ben added 'Dinner'").fetchSemanticsNode()
+        assertEquals(other.size.height, row.size.height)
     }
 
     @Test
@@ -223,12 +251,12 @@ class ActivityScreenTest {
                 today,
             )
         }
-        compose.onNodeWithText("Ben added 'Dinner' · 1 hour ago").performClick()
+        compose.onNodeWithText("Ben added 'Dinner'").performClick()
         assertEquals(listOf(dinnerId), opened)
-        compose.onNodeWithText("Anna deleted 'Taxi' · 1 hour ago").performClick()
-        compose.onNodeWithText("Anna added 'Taxi' · 1 hour ago").performClick()
+        compose.onNodeWithText("Anna deleted 'Taxi'").performClick()
+        compose.onNodeWithText("Anna added 'Taxi'").performClick()
         assertEquals(listOf(taxiId, taxiId), histories)
-        compose.onNodeWithText("Anna created the group · 2 hours ago").performClick()
+        compose.onNodeWithText("Anna created the group").performClick()
         assertEquals(listOf(dinnerId), opened)
     }
 
@@ -244,12 +272,12 @@ class ActivityScreenTest {
             )
         }
         compose.waitUntil(5_000) { unseen() == 2 }
-        compose.onNodeWithText("Benni renamed Ben to Benni · 1 hour ago").performClick()
+        compose.onNodeWithText("Benni renamed Ben to Benni").performClick()
         compose.waitUntil(5_000) { unseen() == 1 }
-        compose.onNodeWithText("Benni added 'Taxi' · 1 hour ago").performClick()
+        compose.onNodeWithText("Benni added 'Taxi'").performClick()
         assertEquals(listOf(taxiId), opened)
         compose.waitUntil(5_000) { unseen() == 0 }
-        compose.onNodeWithText("Benni added 'Dinner' · 1 hour ago").assertExists()
+        compose.onNodeWithText("Benni added 'Dinner'").assertExists()
     }
 
     @Test
@@ -319,7 +347,7 @@ class ActivityScreenTest {
     @Test
     fun `how sync stands comes before the history, which folds away and back (ui-design 4)`() {
         show()
-        val dinner = "Ben added 'Dinner' · 1 hour ago"
+        val dinner = "Ben added 'Dinner'"
         assertTrue(top("Only on this device") < top("History"))
         compose.onNodeWithContentDescription("Collapse").performClick()
         assertEquals(0, count(dinner))

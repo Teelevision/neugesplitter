@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -28,8 +27,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -48,7 +45,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -59,13 +55,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.history.Happened
 import eu.teele.neugesplitter.domain.history.Happening
-import eu.teele.neugesplitter.domain.history.Revision
-import eu.teele.neugesplitter.domain.history.Setting
 import eu.teele.neugesplitter.domain.value.EntryId
-import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.settings.SyncState
+import eu.teele.neugesplitter.ui.DayHeading
 import eu.teele.neugesplitter.ui.EntryRow
-import eu.teele.neugesplitter.ui.UnseenDot
+import eu.teele.neugesplitter.ui.history.HistoryRow
+import eu.teele.neugesplitter.ui.history.day
+import eu.teele.neugesplitter.ui.history.told
 import eu.teele.neugesplitter.ui.longDate
 import eu.teele.neugesplitter.ui.sync.GroupTitle
 import eu.teele.neugesplitter.ui.sync.ago
@@ -178,17 +174,22 @@ fun ActivityScreen(
             }
             section("history", R.string.history, history) { history = !history }
             if (history) {
-                itemsIndexed(state.history, key = { index, _ -> "happened-$index" }) { index, step
-                    ->
-                    HappeningRow(
-                        step.happening,
-                        index in state.unseen,
-                        state,
-                        locale,
-                        { viewModel.read(index) },
-                        onOpen,
-                        onHistory,
-                    )
+                state.history.forEachIndexed { index, step ->
+                    val at = step.happening.at
+                    if (index == 0 || day(state.history[index - 1].happening.at) != day(at)) {
+                        item(key = "day-$index") { DayHeading(day(at), locale) }
+                    }
+                    item(key = "happened-$index") {
+                        HappeningRow(
+                            step.happening,
+                            index in state.unseen,
+                            state,
+                            locale,
+                            { viewModel.read(index) },
+                            onOpen,
+                            onHistory,
+                        )
+                    }
                 }
             }
         }
@@ -263,7 +264,10 @@ private fun SuggestionRow(
     }
 }
 
-/** One change; tapping it reads it, and opens the entry it names if it names one (HI-3, HI-5). */
+/**
+ * One change, the size of an entry row; tapping it reads it, and opens the entry it names if it
+ * names one (HI-3, HI-5).
+ */
 @Composable
 private fun HappeningRow(
     happening: Happening,
@@ -275,16 +279,11 @@ private fun HappeningRow(
     onHistory: (EntryId) -> Unit,
 ) {
     val entry = (happening.happened as? Happened.Entry)?.entry
-    val text =
-        stringResource(
-            R.string.happened_at,
-            sentence(happening, state.names),
-            ago(happening.at, state.now, locale),
-        )
-    ListItem(
-        headlineContent = { Text(text, fontWeight = if (unseen) FontWeight.SemiBold else null) },
-        trailingContent = if (unseen) ({ UnseenDot() }) else null,
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    HistoryRow(
+        told(happening, state.names, state.scale, locale),
+        happening.at,
+        locale,
+        unseen = unseen,
         modifier =
             if (entry == null && !unseen) Modifier
             else
@@ -295,50 +294,6 @@ private fun HappeningRow(
                     }
                 },
     )
-}
-
-/** What [happening] did, as a sentence naming who did it (HI-2). */
-@Composable
-private fun sentence(happening: Happening, names: Map<MemberId, String>): String {
-    fun name(member: MemberId) = names[member] ?: member.hex.take(8)
-    val by = name(happening.by)
-    return when (val happened = happening.happened) {
-        Happened.Created -> stringResource(R.string.happened_created, by)
-        is Happened.Changed ->
-            stringResource(
-                when (happened.settings.singleOrNull()) {
-                    Setting.NAME -> R.string.happened_name
-                    Setting.DESCRIPTION -> R.string.happened_description
-                    Setting.EMOJI -> R.string.happened_emoji
-                    Setting.COLOUR -> R.string.happened_colour
-                    Setting.DEFAULT_PARTICIPANTS -> R.string.happened_participants
-                    Setting.SCALE -> R.string.happened_scale
-                    null -> R.string.happened_settings
-                },
-                by,
-            )
-        is Happened.MemberAdded ->
-            if (happened.member == happening.by) stringResource(R.string.happened_joined, by)
-            else stringResource(R.string.happened_added, by, name(happened.member))
-        is Happened.MemberRenamed ->
-            stringResource(R.string.happened_renamed, by, happened.from, happened.to)
-        is Happened.MemberRemoved ->
-            stringResource(R.string.happened_removed, by, name(happened.member))
-        is Happened.Entry ->
-            stringResource(
-                when (happened.change) {
-                    Revision.CREATED -> R.string.happened_entry_created
-                    Revision.EDITED -> R.string.happened_entry_edited
-                    Revision.DELETED -> R.string.happened_entry_deleted
-                    Revision.RESTORED -> R.string.happened_entry_restored
-                },
-                by,
-                happened.description,
-            )
-        Happened.Recurring -> stringResource(R.string.happened_recurring, by)
-        is Happened.MadeRecurring ->
-            stringResource(R.string.happened_made_recurring, by, happened.description)
-    }
 }
 
 /**

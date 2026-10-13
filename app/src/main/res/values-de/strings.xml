@@ -165,7 +165,7 @@
     <string name="series_remove">Entfernen</string>
     <string name="series_remove_pause">Diese Pause entfernen?</string>
     <string name="series_remove_stop">Dieses Ende entfernen?</string>
-    <string name="series_entries">Ihre Einträge</string>
+    <string name="series_entries">Einträge und Verlauf</string>
     <string name="series_next">Als Nächstes fällig am %1$s</string>
     <string name="series_waiting">Vorgeschlagen, wartet in Aktivität auf Bestätigen oder Ablehnen</string>
     <string name="series_left_out">Ausgelassen: abgelehnt oder gelöscht</string>
@@ -177,10 +177,13 @@
     <string name="history_edited">Geändert von %1$s</string>
     <string name="history_deleted">Gelöscht von %1$s</string>
     <string name="history_restored">Wiederhergestellt von %1$s</string>
-    <string name="history_change">%1$s: %2$s → %3$s</string>
+    <string name="history_field_changed">%1$s geändert auf %2$s (vorher %3$s)</string>
+    <string name="history_from">Ab %1$s</string>
     <string name="history_attachments">Anhänge geändert</string>
     <string name="field_kind">Art</string>
     <string name="field_note">Notiz</string>
+    <string name="field_repeats">Wiederholung</string>
+    <string name="field_scale">Nachkommastellen</string>
 
     <!-- Amount calculator -->
     <string name="calculator_back">Letzte Eingabe löschen</string>
@@ -447,7 +450,6 @@
     <string name="unseen">Neu</string>
     <string name="mark_all_read">Alle als gelesen markieren</string>
     <string name="needs_attention">Braucht Aufmerksamkeit</string>
-    <string name="happened_at">%1$s · %2$s</string>
     <string name="happened_created">%1$s hat die Gruppe erstellt</string>
     <string name="happened_name">%1$s hat den Gruppennamen geändert</string>
     <string name="happened_description">%1$s hat die Beschreibung geändert</string>
@@ -464,8 +466,15 @@
     <string name="happened_entry_edited">%1$s hat \'%2$s\' bearbeitet</string>
     <string name="happened_entry_deleted">%1$s hat \'%2$s\' gelöscht</string>
     <string name="happened_entry_restored">%1$s hat \'%2$s\' wiederhergestellt</string>
-    <string name="happened_recurring">%1$s hat einen wiederkehrenden Eintrag geändert</string>
     <string name="happened_made_recurring">%1$s hat \'%2$s\' wiederkehrend gemacht</string>
+    <string name="happened_series_started">%1$s hat \'%2$s\' wiederkehrend hinzugefügt</string>
+    <string name="happened_series_amended">%1$s hat die Serie \'%2$s\' geändert</string>
+    <string name="happened_series_stopped">%1$s hat \'%2$s\' beendet</string>
+    <string name="happened_series_paused">%1$s hat \'%2$s\' pausiert</string>
+    <string name="happened_series_continued">%1$s hat \'%2$s\' fortgesetzt</string>
+    <string name="happened_series_deleted">%1$s hat die Serie \'%2$s\' gelöscht</string>
+    <string name="happened_occurrence_confirmed">%1$s hat \'%2$s\' bestätigt</string>
+    <string name="happened_occurrence_left_out">%1$s hat \'%2$s\' ausgelassen</string>
     <string name="sync_in_sync">Synchronisiert</string>
     <string name="sync_pending">Änderungen warten</string>
     <string name="sync_problem">Problem beim Synchronisieren</string>

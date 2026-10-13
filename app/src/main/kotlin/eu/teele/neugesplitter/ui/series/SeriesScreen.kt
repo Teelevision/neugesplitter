@@ -59,6 +59,9 @@ import eu.teele.neugesplitter.ui.EntryRow
 import eu.teele.neugesplitter.ui.editor.DatePick
 import eu.teele.neugesplitter.ui.editor.recurrenceText
 import eu.teele.neugesplitter.ui.formatted
+import eu.teele.neugesplitter.ui.history.HistoryRow
+import eu.teele.neugesplitter.ui.history.day
+import eu.teele.neugesplitter.ui.history.told
 import eu.teele.neugesplitter.ui.kindIcon
 import eu.teele.neugesplitter.ui.kindLabel
 import eu.teele.neugesplitter.ui.longDate
@@ -144,10 +147,12 @@ fun SeriesScreen(viewModel: SeriesViewModel, onBack: () -> Unit, onOpen: (EntryI
                     StopRow(stop, locale, onRemove = { removing = stop.from.toString() })
                 }
             }
-            // Every due date so far, with what became of it, so that a missing entry is explained.
+            // Every due date so far, with what became of it, so that a missing entry is explained,
+            // and what was done to the series on the day it was done (RE-9, HI-2).
             val waiting = detail.waiting.toSet()
             val leftOut = detail.leftOut.toSet()
-            val days = (detail.entries.map { it.date } + waiting + leftOut).distinct()
+            val done = detail.history.groupBy { day(it.at) }
+            val days = (detail.entries.map { it.date } + waiting + leftOut + done.keys).distinct()
             if (days.isNotEmpty()) {
                 item(key = "entries") { Heading(stringResource(R.string.series_entries)) }
                 for (date in days.sortedDescending()) {
@@ -165,6 +170,15 @@ fun SeriesScreen(viewModel: SeriesViewModel, onBack: () -> Unit, onOpen: (EntryI
                     }
                     if (date in leftOut) {
                         item(key = "left-$date") { Note(R.string.series_left_out) }
+                    }
+                    done[date]?.forEachIndexed { index, happening ->
+                        item(key = "done-$date-$index") {
+                            HistoryRow(
+                                told(happening, detail.names, detail.scale, locale),
+                                happening.at,
+                                locale,
+                            )
+                        }
                     }
                 }
             }

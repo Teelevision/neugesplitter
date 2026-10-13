@@ -42,7 +42,8 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(qualifiers = "en-rUS-w411dp-h891dp")
+// Tall enough for every row to be composed.
+@Config(qualifiers = "en-rUS-w411dp-h1400dp")
 class SeriesScreenTest {
 
     @get:Rule val compose = createComposeRule()
@@ -111,7 +112,7 @@ class SeriesScreenTest {
     fun `a series shows what it produces, how it repeats, and the entries it made under their days (RE-9)`() {
         show()
         compose.onNodeWithText("Running").assertExists()
-        compose.onNodeWithText("Its entries").assertExists()
+        compose.onNodeWithText("Entries and history").assertExists()
         compose.onNodeWithText("Thursday, October 1, 2026").assertExists()
         compose.onNodeWithText("Tuesday, September 1, 2026").assertExists()
         // The header, and one row for each of August, September and October.
@@ -135,6 +136,22 @@ class SeriesScreenTest {
     }
 
     @Test
+    fun `what was done to a series is listed between its entries, on the day it was done (RE-9, HI-2)`() {
+        val later = at.plusSeconds(3600)
+        show(Event.OccurrenceDeleted(eventId(), ben.id, later, rent, date("2026-09-01")))
+        compose.onNodeWithText("Anna added 'Rent', repeating").assertExists()
+        compose.onNodeWithText("Every month on the 1st · 900.00").assertExists()
+        compose.onNodeWithText("Ben left out 'Rent'").assertExists()
+        compose.onNodeWithText("Due Sep 1, 2026").assertExists()
+        val top = { text: String ->
+            compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
+        }
+        assertTrue(top("Wednesday, October 7, 2026") < top("Ben left out 'Rent'"))
+        assertTrue(top("Ben left out 'Rent'") < top("Anna added 'Rent', repeating"))
+        assertTrue(top("Anna added 'Rent', repeating") < top("Thursday, October 1, 2026"))
+    }
+
+    @Test
     fun `a suggestion nobody decided yet is listed as waiting (RE-4, RE-9)`() {
         val suggested = monthly.copy(mode = Mode.SUGGESTED)
         show(
@@ -153,7 +170,7 @@ class SeriesScreenTest {
         show()
         compose.onNodeWithText("Stop").performClick()
         compose.onNodeWithText("Stop this series").assertExists()
-        compose.onNodeWithText("Wednesday, October 7, 2026").assertExists()
+        inDialog("Wednesday, October 7, 2026").assertExists()
         compose.onNodeWithText("Entries it already added stay.").assertExists()
         inDialog("Stop").performClick()
         awaitText("Stopped since Wednesday, October 7, 2026")
@@ -168,7 +185,7 @@ class SeriesScreenTest {
     fun `a pause skips the next occurrence by default and then goes on by itself (RE-7)`() {
         show()
         compose.onNodeWithText("Pause").performClick()
-        compose.onNodeWithText("Wednesday, October 7, 2026").assertExists()
+        inDialog("Wednesday, October 7, 2026").assertExists()
         compose.onNodeWithText("Monday, November 2, 2026").assertExists()
         inDialog("Pause").performClick()
         awaitText("Paused, continues on Monday, November 2, 2026")
@@ -184,7 +201,7 @@ class SeriesScreenTest {
         assertEquals(3, compose.onAllNodesWithText("Rent").fetchSemanticsNodes().size)
 
         compose.onNodeWithText("Continue").performClick()
-        compose.onNodeWithText("Wednesday, October 7, 2026").assertExists()
+        inDialog("Wednesday, October 7, 2026").assertExists()
         inDialog("Continue").performClick()
         awaitText("Running")
         val dues = series().occurrences(date("2026-11-01")).map { it.due.toString() }

@@ -1,14 +1,13 @@
 package eu.teele.neugesplitter.ui.history
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -18,9 +17,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,25 +29,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.entry.Entry
-import eu.teele.neugesplitter.domain.entry.Side
-import eu.teele.neugesplitter.domain.event.Change
-import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.history.Revision
 import eu.teele.neugesplitter.domain.history.Version
+import eu.teele.neugesplitter.ui.DayHeading
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.kindLabel
 import eu.teele.neugesplitter.ui.longDate
 import eu.teele.neugesplitter.ui.sideLabels
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import java.util.Locale
 
-/** What no value is, on either side of a change. */
-private const val NONE = "—"
-
-/** The previous versions of one entry and its deletion, newest first (HI-3, ui-design 5). */
+/**
+ * The previous versions of one entry and its deletion, newest first under the day of each (HI-3,
+ * ui-design 5).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EntryHistoryScreen(viewModel: EntryHistoryViewModel, onBack: () -> Unit) {
@@ -80,52 +75,69 @@ fun EntryHistoryScreen(viewModel: EntryHistoryViewModel, onBack: () -> Unit) {
                     modifier = Modifier.padding(16.dp),
                 )
             }
-            itemsIndexed(state.versions) { index, version ->
-                if (index > 0) HorizontalDivider()
-                VersionItem(version, state, locale)
+            state.versions.forEachIndexed { index, version ->
+                if (index == 0 || day(state.versions[index - 1].at) != day(version.at)) {
+                    item(key = "day-$index") { DayHeading(day(version.at), locale) }
+                }
+                item(key = "version-$index") { VersionItem(version, state, locale) }
             }
         }
     }
 }
 
+/**
+ * One version, the size of an entry row with what changed cut off where it does not fit; tapping it
+ * shows all of it (HI-3).
+ */
 @Composable
 private fun VersionItem(version: Version, state: EntryHistoryState, locale: Locale) {
-    val by = state.names.getValue(version.by)
-    val headline =
-        stringResource(
-            when (version.change) {
-                Revision.CREATED -> R.string.created_by
-                Revision.EDITED -> R.string.history_edited
-                Revision.DELETED -> R.string.history_deleted
-                Revision.RESTORED -> R.string.history_restored
-            },
-            by,
-        )
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(headline, style = MaterialTheme.typography.titleMedium)
-        Text(
-            timestamp(version.at, locale),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+    var open by rememberSaveable { mutableStateOf(false) }
+    val by = state.names[version.by] ?: version.by.hex.take(8)
+    val (icon, headline) =
         when (version.change) {
-            Revision.CREATED -> Recorded(version.after, state, locale)
+            Revision.CREATED -> R.drawable.ic_add to R.string.created_by
+            Revision.EDITED -> R.drawable.ic_edit to R.string.history_edited
+            Revision.DELETED -> R.drawable.ic_delete to R.string.history_deleted
+            Revision.RESTORED -> R.drawable.ic_history to R.string.history_restored
+        }
+    val detail =
+        when (version.change) {
             Revision.EDITED,
-            Revision.RESTORED -> Changes(version.before!!, version.after, state, locale)
-            Revision.DELETED -> {}
+            Revision.RESTORED ->
+                revised(version.before, version.after, state.scale, state.names, locale)
+            else -> summary(version.after, state.scale, locale)
+        }
+    Column {
+        HistoryRow(
+            Told(icon, stringResource(headline, by), detail),
+            version.at,
+            locale,
+            Modifier.clickable(
+                onClickLabel = stringResource(if (open) R.string.collapse else R.string.expand)
+            ) {
+                open = !open
+            },
+        )
+        if (open) {
+            Column(
+                modifier =
+                    Modifier.fillMaxWidth().padding(start = 72.dp, end = 16.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                val lines =
+                    version.before
+                        ?.let { changes(it, version.after, state.scale, state.names, locale) }
+                        .orEmpty()
+                if (version.change == Revision.EDITED || version.change == Revision.RESTORED) {
+                    for (line in lines) Text(line, style = MaterialTheme.typography.bodyLarge)
+                }
+                if (lines.isEmpty() || version.change == Revision.CREATED) {
+                    Recorded(version.after, state, locale)
+                }
+            }
         }
     }
 }
-
-/** The medium date and short time in the device's zone, as [locale] writes them. */
-private fun timestamp(at: Instant, locale: Locale): String =
-    DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
-        .withLocale(locale)
-        .withZone(ZoneId.systemDefault())
-        .format(at)
 
 @Composable
 private fun Recorded(entry: Entry, state: EntryHistoryState, locale: Locale) {
@@ -135,10 +147,13 @@ private fun Recorded(entry: Entry, state: EntryHistoryState, locale: Locale) {
     Text(stringResource(kindLabel(entry.kind)), color = variant)
     Text(longDate(entry.date, locale), color = variant)
     Text(formatted(entry.amount, state.scale, locale), style = MaterialTheme.typography.bodyLarge)
-    SideLines(stringResource(payersLabel), sideText(entry.payers, entry, state, locale))
+    SideLines(
+        stringResource(payersLabel),
+        sideText(entry.payers, entry, state.scale, state.names, locale),
+    )
     SideLines(
         stringResource(beneficiariesLabel),
-        sideText(entry.beneficiaries, entry, state, locale),
+        sideText(entry.beneficiaries, entry, state.scale, state.names, locale),
     )
 }
 
@@ -151,58 +166,3 @@ private fun SideLines(label: String, text: String) {
     )
     Text(text, style = MaterialTheme.typography.bodyLarge)
 }
-
-/** One line for each field that differs, as old → new (HI-3); a restoration may differ in none. */
-@Composable
-private fun Changes(before: Entry, after: Entry, state: EntryHistoryState, locale: Locale) {
-    val resources = LocalResources.current
-    val diff = EntryChanges.between(before, after)
-    val (payersLabel, beneficiariesLabel) = sideLabels(after.kind)
-    val lines = mutableListOf<String>()
-    fun field(label: Int, change: Change<*>, old: String, new: String) {
-        if (change is Change.To) {
-            lines +=
-                resources.getString(R.string.history_change, resources.getString(label), old, new)
-        }
-    }
-    field(
-        R.string.field_kind,
-        diff.kind,
-        resources.getString(kindLabel(before.kind)),
-        resources.getString(kindLabel(after.kind)),
-    )
-    field(R.string.entry_description, diff.description, before.description, after.description)
-    field(
-        R.string.entry_date,
-        diff.date,
-        longDate(before.date, locale),
-        longDate(after.date, locale),
-    )
-    field(
-        R.string.entry_amount,
-        diff.amount,
-        formatted(before.amount, state.scale, locale),
-        formatted(after.amount, state.scale, locale),
-    )
-    field(
-        payersLabel,
-        diff.payers,
-        sideText(before.payers, before, state, locale),
-        sideText(after.payers, after, state, locale),
-    )
-    field(
-        beneficiariesLabel,
-        diff.beneficiaries,
-        sideText(before.beneficiaries, before, state, locale),
-        sideText(after.beneficiaries, after, state, locale),
-    )
-    field(R.string.field_note, diff.note, before.note ?: NONE, after.note ?: NONE)
-    if (diff.attachments is Change.To) lines += resources.getString(R.string.history_attachments)
-    for (line in lines) Text(line, style = MaterialTheme.typography.bodyLarge)
-}
-
-/** "Anna 15.00, Ben 15.00": each member and their part of [entry]'s amount (SP-7). */
-private fun sideText(side: Side, entry: Entry, state: EntryHistoryState, locale: Locale): String =
-    side.parts(entry.amount).entries.joinToString(", ") { (member, part) ->
-        "${state.names.getValue(member)} ${formatted(part.roundedTo(state.scale), state.scale, locale)}"
-    }

@@ -3,6 +3,7 @@ package eu.teele.neugesplitter.ui.history
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
@@ -122,14 +123,19 @@ class EntryHistoryScreenTest {
     }
 
     @Test
-    fun `a new entry shows who created it, when, and the entry as recorded (HI-3)`() {
+    fun `a new entry shows who created it, when, and the entry as recorded once tapped (HI-3)`() {
         show(created())
+        compose.onNodeWithText("Created by Anna").assertExists()
+        compose.onNodeWithText("Wednesday, October 7, 2026").assertExists()
+        compose.onNodeWithText("30.00 · Oct 7, 2026").assertExists()
+        compose.onNodeWithText("12:00", substring = true).assertExists()
+        assertEquals(0, count("Paid by"))
+
+        compose.onNodeWithText("Created by Anna").performClick()
         // Once as the title and once as the description recorded.
         assertEquals(2, count("Dinner"))
-        compose.onNodeWithText("Created by Anna").assertExists()
-        compose.onNodeWithText("Oct 7, 2026", substring = true).assertExists()
         compose.onNodeWithText("Expense").assertExists()
-        compose.onNodeWithText("Wednesday, October 7, 2026").assertExists()
+        assertEquals(2, count("Wednesday, October 7, 2026"))
         compose.onNodeWithText("30.00").assertExists()
         compose.onNodeWithText("Paid by").assertExists()
         compose.onNodeWithText("Anna 30.00").assertExists()
@@ -139,7 +145,7 @@ class EntryHistoryScreenTest {
     }
 
     @Test
-    fun `an edit shows only the fields it changed, as old to new (HI-3)`() {
+    fun `an edit says only the fields it changed, all of them once tapped (HI-3)`() {
         show(
             created(),
             edited(
@@ -153,16 +159,24 @@ class EntryHistoryScreenTest {
                 ),
             ),
         )
+        val description = "Description changed to Supper (previous Dinner)"
         compose.onNodeWithText("Edited by Ben").assertExists()
-        compose.onNodeWithText("Description: Dinner → Supper").assertExists()
-        compose.onNodeWithText("Amount: 30.00 → 40.00").assertExists()
-        compose.onNodeWithText("Paid by: Anna 30.00 → Ben 40.00").assertExists()
-        compose.onNodeWithText("Note: — → Late").assertExists()
-        assertEquals(0, count("Type:", substring = true))
-        assertEquals(0, count("Date:", substring = true))
-        assertEquals(0, count("For:", substring = true))
+        compose.onNodeWithText("$description · Amount", substring = true).assertExists()
+        assertEquals(0, count(description))
+
+        compose.onNodeWithText("Edited by Ben").performClick()
+        compose.onNodeWithText(description).assertExists()
+        compose.onNodeWithText("Amount changed to 40.00 (previous 30.00)").assertExists()
+        compose.onNodeWithText("Paid by changed to Ben 40.00 (previous Anna 30.00)").assertExists()
+        compose.onNodeWithText("Note changed to Late (previous —)").assertExists()
+        assertEquals(0, count("Type changed", substring = true))
+        assertEquals(0, count("Date changed", substring = true))
+        assertEquals(0, count("For changed", substring = true))
         // The title is the entry as it stands now.
         compose.onNodeWithText("Supper").assertExists()
+
+        compose.onNodeWithText("Edited by Ben").performClick()
+        assertEquals(0, count(description))
     }
 
     @Test
@@ -170,7 +184,7 @@ class EntryHistoryScreenTest {
         show(created(), deleted(ben, 1), edited(anna, 2, EntryChanges()))
         compose.onNodeWithText("Deleted by Ben").assertExists()
         compose.onNodeWithText("Restored by Anna").assertExists()
-        assertEquals(0, count("→", substring = true))
+        assertEquals(0, count("changed to", substring = true))
     }
 
     @Test

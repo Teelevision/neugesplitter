@@ -232,12 +232,17 @@ stacked in collapsible sections below it:
    editor, and saving there confirms it, as it was or changed. Declining does
    not stop the series and the section says so once (RE-5).
 3. **History**: what changed, by which member, and when (HI-2), as a reverse
-   chronological list covering entries, membership and group settings. What one
-   action wrote at once is one line: settings changed together, or an entry made
-   recurring rather than "deleted" and "changed a recurring entry". A line about
-   an entry opens it, or its history once it is deleted (HI-3). Unseen items are
-   highlighted; tapping one clears it, and opening an entry clears every line
-   about it (HI-5, HI-6). The overflow holds **mark all as read** (HI-7).
+   chronological list covering entries, series, membership and group settings,
+   under a heading for each day like the entry list. Each line is the size of an
+   entry row whatever it says: an icon for its kind, who did what, and below it
+   what changed — "Amount changed to 15.00 (previous 12.00)", several joined by
+   "·" — cut off with an ellipsis where it does not fit, and the time of day at
+   the end. What one action wrote at once is one line: settings changed
+   together, or an entry made recurring rather than "deleted" and "changed a
+   recurring entry". A line about an entry opens it, or its history once it is
+   deleted (HI-3). Unseen items are highlighted; tapping one clears it, and
+   opening an entry clears every line about it (HI-5, HI-6). The overflow holds
+   **mark all as read** (HI-7).
 
 The navigation bar's Activity icon carries a badge while anything above is
 pending.
@@ -343,10 +348,12 @@ Times of day appear nowhere (RE-14).
 What the entry is, who paid, who benefited, and the per-member amounts as
 derived, plus who created it and whether it has been edited (HI-4). Actions:
 edit, duplicate, delete, and **history**, which lists previous versions and the
-deletion if there is one (HI-3). Opening this screen clears the entry's unseen
-highlight (HI-6). An entry from a series says how the series repeats and links
-to it (RE-9); it has no history of its own, and deleting it deletes only that
-occurrence (RE-15).
+deletion if there is one (HI-3), newest first under their days, in lines like
+Activity's history; tapping one shows all of it: each changed field on its own
+line, or the entry as it was recorded. Opening this screen clears the entry's
+unseen highlight (HI-6). An entry from a series says how the series repeats and
+links to it (RE-9); it has no history of its own, and deleting it deletes only
+that occurrence (RE-15).
 
 ### Recurring series
 
@@ -375,8 +382,10 @@ Under the actions, every pause and stop, past ones included, each with
 removing takes it back as a whole. Below them, every due date so far, newest
 first under its day: the entry it produced, opening its detail, or else why
 there is none — a suggestion still waiting in Activity, or one declined or
-deleted (RE-4, RE-5). The header says when it is next due, past its stops, so
-that a missing entry is never a mystery.
+deleted (RE-4, RE-5) — and, on the day it was done, what somebody did to the
+series or its occurrences, in lines like Activity's history (HI-2). The header
+says when it is next due, past its stops, so that a missing entry is never a
+mystery.
 
 ## 6. Backend setup
 

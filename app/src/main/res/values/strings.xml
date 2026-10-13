@@ -167,7 +167,7 @@
     <string name="series_remove">Remove</string>
     <string name="series_remove_pause">Remove this pause?</string>
     <string name="series_remove_stop">Remove this stop?</string>
-    <string name="series_entries">Its entries</string>
+    <string name="series_entries">Entries and history</string>
     <string name="series_next">Next due on %1$s</string>
     <string name="series_waiting">Suggested, waiting to be confirmed or declined in Activity</string>
     <string name="series_left_out">Left out: declined or deleted</string>
@@ -179,10 +179,13 @@
     <string name="history_edited">Edited by %1$s</string>
     <string name="history_deleted">Deleted by %1$s</string>
     <string name="history_restored">Restored by %1$s</string>
-    <string name="history_change">%1$s: %2$s → %3$s</string>
+    <string name="history_field_changed">%1$s changed to %2$s (previous %3$s)</string>
+    <string name="history_from">From %1$s</string>
     <string name="history_attachments">Attachments changed</string>
     <string name="field_kind">Type</string>
     <string name="field_note">Note</string>
+    <string name="field_repeats">Repeats</string>
+    <string name="field_scale">Decimal places</string>
 
     <!-- Amount calculator -->
     <string name="calculator_back">Delete last input</string>
@@ -452,7 +455,6 @@
     <string name="unseen">New</string>
     <string name="mark_all_read">Mark all as read</string>
     <string name="needs_attention">Needs attention</string>
-    <string name="happened_at">%1$s · %2$s</string>
     <string name="happened_created">%1$s created the group</string>
     <string name="happened_name">%1$s renamed the group</string>
     <string name="happened_description">%1$s changed the description</string>
@@ -469,8 +471,15 @@
     <string name="happened_entry_edited">%1$s edited \'%2$s\'</string>
     <string name="happened_entry_deleted">%1$s deleted \'%2$s\'</string>
     <string name="happened_entry_restored">%1$s restored \'%2$s\'</string>
-    <string name="happened_recurring">%1$s changed a recurring entry</string>
     <string name="happened_made_recurring">%1$s made \'%2$s\' recurring</string>
+    <string name="happened_series_started">%1$s added \'%2$s\', repeating</string>
+    <string name="happened_series_amended">%1$s changed the series \'%2$s\'</string>
+    <string name="happened_series_stopped">%1$s stopped \'%2$s\'</string>
+    <string name="happened_series_paused">%1$s paused \'%2$s\'</string>
+    <string name="happened_series_continued">%1$s continued \'%2$s\'</string>
+    <string name="happened_series_deleted">%1$s deleted the series \'%2$s\'</string>
+    <string name="happened_occurrence_confirmed">%1$s confirmed \'%2$s\'</string>
+    <string name="happened_occurrence_left_out">%1$s left out \'%2$s\'</string>
     <string name="sync_in_sync">In sync</string>
     <string name="sync_pending">Changes waiting</string>
     <string name="sync_problem">Sync problem</string>

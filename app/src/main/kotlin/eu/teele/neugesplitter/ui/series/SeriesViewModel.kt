@@ -5,6 +5,10 @@ import androidx.lifecycle.viewModelScope
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
+import eu.teele.neugesplitter.domain.history.Happening
+import eu.teele.neugesplitter.domain.history.history
+import eu.teele.neugesplitter.domain.history.series
+import eu.teele.neugesplitter.domain.history.steps
 import eu.teele.neugesplitter.domain.recurrence.Decision
 import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Series
@@ -29,6 +33,8 @@ import kotlinx.coroutines.launch
 /**
  * @property segment what the series does today, or on its first day while that is ahead.
  * @property entries its occurrences in the entry list, newest first.
+ * @property history what was done to it and its occurrences, newest first (HI-2).
+ * @property names every member of the group by name, removed ones too.
  */
 data class SeriesDetail(
     val today: EntryDate,
@@ -37,6 +43,8 @@ data class SeriesDetail(
     val payers: List<String>,
     val scale: Scale,
     val entries: List<ListedEntry>,
+    val history: List<Happening> = emptyList(),
+    val names: Map<MemberId, String> = emptyMap(),
 ) {
     /** Its first day, while that is still ahead. */
     val starts: EntryDate?
@@ -125,9 +133,13 @@ class SeriesViewModel(
 ) : ViewModel() {
 
     val state: StateFlow<SeriesState> =
-        combine(repository.group(group), repository.overview(group, today)) { log, overview ->
+        combine(
+                repository.group(group),
+                repository.overview(group, today),
+                repository.log(group),
+            ) { log, overview, events ->
                 val listed = overview?.entries.orEmpty()
-                SeriesState(loaded = true, detail = log?.detail(listed))
+                SeriesState(loaded = true, detail = log?.detail(listed, events))
             }
             .flowOn(Dispatchers.IO)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SeriesState())
@@ -170,7 +182,7 @@ class SeriesViewModel(
         }
     }
 
-    private fun Group.detail(listed: List<ListedEntry>): SeriesDetail? {
+    private fun Group.detail(listed: List<ListedEntry>, events: List<Event>): SeriesDetail? {
         val found = series[this@SeriesViewModel.series]?.takeUnless { it.deleted } ?: return null
         val today = today()
         val segment = found.current(today)
@@ -182,6 +194,12 @@ class SeriesViewModel(
             payers = segment.template.payers.members.map { members[it]?.name ?: it.hex.take(8) },
             scale = scale,
             entries = listed.filter { it.id in ids },
+            history =
+                steps(history(events))
+                    .map { it.happening }
+                    .filter { it.happened.series == found.id }
+                    .asReversed(),
+            names = members.mapValues { it.value.name },
         )
     }
 }
