@@ -139,9 +139,10 @@ several currencies is refused.
 
 ## 4. Inside a group
 
-All four destinations show the group's emoji and name in their top bar, after
-the sync state as a cloud icon: done, uploading while changes wait, crossed out
-in the error colour on a failure or a halt, and absent for a local group (SY-6).
+All four destinations show the group's emoji and name in their top bar, and the
+sync state as a cloud icon at its right, before any menu: done, uploading while
+changes wait, crossed out in the error colour on a failure or a halt, and absent
+for a local group (SY-6).
 
 ### Overview
 

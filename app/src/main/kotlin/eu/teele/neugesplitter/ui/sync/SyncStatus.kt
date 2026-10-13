@@ -6,6 +6,7 @@ import android.icu.text.RelativeDateTimeFormatter.Direction
 import android.icu.text.RelativeDateTimeFormatter.RelativeUnit
 import android.icu.util.ULocale
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -54,14 +55,14 @@ fun SyncIcon(
 }
 
 /**
- * A group's [title] for the top bars of its destinations, after how its [sync] stands; a group kept
- * only on this device, with null [sync], shows none (ui-design 4).
+ * A group's [title] for the top bars of its destinations, with how its [sync] stands at the right;
+ * a group kept only on this device, with null [sync], shows none (ui-design 4).
  */
 @Composable
 fun GroupTitle(title: String, sync: SyncState?) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        sync?.let { SyncIcon(it, Modifier.padding(end = 12.dp)) }
-        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        sync?.let { SyncIcon(it, Modifier.padding(horizontal = 12.dp)) }
     }
 }
 

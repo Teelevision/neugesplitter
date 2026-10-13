@@ -120,8 +120,8 @@ class PeopleScreenTest {
         show(paid = null, shared = true)
         val cloud = compose.onNodeWithContentDescription("Changes waiting")
         assertTrue(
-            cloud.fetchSemanticsNode().boundsInRoot.right <=
-                compose.onNodeWithText("⛺ Trip").fetchSemanticsNode().boundsInRoot.left
+            cloud.fetchSemanticsNode().boundsInRoot.left >=
+                compose.onNodeWithText("⛺ Trip").fetchSemanticsNode().boundsInRoot.right
         )
     }
 
