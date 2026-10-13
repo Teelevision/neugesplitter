@@ -100,10 +100,13 @@ milliseconds, with no emulator anywhere near it.
 | OkHttp MockWebServer           | a fake S3 without conditional writes (TR-49)               |
 | Testcontainers + SeaweedFS     | the integration suite TR-48 asks for, `make integration`   |
 | GitHub Actions                 | `check` and `integrationTest`, and the reproducible build  |
+| FOSSA                          | the release apk's dependency licences, in CI, decisions.md |
 
 Everything is free and open source, and nothing needs credentials to build
-(TR-31, TR-51). Dependencies stay few enough to read: each new one is a thing
-that can be abandoned, and this app is meant to still build in five years.
+(TR-31, TR-51). FOSSA is the exception that proves it: a hosted service with an
+account, which only CI talks to and the build does not depend on. Dependencies
+stay few enough to read: each new one is a thing that can be abandoned, and this
+app is meant to still build in five years.
 
 The release apk is reproducible (TR-51): `make reproducible` builds it from two
 clean clones of `HEAD` at different paths, without the build cache, and fails

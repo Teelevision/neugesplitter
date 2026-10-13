@@ -37,6 +37,39 @@ jobs:
           name: reports
           path: "**/build/reports/"
 
+  # The release apk's dependencies against the licence policy set in FOSSA (.fossa.yml).
+  # Forks' pull requests get no secrets, so they skip it.
+  licences:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: |
+            17
+            25
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      # FOSSA runs ./gradlew itself, without the flag the other jobs pass.
+      - run: >
+          echo org.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_25_X64
+          >> "${GRADLE_USER_HOME:-$HOME/.gradle}/gradle.properties"
+
+      - uses: fossas/fossa-action@29693cc50323968e039056be419b32989fc5880c # v2.0.0
+        with:
+          api-key: ${{ secrets.FOSSA_API_KEY }}
+          pinned-cli-version: v3.20.1
+
+      - uses: fossas/fossa-action@29693cc50323968e039056be419b32989fc5880c # v2.0.0
+        with:
+          api-key: ${{ secrets.FOSSA_API_KEY }}
+          pinned-cli-version: v3.20.1
+          run-tests: true
+
   reproducible:
     runs-on: ubuntu-latest
     steps:

@@ -1,0 +1,13 @@
+# What the release apk ships, the same classpath the licences screen's test holds to.
+version: 3
+
+targets:
+  only:
+    - type: gradle
+      path: ./
+      target: ":app"
+
+experimental:
+  gradle:
+    configurations-only:
+      - releaseRuntimeClasspath

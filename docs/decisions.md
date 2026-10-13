@@ -340,6 +340,16 @@ are described in [sync-design.md](sync-design.md).
   somebody confirmed without their seeing it (RE-6). A refusal carries nothing
   and keeps following the calculation, because losing one only asks the question
   again.
+- **How are the dependencies' licences checked?** By FOSSA in CI, against a
+  policy kept in its web app that allows only licences an MIT-licensed apk can
+  comply with. It looks at exactly the release runtime classpath (`.fossa.yml`),
+  the one the licences screen's test holds to, so tools and test libraries do
+  not count. The licence texts the app shows stay hand-picked files in the
+  repository rather than FOSSA's attribution report: fetching them at build time
+  would need an account and the network, which TR-51 rules out, and LicencesTest
+  already fails when a shipped module has no notice. FOSSA does not find code
+  copied in without credit on the free plan; its snippet scanning is a paid
+  add-on.
 - **What becomes of an entry made recurring on a day its rule misses?** It is
   the series' first occurrence all the same (RE-1): rent paid on the 5th that
   repeats on the 2nd. The series starts on the entry's date and the app writes
