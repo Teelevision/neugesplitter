@@ -647,6 +647,23 @@ class EntryEditorScreenTest {
     }
 
     @Test
+    fun `a series repeats every few months, counted from its first (RE-2)`() {
+        show(renting = true, entry = rentOn("2026-09-01"))
+        compose.onNodeWithText("Every month on the 1st").performScrollTo().performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Monthly").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("More months").performClick()
+        compose.onNodeWithContentDescription("More months").performClick()
+        compose.onNodeWithText("Every 3 months").assertExists()
+        confirmRecurrence()
+        compose.onNodeWithText("Every 3 months on the 1st").assertExists()
+        compose.onNodeWithText("From this one on. Next: Tuesday, December 1, 2026").assertExists()
+        save()
+        assertEquals(listOf("2026-08-01", "2026-09-01"), dues())
+    }
+
+    @Test
     fun `an occurrence kept off its changed rule is its first all the same (RE-6)`() {
         show(renting = true, entry = rentOn("2026-09-01"))
         toTenth()

@@ -461,7 +461,12 @@ private fun sideJson(side: Side) = buildJsonObject {
 
 // --- Recurrence ----------------------------------------------------------------------------------
 
-private val INTERVALS = listOf("everyDays", "monthlyOn", "weeklyOn")
+private val INTERVALS = listOf("everyDays", "everyMonths", "monthlyOn", "weeklyOn")
+
+private fun monthDays(days: List<Long>, name: String): Set<Int> {
+    if (days.any { it !in 1..31 }) throw Malformed("'$name' is outside 1 to 31")
+    return days.map { it.toInt() }.toSet()
+}
 
 private val interval: Decoder<Interval> = { value, name ->
     val json = obj(value, name)
@@ -475,10 +480,19 @@ private val interval: Decoder<Interval> = { value, name ->
             // Past Int.MAX_VALUE days the second date is millions of years out: the same series.
             Interval.EveryDays(minOf(days, Int.MAX_VALUE.toLong()).toInt())
         }
-        "monthlyOn" -> {
-            val days = json.required("monthlyOn", distinct(::integer))
-            if (days.any { it !in 1..31 }) throw Malformed("'monthlyOn' is outside 1 to 31")
-            Interval.MonthlyOn(days.map { it.toInt() }.toSet())
+        "monthlyOn" ->
+            Interval.MonthlyOn(
+                monthDays(json.required("monthlyOn", distinct(::integer)), "monthlyOn")
+            )
+        "everyMonths" -> {
+            val every = json.required("everyMonths", ::obj)
+            val months = every.required("months", ::integer)
+            if (months < 1) throw Malformed("'months' is not positive")
+            Interval.MonthlyOn(
+                monthDays(every.required("days", distinct(::integer)), "days"),
+                // Past Int.MAX_VALUE months the second date is millions of years out, as above.
+                minOf(months, Int.MAX_VALUE.toLong()).toInt(),
+            )
         }
         else -> Interval.WeeklyOn(json.required("weeklyOn", distinct(day)).toSet())
     }
@@ -503,8 +517,19 @@ private fun segmentJson(segment: Segment) = buildJsonObject {
         buildJsonObject {
             when (val interval = segment.interval) {
                 is Interval.EveryDays -> put("everyDays", interval.days)
-                is Interval.MonthlyOn ->
-                    put("monthlyOn", buildJsonArray { interval.days.sorted().forEach { add(it) } })
+                is Interval.MonthlyOn -> {
+                    val days = buildJsonArray { interval.days.sorted().forEach { add(it) } }
+                    // Every month stays monthlyOn, which installations before everyMonths read.
+                    if (interval.months == 1) put("monthlyOn", days)
+                    else
+                        put(
+                            "everyMonths",
+                            buildJsonObject {
+                                put("months", interval.months)
+                                put("days", days)
+                            },
+                        )
+                }
                 is Interval.WeeklyOn ->
                     put(
                         "weeklyOn",

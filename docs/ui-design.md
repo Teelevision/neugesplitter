@@ -348,13 +348,15 @@ others leave of the total.
 
 A sheet: start date (for a new series only; an occurrence's due date is fixed),
 then the pattern as one of **every _x_ days**, **weekdays** (multi-select),
-**days of the month** (multi-select) (RE-2), then **automatic** or **suggested**
-(RE-3). A sentence at the bottom reads the rule back in plain language — "every
-month on the 1st and 15th" — and the same sentence stands under the Repeats
-switch once the sheet is closed. Where a new series' start date is not one the
-pattern falls on, a line below it says that this entry is the first and when the
-next one is. Days after the 28th note that shorter months use their last day.
-Times of day appear nowhere (RE-14).
+**every _x_ months** with the **days of the month** below (multi-select) (RE-2),
+then **automatic** or **suggested** (RE-3). The months are counted from the
+first, as the days are. A sentence at the bottom reads the rule back in plain
+language — "every month on the 1st and 15th", "every 3 months on the 15th" — and
+the same sentence stands under the Repeats switch once the sheet is closed.
+Where a new series' start date is not one the pattern falls on, a line below it
+says that this entry is the first and when the next one is. Days after the 28th
+note that shorter months use their last day. Times of day appear nowhere
+(RE-14).
 
 ### Entry detail
 

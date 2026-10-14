@@ -1,9 +1,13 @@
 package eu.teele.neugesplitter.format
 
+import eu.teele.neugesplitter.domain.RENT
+import eu.teele.neugesplitter.domain.arbSegment
 import eu.teele.neugesplitter.domain.event.Change
 import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
+import eu.teele.neugesplitter.domain.recurrence.Interval
+import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.MemberId
@@ -14,6 +18,7 @@ import eu.teele.neugesplitter.format.json.LogObject
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.boolean
 import io.kotest.property.arbitrary.list
+import io.kotest.property.arbitrary.next
 import io.kotest.property.checkAll
 import java.io.File
 import java.time.Instant
@@ -64,6 +69,28 @@ class CodecTest {
                 assertEquals(event, EventJson.read(text))
             }
         }
+    }
+
+    @Test
+    fun `every month is written as monthlyOn, which readers from before everyMonths know (format-spec 4_2)`() {
+        fun interval(months: Int): JsonObject {
+            val segment = arbSegment.next().copy(interval = Interval.MonthlyOn(setOf(15), months))
+            val event =
+                Event.SeriesAmended(
+                    EventId.parse("%032x".format(1)),
+                    anna,
+                    Instant.EPOCH,
+                    RENT,
+                    EntryDate.parse("2026-01-01"),
+                    segment,
+                )
+            return written(event).getValue("segment").jsonObject.getValue("interval").jsonObject
+        }
+        assertEquals(Json.parseToJsonElement("""{"monthlyOn":[15]}"""), interval(1))
+        assertEquals(
+            Json.parseToJsonElement("""{"everyMonths":{"months":3,"days":[15]}}"""),
+            interval(3),
+        )
     }
 
     @Test

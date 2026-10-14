@@ -203,6 +203,16 @@
       "as": "malformed"
     },
     {
+      "why": "everyMonths every 0 months",
+      "text": "{\"neugesplitter\":1,\"batch\":\"ba7cba7cba7cba7cba7cba7cba7cba7c\",\"events\":[{\"id\":\"00000000000000000000000000000001\",\"type\":\"series.created\",\"by\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"at\":\"2026-01-01T12:00:00Z\",\"series\":{\"id\":\"5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e\",\"from\":\"2026-01-01\",\"segment\":{\"interval\":{\"everyMonths\":{\"months\":0,\"days\":[1]}},\"mode\":\"automatic\",\"template\":{\"kind\":\"expense\",\"description\":\"x\",\"amount\":\"100\",\"payers\":{\"scheme\":\"equal\",\"input\":[\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"]},\"beneficiaries\":{\"scheme\":\"equal\",\"input\":[\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"]}}}}}]}",
+      "as": "malformed"
+    },
+    {
+      "why": "an interval naming everyMonths and monthlyOn at once",
+      "text": "{\"neugesplitter\":1,\"batch\":\"ba7cba7cba7cba7cba7cba7cba7cba7c\",\"events\":[{\"id\":\"00000000000000000000000000000001\",\"type\":\"series.created\",\"by\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"at\":\"2026-01-01T12:00:00Z\",\"series\":{\"id\":\"5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e\",\"from\":\"2026-01-01\",\"segment\":{\"interval\":{\"everyMonths\":{\"months\":3,\"days\":[1]},\"monthlyOn\":[1]},\"mode\":\"automatic\",\"template\":{\"kind\":\"expense\",\"description\":\"x\",\"amount\":\"100\",\"payers\":{\"scheme\":\"equal\",\"input\":[\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"]},\"beneficiaries\":{\"scheme\":\"equal\",\"input\":[\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"]}}}}}]}",
+      "as": "malformed"
+    },
+    {
       "why": "an unknown event type",
       "text": "{\"neugesplitter\":1,\"batch\":\"ba7cba7cba7cba7cba7cba7cba7cba7c\",\"events\":[{\"id\":\"00000000000000000000000000000001\",\"type\":\"member.archived\",\"by\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"at\":\"2026-01-01T12:00:00Z\",\"target\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"name\":\"a\"}]}",
       "as": "unsupported"

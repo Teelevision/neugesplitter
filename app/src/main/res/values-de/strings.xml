@@ -122,9 +122,18 @@
         <item quantity="other">Alle %d Tage</item>
     </plurals>
     <string name="recurrence_weekly">Jede Woche am %1$s</string>
-    <string name="recurrence_monthly">Jeden Monat am %1$s</string>
+    <plurals name="recurrence_monthly">
+        <item quantity="one">Jeden Monat am %2$s</item>
+        <item quantity="other">Alle %1$d Monate am %2$s</item>
+    </plurals>
+    <plurals name="recurrence_months">
+        <item quantity="one">Jeden Monat</item>
+        <item quantity="other">Alle %d Monate</item>
+    </plurals>
     <string name="recurrence_fewer_days">Weniger Tage</string>
     <string name="recurrence_more_days">Mehr Tage</string>
+    <string name="recurrence_fewer_months">Weniger Monate</string>
+    <string name="recurrence_more_months">Mehr Monate</string>
     <string name="recurrence_month_end">In kürzeren Monaten am letzten Tag.</string>
     <string name="recurrence_first">Dieser Eintrag ist der erste, der nächste ist am %1$s.</string>
     <string name="mode_automatic">Automatisch</string>

@@ -54,11 +54,24 @@ class IntervalTest {
     }
 
     @Test
+    fun `every n months counts from the first day's month and clamps as monthly does (RE-2)`() {
+        assertEquals(
+            listOf("2027-01-31", "2027-04-30", "2027-07-31", "2027-10-31", "2028-01-31"),
+            Interval.MonthlyOn(setOf(31), 3).between("2027-01-31", "2028-01-31"),
+        )
+        assertEquals(
+            listOf("2028-08-15", "2030-08-15"),
+            Interval.MonthlyOn(setOf(15), 24).between("2028-08-01", "2030-08-31"),
+        )
+    }
+
+    @Test
     fun `an interval that cannot produce dates is malformed (format-spec 4_2)`() {
         assertFailsWith<Malformed> { Interval.EveryDays(0) }
         assertFailsWith<Malformed> { Interval.WeeklyOn(emptySet()) }
         assertFailsWith<Malformed> { Interval.MonthlyOn(emptySet()) }
         assertFailsWith<Malformed> { Interval.MonthlyOn(setOf(0)) }
         assertFailsWith<Malformed> { Interval.MonthlyOn(setOf(32)) }
+        assertFailsWith<Malformed> { Interval.MonthlyOn(setOf(1), 0) }
     }
 }

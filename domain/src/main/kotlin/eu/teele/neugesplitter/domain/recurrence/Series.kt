@@ -120,12 +120,13 @@ data class Series(
     fun decidedAfter(date: EntryDate): Boolean =
         decisions.any { (due, decision) -> due > date && decision != Decision.Deleted }
 
-    /**
-     * The first day on or after [date] the schedule makes due, stops or not; null if none in a
-     * year.
-     */
-    fun nextDue(date: EntryDate): EntryDate? =
-        dues(EntryDate.of(date.value.plusYears(1))).keys.filter { it >= date }.minOrNull()
+    /** The first day on or after [date] the schedule makes due, stops or not. */
+    fun nextDue(date: EntryDate): EntryDate? {
+        // The segment in force last produces one within its horizon of its start or of [date].
+        val (from, last) = segments.sortedBy { it.first }.last()
+        val through = last.interval.horizon(maxOf(date, from).value)
+        return dues(EntryDate.of(through)).keys.filter { it >= date }.minOrNull()
+    }
 
     /**
      * Whether the schedule makes [due] due, stops or not; an occurrence amended or confirmed there

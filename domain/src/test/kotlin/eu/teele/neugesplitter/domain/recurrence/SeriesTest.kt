@@ -243,6 +243,27 @@ class SeriesTest {
     }
 
     @Test
+    fun `the next due date may be more than a year away (RE-2)`() {
+        val series =
+            threePeople()
+                .start(RENT, "2026-05-01", segment(Interval.MonthlyOn(setOf(1), 24), rent(900)))
+                .amend(RENT, "2026-08-01", segment(Interval.EveryDays(400), rent(900)))
+                .replay()
+                .series
+                .getValue(RENT)
+        assertEquals(date("2027-09-05"), series.nextDue(date("2026-08-02")))
+    }
+
+    @Test
+    fun `an amendment restarts every n months at its own month (format-spec 4_2)`() {
+        val log =
+            threePeople()
+                .start(RENT, "2026-01-01", segment(Interval.MonthlyOn(setOf(1), 3), rent(30)))
+                .amend(RENT, "2026-05-15", segment(Interval.MonthlyOn(setOf(1), 3), rent(30)))
+        assertEquals(listOf("2026-01-01", "2026-04-01", "2026-08-01"), log.dues())
+    }
+
+    @Test
     fun `a date is scheduled where the schedule makes it due, stops or not (format-spec 4_2)`() {
         val series =
             threePeople()

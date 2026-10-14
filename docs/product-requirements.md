@@ -299,8 +299,8 @@ of everyone entering the same backend settings.
 
 - **RE-1** (Core): A user MUST be able to mark an entry as recurring.
 - **RE-2** (Core): The recurrence interval MUST support at least: specific
-  weekdays, specific days of the month, and every _x_ days. A weekday or
-  day-of-month rule MUST accept several days at once.
+  weekdays, specific days of every month or of every _x_ months, and every _x_
+  days. A weekday or day-of-month rule MUST accept several days at once.
 - **RE-3** (Core): A recurring entry MUST be configurable as either
   **automatic** (created without user interaction) or **suggested**.
 - **RE-4** (Core): For a suggested recurring entry, the app MUST present the

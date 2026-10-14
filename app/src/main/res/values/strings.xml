@@ -124,9 +124,18 @@
         <item quantity="other">Every %d days</item>
     </plurals>
     <string name="recurrence_weekly">Every week on %1$s</string>
-    <string name="recurrence_monthly">Every month on the %1$s</string>
+    <plurals name="recurrence_monthly">
+        <item quantity="one">Every month on the %2$s</item>
+        <item quantity="other">Every %1$d months on the %2$s</item>
+    </plurals>
+    <plurals name="recurrence_months">
+        <item quantity="one">Every month</item>
+        <item quantity="other">Every %d months</item>
+    </plurals>
     <string name="recurrence_fewer_days">Fewer days</string>
     <string name="recurrence_more_days">More days</string>
+    <string name="recurrence_fewer_months">Fewer months</string>
+    <string name="recurrence_more_months">More months</string>
     <string name="recurrence_month_end">In shorter months, on the last day.</string>
     <string name="recurrence_first">This entry is the first; the next is on %1$s.</string>
     <string name="mode_automatic">Automatic</string>

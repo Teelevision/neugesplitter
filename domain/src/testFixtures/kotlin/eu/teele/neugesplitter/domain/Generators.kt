@@ -18,6 +18,7 @@ import eu.teele.neugesplitter.domain.value.SeriesId
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.boolean
+import io.kotest.property.arbitrary.element
 import io.kotest.property.arbitrary.enum
 import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.long
@@ -85,7 +86,8 @@ val arbInterval: Arb<Interval> = arbitrary {
             )
         else ->
             Interval.MonthlyOn(
-                (1..31).filter { Arb.int(0..9).bind() == 0 }.ifEmpty { listOf(31) }.toSet()
+                (1..31).filter { Arb.int(0..9).bind() == 0 }.ifEmpty { listOf(31) }.toSet(),
+                Arb.element(1, 1, 2, 3, 24).bind(),
             )
     }
 }

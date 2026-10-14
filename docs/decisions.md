@@ -464,6 +464,14 @@ are described in [sync-design.md](sync-design.md).
   back past an earlier confirmed or edited occurrence, which a writer should not
   amend over (format-spec 4.2). A change known ahead — next year's rent — needs
   no occurrence at all, and is made on the series from a date.
+- **How do quarterly and yearly series repeat?** (RE-2) As days of every _x_
+  months, counted from the month a segment starts in, like every _x_ days from
+  its first day: one stepper covers quarterly, yearly, every 5 or every 24
+  months, where named calendar months would need a month picker and still not
+  say "every two years". It is a new interval, `everyMonths`, and part of
+  version 1 because no release has frozen that yet; once one has, a new interval
+  raises the format version (format-spec 8). Every month is still written as
+  `monthlyOn`.
 
 ## Open Questions
 

@@ -76,8 +76,10 @@ fun recurrenceText(interval: Interval, locale: Locale): String {
                 ),
             )
         is Interval.MonthlyOn ->
-            stringResource(
-                R.string.recurrence_monthly,
+            pluralStringResource(
+                R.plurals.recurrence_monthly,
+                interval.months,
+                interval.months,
                 list.format(interval.days.sorted().map { ordinal(it, locale) }),
             )
     }
@@ -90,7 +92,7 @@ fun recurrenceText(interval: Interval, locale: Locale): String {
 @Composable
 fun offPatternText(date: EntryDate, interval: Interval, locale: Locale): String? {
     if (interval.dates(date.value, date.value).any()) return null
-    val next = interval.dates(date.value, date.value.plusYears(1)).firstOrNull() ?: return null
+    val next = interval.dates(date.value, interval.horizon(date.value)).firstOrNull() ?: return null
     return stringResource(R.string.recurrence_first, longDate(EntryDate.of(next), locale))
 }
 
@@ -139,13 +141,15 @@ fun RecurrenceSheet(
     var monthDays by remember {
         mutableStateOf((given as? Interval.MonthlyOn)?.days ?: setOf(date.value.dayOfMonth))
     }
+    var months by remember { mutableIntStateOf((given as? Interval.MonthlyOn)?.months ?: 1) }
     var mode by remember { mutableStateOf(initial.mode) }
     var picking by remember { mutableStateOf(false) }
     val interval =
         when (pattern) {
             Pattern.DAYS -> Interval.EveryDays(every)
             Pattern.WEEKLY -> weekdays.takeIf { it.isNotEmpty() }?.let(Interval::WeeklyOn)
-            Pattern.MONTHLY -> monthDays.takeIf { it.isNotEmpty() }?.let(Interval::MonthlyOn)
+            Pattern.MONTHLY ->
+                monthDays.takeIf { it.isNotEmpty() }?.let { Interval.MonthlyOn(it, months) }
         }
     val padded = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
 
@@ -193,23 +197,13 @@ fun RecurrenceSheet(
                 Segments(Pattern.entries, pattern, { it.label }, { pattern = it })
                 when (pattern) {
                     Pattern.DAYS ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { every-- }, enabled = every > 1) {
-                                Icon(
-                                    painterResource(R.drawable.ic_minus),
-                                    stringResource(R.string.recurrence_fewer_days),
-                                )
-                            }
-                            Text(
-                                pluralStringResource(R.plurals.recurrence_days, every, every),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                            IconButton(onClick = { every++ }) {
-                                Icon(
-                                    painterResource(R.drawable.ic_add),
-                                    stringResource(R.string.recurrence_more_days),
-                                )
-                            }
+                        Stepper(
+                            pluralStringResource(R.plurals.recurrence_days, every, every),
+                            stringResource(R.string.recurrence_fewer_days),
+                            stringResource(R.string.recurrence_more_days),
+                            every,
+                        ) {
+                            every = it
                         }
                     Pattern.WEEKLY ->
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -222,6 +216,14 @@ fun RecurrenceSheet(
                             }
                         }
                     Pattern.MONTHLY -> {
+                        Stepper(
+                            pluralStringResource(R.plurals.recurrence_months, months, months),
+                            stringResource(R.string.recurrence_fewer_months),
+                            stringResource(R.string.recurrence_more_months),
+                            months,
+                        ) {
+                            months = it
+                        }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             for (day in 1..31) {
                                 FilterChip(
@@ -296,6 +298,26 @@ internal fun modeLabel(mode: Mode) =
         Mode.AUTOMATIC -> R.string.mode_automatic
         Mode.SUGGESTED -> R.string.mode_suggested
     }
+
+/** [label] between buttons that take one from [count], down to one, or add one to it. */
+@Composable
+private fun Stepper(
+    label: String,
+    fewer: String,
+    more: String,
+    count: Int,
+    onCount: (Int) -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = { onCount(count - 1) }, enabled = count > 1) {
+            Icon(painterResource(R.drawable.ic_minus), fewer)
+        }
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        IconButton(onClick = { onCount(count + 1) }) {
+            Icon(painterResource(R.drawable.ic_add), more)
+        }
+    }
+}
 
 /** The days of the week, starting where weeks start in [locale]. */
 private fun week(locale: Locale): List<DayOfWeek> {

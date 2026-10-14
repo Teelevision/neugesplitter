@@ -408,15 +408,19 @@ an entry without `id` or `date`. `interval` is one of:
 ```json
 { "everyDays": 14 }
 { "monthlyOn": [1, 15] }
+{ "everyMonths": { "months": 3, "days": [15] } }
 { "weeklyOn": ["mo", "th"] }
 ```
 
-`monthlyOn` and `weeklyOn` are non-empty arrays whose values MUST be unique;
-their order carries no meaning. `monthlyOn` values are 1 to 31 and clamp to the
-last day of a shorter month, so a series on the 30th and the 31st yields **one**
-occurrence in February, not two: clamping happens first and the resulting dates
-are then deduplicated. `everyDays` is a positive integer, and `weeklyOn` values
-are `mo`, `tu`, `we`, `th`, `fr`, `sa` and `su`.
+`monthlyOn`, `weeklyOn` and the `days` of `everyMonths` are non-empty arrays
+whose values MUST be unique; their order carries no meaning. Days of a month are
+1 to 31 and clamp to the last day of a shorter month, so a series on the 30th
+and the 31st yields **one** occurrence in February, not two: clamping happens
+first and the resulting dates are then deduplicated. `everyDays` and the
+`months` of `everyMonths` are positive integers, and `weeklyOn` values are `mo`,
+`tu`, `we`, `th`, `fr`, `sa` and `su`. An interval names exactly one of these.
+`everyMonths` with `months` 1 means the same as `monthlyOn`, which a writer uses
+instead.
 
 Everything about a recurrence is a **date**. `from` and `until` on the series
 events are dates, and a due date is a date; no field in a series is an instant.
@@ -437,10 +441,12 @@ date, and of two with the same `from`, the later in the log.
 
 A date is **due** when the segment in force on it produces it, counting from
 that segment's own `from`, and it is not stopped: `everyDays: n` produces
-`from`, then every \_n_th day after it; `weeklyOn` and `monthlyOn` produce every
-date on or after `from` that matches them. So `from` is itself due whenever the
-interval produces it, and an amendment restarts the count of `everyDays` at its
-own `from` rather than carrying on from the segment before it.
+`from`, then every \_n_th day after it; `everyMonths` produces its `days` in the
+month of `from`, then in every \_n_th month after it, from `from` on; `weeklyOn`
+and `monthlyOn` produce every date on or after `from` that matches them. So
+`from` is itself due whenever the interval produces it, and an amendment
+restarts the count of `everyDays` and `everyMonths` at its own `from` rather
+than carrying on from the segment before it.
 
 `series.stopped` stops the series from `from` up to `until`, the day it goes on
 again, or for good where there is no `until`. `series.continued` names days the
