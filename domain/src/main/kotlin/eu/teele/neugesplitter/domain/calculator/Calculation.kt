@@ -85,11 +85,18 @@ data class Calculation(
         return Calculation(scale, committed.amount, operator)
     }
 
-    /** Takes back the last digit or point, or else the operator waiting for its number (AM-4). */
+    /**
+     * Takes back the last digit or point, or else the operator waiting for its number (AM-4). A
+     * result standing alone becomes the number typed at [scale], less its last digit; one that is
+     * not positive cannot be typed, so it goes.
+     */
     fun back(): Calculation =
         when {
             typed.isNotEmpty() -> copy(typed = typed.dropLast(1))
             operator != null -> copy(operator = null)
+            result != null ->
+                if (result.isPositive) Calculation(scale, typed = text(result).dropLast(1))
+                else clear()
             else -> this
         }
 
@@ -97,6 +104,11 @@ data class Calculation(
 
     /** A digit or point after a result with no operator starts a new calculation. */
     private fun fresh(): Calculation = if (result != null && operator == null) clear() else this
+
+    private fun text(amount: Amount): String =
+        BigDecimal.valueOf(amount.units, Amount.UNIT_DIGITS)
+            .setScale(scale.digits, RoundingMode.HALF_UP)
+            .toPlainString()
 
     private fun fits(text: String): Boolean {
         val match = TYPED.matchEntire(text) ?: return false
@@ -151,18 +163,12 @@ data class Calculation(
         private val LIMIT = BigInteger.valueOf(Amount.LIMIT)
 
         /**
-         * [amount], ready to be changed, typed out at [scale]. One that is not positive cannot be
-         * typed, so it stands as a result instead, which a digit replaces.
+         * [amount], standing as a result at [scale]: a digit replaces it, an operator carries on
+         * from it, and taking back edits it (AM-4).
          */
-        fun start(scale: Scale, amount: Amount? = null): Calculation {
-            if (amount == null) return Calculation(scale)
-            if (!amount.isPositive) return Calculation(scale, result = amount.roundedTo(scale))
-            val text =
-                BigDecimal.valueOf(amount.units, Amount.UNIT_DIGITS)
-                    .setScale(scale.digits, RoundingMode.HALF_UP)
-                    .toPlainString()
-            return Calculation(scale, typed = text)
-        }
+        fun start(scale: Scale, amount: Amount? = null): Calculation =
+            if (amount == null) Calculation(scale)
+            else Calculation(scale, result = amount.roundedTo(scale))
 
         /** [dividend] / [divisor] to the nearest integer, half away from zero (format-spec 7.1). */
         private fun rounded(dividend: BigInteger, divisor: BigInteger): BigInteger =

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,8 +32,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.calculator.Calculation
@@ -110,11 +115,21 @@ private fun Display(calculation: Calculation, locale: Locale) {
         maxLines = 1,
         modifier = Modifier.fillMaxWidth(),
     )
+    // A result standing alone is marked like selected text, as a digit replaces it (AM-4).
+    val standing = result != null && operator == null && calculation.typed.isEmpty()
     Text(
         when {
-            calculation.typed.isNotEmpty() -> calculation.typed.replace('.', separator)
-            result != null && operator == null -> exact(result, calculation.scale, locale)
-            else -> "0"
+            calculation.typed.isNotEmpty() ->
+                AnnotatedString(calculation.typed.replace('.', separator))
+            standing ->
+                buildAnnotatedString {
+                    withStyle(
+                        SpanStyle(background = LocalTextSelectionColors.current.backgroundColor)
+                    ) {
+                        append(exact(result, calculation.scale, locale))
+                    }
+                }
+            else -> AnnotatedString("0")
         },
         style = MaterialTheme.typography.displayMedium.merge(TABULAR),
         textAlign = TextAlign.End,

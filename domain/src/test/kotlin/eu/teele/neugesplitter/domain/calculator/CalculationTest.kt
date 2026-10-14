@@ -111,10 +111,17 @@ class CalculationTest {
     }
 
     @Test
-    fun `an amount starts out typed at the scale, ready to be changed (AM-4)`() {
-        assertEquals("24.50", Calculation.start(cents, amount("24.5")).typed)
-        assertEquals("25", Calculation.start(Scale.of(0), amount("24.5")).typed)
-        assertEquals(amount("24.5"), Calculation.start(cents, amount("24.5")).keys("<<5").value)
+    fun `an amount starts out as a result, which a digit replaces and taking back edits (AM-4)`() {
+        val start = Calculation.start(cents, amount("24.5"))
+        assertEquals(amount("24.5"), start.result)
+        assertEquals(amount("24.5"), start.value)
+        assertEquals(amount("7"), start.keys("7").value)
+        assertEquals(amount("0.5"), start.keys(".5").value)
+        assertEquals(amount("25.5"), start.keys("+1").value)
+        assertEquals("24.5", start.keys("<").typed)
+        assertEquals(amount("24.6"), start.keys("<<6").value)
+        assertEquals(amount("25"), Calculation.start(Scale.of(0), amount("24.5")).value)
+        assertEquals("2", Calculation.start(Scale.of(0), amount("24.5")).keys("<").typed)
         assertEquals(Calculation(cents), Calculation.start(cents, null))
     }
 
@@ -125,6 +132,7 @@ class CalculationTest {
         assertEquals(amount("-5.25"), start.value)
         assertEquals(amount("-15.25"), start.keys("-10").value)
         assertEquals(amount("7"), start.keys("7").value)
+        assertEquals(Calculation(cents), start.keys("<"))
         assertEquals(Amount.ZERO, Calculation.start(cents, Amount.ZERO).value)
     }
 }

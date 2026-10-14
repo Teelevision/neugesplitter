@@ -82,6 +82,14 @@ class CalculatorSheetTest {
     }
 
     @Test
+    fun `a digit replaces the start value (AM-4)`() {
+        show(start = cents(1250))
+        press("7")
+        confirm()
+        assertEquals(cents(700), confirmed)
+    }
+
+    @Test
     fun `confirming is refused while the calculation is empty (AM-6)`() {
         show()
         compose.onNodeWithContentDescription("OK").assertIsNotEnabled()

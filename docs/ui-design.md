@@ -316,10 +316,12 @@ A full-width sheet that replaces the keyboard: digits, decimal separator, `+`,
 `-`, `*`, `/`, a backspace and a clear (AM-4). No parentheses and no precedence
 — each operator commits the expression so far, and the running result stays
 visible above the keypad (AM-2, AM-3). An operator typed first works on the zero
-shown, so a minus starts a negative number, as an adjustment may need (SP-4).
-Confirming leaves out an operator still waiting for its number, rounds to the
-group's two places and writes the number into the entry; the calculation itself
-is not kept (AM-5, AM-6, AM-7).
+shown, so a minus starts a negative number, as an adjustment may need (SP-4). An
+amount already in the entry stands marked like selected text: a digit replaces
+it, an operator carries on from it, and backspace edits it (AM-4). Confirming
+leaves out an operator still waiting for its number, rounds to the group's two
+places and writes the number into the entry; the calculation itself is not kept
+(AM-5, AM-6, AM-7).
 
 ### Split editor
 
