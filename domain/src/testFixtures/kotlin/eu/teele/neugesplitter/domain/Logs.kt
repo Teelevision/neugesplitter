@@ -7,12 +7,15 @@ import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.event.GroupChanges
 import eu.teele.neugesplitter.domain.event.GroupDetails
+import eu.teele.neugesplitter.domain.event.TodoChanges
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.recurrence.Interval
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Template
+import eu.teele.neugesplitter.domain.todo.Todo
+import eu.teele.neugesplitter.domain.todo.TodoMove
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
@@ -21,6 +24,7 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
+import eu.teele.neugesplitter.domain.value.TodoId
 import java.time.Instant
 
 val GROUP: GroupId = GroupId.parse("%032x".format(0xc0a1))
@@ -32,6 +36,10 @@ val TODAY: EntryDate = EntryDate.parse("2026-08-31")
 fun entryId(n: Int): EntryId = EntryId.parse("%032x".format(0xe000 + n))
 
 val RENT: SeriesId = SeriesId.parse("%032x".format(0x5e1))
+
+fun todoId(n: Int): TodoId = TodoId.parse("%032x".format(0x7000 + n))
+
+fun todo(n: Int, description: String = "Todo $n"): Todo = Todo(todoId(n), description)
 
 fun date(text: String): EntryDate = EntryDate.parse(text)
 
@@ -146,6 +154,32 @@ class Log(private val by: MemberId = ANNA, private val group: GroupId = GROUP) {
     }
 
     fun events(): List<Event> = events.toList()
+
+    fun todo(todo: Todo) = apply { events += Event.TodoCreated(id(), by, AT, todo) }
+
+    fun update(target: TodoId, changes: TodoChanges) = apply {
+        events += Event.TodoUpdated(id(), by, AT, target, changes)
+    }
+
+    fun move(target: TodoId, position: Int) = moves(TodoMove(target, position))
+
+    fun moves(vararg moves: TodoMove) = apply {
+        events += Event.TodoMoved(id(), by, AT, moves.toList())
+    }
+
+    fun complete(target: TodoId) = complete(listOf(target))
+
+    fun complete(targets: List<TodoId>) = apply {
+        events += Event.TodoCompleted(id(), by, AT, targets)
+    }
+
+    fun reopen(target: TodoId) = reopen(listOf(target))
+
+    fun reopen(targets: List<TodoId>) = apply {
+        events += Event.TodoReopened(id(), by, AT, targets)
+    }
+
+    fun delete(target: TodoId) = apply { events += Event.TodoDeleted(id(), by, AT, target) }
 
     fun replay(): Group = Group.replay(events)
 }

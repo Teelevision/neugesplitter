@@ -3,26 +3,18 @@ package eu.teele.neugesplitter.ui.overview
 import androidx.activity.compose.LocalActivity
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,7 +37,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,14 +45,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
@@ -70,7 +59,10 @@ import eu.teele.neugesplitter.storage.ListedEntry
 import eu.teele.neugesplitter.storage.Overview
 import eu.teele.neugesplitter.storage.settings.SyncState
 import eu.teele.neugesplitter.ui.DayHeading
+import eu.teele.neugesplitter.ui.DeleteAction
 import eu.teele.neugesplitter.ui.EntryRow
+import eu.teele.neugesplitter.ui.SWIPE_ACTION
+import eu.teele.neugesplitter.ui.SwipeToReveal
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.position
 import eu.teele.neugesplitter.ui.sync.GroupTitle
@@ -82,7 +74,6 @@ import eu.teele.neugesplitter.ui.theme.largeText
 import eu.teele.neugesplitter.ui.theme.onGroupColour
 import java.time.Instant
 import java.util.Locale
-import kotlin.math.roundToInt
 
 private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
 
@@ -93,6 +84,7 @@ private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
  * @param onActivity opens the group's activity, where its sync stands in full and its suggestions
  *   are decided.
  * @param onBalances opens who owes whom.
+ * @param onTodos opens the group's todo list (TD-1).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,6 +100,7 @@ fun OverviewScreen(
     onSyncProblem: () -> Unit,
     onActivity: () -> Unit,
     onBalances: () -> Unit,
+    onTodos: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -154,6 +147,16 @@ fun OverviewScreen(
                             painterResource(R.drawable.ic_arrow_back),
                             stringResource(R.string.back),
                         )
+                    }
+                },
+                actions = {
+                    if (overview != null) {
+                        IconButton(onClick = onTodos) {
+                            Icon(
+                                painterResource(R.drawable.ic_checklist),
+                                stringResource(R.string.todos),
+                            )
+                        }
                     }
                 },
             )
@@ -269,7 +272,15 @@ private fun Entries(
             item(key = date.toString()) { DayHeading(date, locale) }
             items(entries, key = { it.id.hex }) { entry ->
                 // Swiping left only reveals delete, so that a scroll cannot delete (ui-design 4).
-                SwipeToReveal(onDelete = { onDelete(entry.id) }) {
+                SwipeToReveal(
+                    SWIPE_ACTION,
+                    actions = { close ->
+                        DeleteAction {
+                            close()
+                            onDelete(entry.id)
+                        }
+                    },
+                ) {
                     EntryRow(
                         entry,
                         overview.scale,
@@ -285,55 +296,6 @@ private fun Entries(
         }
     }
 }
-
-private val REVEAL = 88.dp
-
-/** [content] that a swipe to the left moves aside, showing a button that deletes it. */
-@Composable
-private fun SwipeToReveal(onDelete: () -> Unit, content: @Composable () -> Unit) {
-    val width = with(LocalDensity.current) { REVEAL.toPx() }
-    var offset by remember { mutableFloatStateOf(0f) }
-    val drag = rememberDraggableState { offset = (offset + it).coerceIn(-width, 0f) }
-    Box {
-        if (offset < 0f) {
-            Box(
-                modifier =
-                    Modifier.matchParentSize().background(MaterialTheme.colorScheme.errorContainer),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                IconButton(
-                    onClick = {
-                        offset = 0f
-                        onDelete()
-                    },
-                    modifier = Modifier.width(REVEAL).fillMaxHeight(),
-                ) {
-                    Icon(
-                        painterResource(R.drawable.ic_delete),
-                        stringResource(R.string.delete),
-                        tint = MaterialTheme.colorScheme.onErrorContainer,
-                    )
-                }
-            }
-        }
-        Box(
-            Modifier.offset { IntOffset(offset.roundToInt(), 0) }
-                .draggable(
-                    drag,
-                    Orientation.Horizontal,
-                    onDragStopped = { velocity ->
-                        val open = offset < -width / 2 || velocity < -FLING
-                        animate(offset, if (open) -width else 0f) { value, _ -> offset = value }
-                    },
-                )
-        ) {
-            content()
-        }
-    }
-}
-
-/** Pixels a second that open the button however little the row moved. */
-private const val FLING = 1_000f
 
 /**
  * Where the user stands and the total, on the group's colour; tapping it opens the balances (BA-7,

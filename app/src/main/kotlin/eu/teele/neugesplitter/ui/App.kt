@@ -38,6 +38,7 @@ import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.ui.activity.ActivityScreen
 import eu.teele.neugesplitter.ui.activity.ActivityViewModel
+import eu.teele.neugesplitter.ui.activity.dueTodos
 import eu.teele.neugesplitter.ui.appsettings.AppSettingsScreen
 import eu.teele.neugesplitter.ui.appsettings.AppSettingsViewModel
 import eu.teele.neugesplitter.ui.backend.BackendSetupScreen
@@ -71,6 +72,8 @@ import eu.teele.neugesplitter.ui.settings.GroupSettingsScreen
 import eu.teele.neugesplitter.ui.settings.GroupSettingsViewModel
 import eu.teele.neugesplitter.ui.sync.SyncProblemScreen
 import eu.teele.neugesplitter.ui.sync.SyncProblemViewModel
+import eu.teele.neugesplitter.ui.todo.TodoScreen
+import eu.teele.neugesplitter.ui.todo.TodoViewModel
 import java.io.IOException
 import java.text.DecimalFormatSymbols
 import kotlinx.coroutines.flow.combine
@@ -354,14 +357,25 @@ fun App(graph: AppGraph) {
                                     graph.groups.unseen(group),
                                     graph.groups.backends.state(group),
                                     graph.groups.pending(group, graph::today),
-                                ) { unseen, sync, pending ->
-                                    unseen.isNotEmpty() || sync?.halted != null || pending > 0
+                                    graph.groups.group(group),
+                                ) { unseen, sync, pending, replayed ->
+                                    unseen.isNotEmpty() ||
+                                        sync?.halted != null ||
+                                        pending > 0 ||
+                                        replayed
+                                            ?.let { dueTodos(it, graph.today()) }
+                                            .orEmpty()
+                                            .any()
                                 }
                             }
                             .collectAsStateWithLifecycle(false)
+                    var addingTodo by remember { mutableStateOf(false) }
                     GroupScreen(
                         onBack = { pop() },
-                        onNew = { stack.add(EntryEditor(key.group)) },
+                        onNew = {
+                            if (it == Destination.TODOS) addingTodo = true
+                            else stack.add(EntryEditor(key.group))
+                        },
                         attention = attention,
                     ) { destination, back, go, modifier ->
                         when (destination) {
@@ -389,6 +403,24 @@ fun App(graph: AppGraph) {
                                     onSyncProblem = { stack.add(SyncProblem(key.group)) },
                                     onActivity = { go(Destination.ACTIVITY) },
                                     onBalances = { go(Destination.PEOPLE) },
+                                    onTodos = { go(Destination.TODOS) },
+                                    modifier = modifier,
+                                )
+                            Destination.TODOS ->
+                                TodoScreen(
+                                    viewModel {
+                                        TodoViewModel(
+                                            graph.groups,
+                                            group,
+                                            graph::identifier,
+                                            graph::today,
+                                            graph::now,
+                                            graph.scope,
+                                        )
+                                    },
+                                    newRequested = addingTodo,
+                                    onNewTaken = { addingTodo = false },
+                                    onBack = back,
                                     modifier = modifier,
                                 )
                             Destination.PEOPLE ->
@@ -432,6 +464,7 @@ fun App(graph: AppGraph) {
                                     onHistory = { stack.add(EntryHistory(key.group, it.hex)) },
                                     onShare = { stack.add(BackendSetup(key.group)) },
                                     onSyncProblem = { stack.add(SyncProblem(key.group)) },
+                                    onTodos = { go(Destination.TODOS) },
                                     modifier = modifier,
                                 )
                             Destination.SETTINGS ->

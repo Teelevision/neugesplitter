@@ -472,6 +472,35 @@ are described in [sync-design.md](sync-design.md).
   version 1 because no release has frozen that yet; once one has, a new interval
   raises the format version (format-spec 8). Every month is still written as
   `monthlyOn`.
+- **How is the to-do list ordered across installations?** (TD-3) A move names
+  the place the to-do goes to, counted in the list without it, and nothing more.
+  Applied in log order, the same events give every installation the same list,
+  so two members moving different to-dos to the top both land there, the later
+  one first. A place beyond the end means the end rather than malformed, because
+  a concurrent move or delete can shorten the list under it; the cost is that a
+  to-do may end up a place or two from where its mover meant, which another drag
+  fixes. Fractional keys between neighbours would honour more intentions and
+  need longer events and rebalancing; the to-do lists of a group of friends do
+  not need that. Like `everyMonths`, these events are part of version 1, since
+  no release has frozen it.
+- **Why does one event carry many moves or ticks?** Sorting a list by hand is a
+  dozen drags, each of which would be an object to encrypt, upload and keep
+  forever. The app holds moves and ticks back while the list is open and writes
+  them on leaving it, when the app goes to the background, and before an add or
+  a delete, which change the list's length and so the places later moves name. A
+  move applied in array order is the same as one event of its own, so nothing
+  about ordering changes; a drag then dragged back, or a tick undone, writes
+  nothing. The cost is that what is held back is lost if the process dies
+  without stopping, which loses a few drags at most.
+- **What does an event on a deleted to-do do?** Nothing, and it is accepted. Two
+  installations can edit, move or tick off one to-do while a third deletes it,
+  and none of them is wrong; malformed would halt the group for everyone. A
+  deleted to-do does not come back, unlike an entry, because a list somebody
+  cleared up should stay cleared up.
+- **Why does the 10 000 to-do limit bind only writers?** Two installations can
+  each add the last one at once. Refusing the longer list on reading would halt
+  the group over a list that is fine to show, so readers accept it and writers
+  stop adding until it shrinks.
 
 ## Open Questions
 

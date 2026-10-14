@@ -13,7 +13,10 @@ import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.event.GroupChanges
 import eu.teele.neugesplitter.domain.event.GroupDetails
+import eu.teele.neugesplitter.domain.event.TodoChanges
 import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.todo.Todo
+import eu.teele.neugesplitter.domain.todo.TodoMove
 import eu.teele.neugesplitter.domain.value.AttachmentName
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryId
@@ -21,6 +24,7 @@ import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.SeriesId
+import eu.teele.neugesplitter.domain.value.TodoId
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.boolean
@@ -87,6 +91,10 @@ private val arbEntryId: Arb<EntryId> = hexId().map { EntryId.parse(it) }
 
 private val arbSeriesId: Arb<SeriesId> = hexId().map { SeriesId.parse(it) }
 
+private val arbTodoId: Arb<TodoId> = hexId().map { TodoId.parse(it) }
+
+private val arbTodoIds: Arb<List<TodoId>> = Arb.list(arbTodoId, 1..4).map { it.distinct() }
+
 val arbGroupChanges: Arb<GroupChanges> = arbitrary {
     GroupChanges(
         arbChange(arbScale).bind(),
@@ -128,7 +136,7 @@ val arbEvent: Arb<Event> = arbitrary {
     val id = EventId.parse(hexId().bind())
     val by = arbMember.bind()
     val at = arbInstant.bind()
-    when (Arb.int(0..15).bind()) {
+    when (Arb.int(0..21).bind()) {
         0 ->
             Event.GroupCreated(
                 id,
@@ -187,6 +195,37 @@ val arbEvent: Arb<Event> = arbitrary {
         12 -> Event.SeriesDeleted(id, by, at, arbSeriesId.bind())
         13 -> Event.OccurrenceConfirmed(id, by, at, arbSeriesId.bind(), arbDate.bind())
         14 -> Event.OccurrenceDeleted(id, by, at, arbSeriesId.bind(), arbDate.bind())
+        15 ->
+            Event.TodoCreated(
+                id,
+                by,
+                at,
+                Todo(
+                    arbTodoId.bind(),
+                    arbText.bind(),
+                    arbDate.orNull().bind(),
+                    Arb.choice(arbMembers, Arb.constant(emptyList())).bind(),
+                ),
+            )
+        16 ->
+            Event.TodoUpdated(
+                id,
+                by,
+                at,
+                arbTodoId.bind(),
+                TodoChanges(
+                    arbChange(arbText).bind(),
+                    arbChange(arbDate.orNull()).bind(),
+                    arbChange(arbMembers.orNull()).bind(),
+                ),
+            )
+        17 -> {
+            val move = arbitrary { TodoMove(arbTodoId.bind(), Arb.int(0..Todo.LIMIT).bind()) }
+            Event.TodoMoved(id, by, at, Arb.list(move, 1..4).bind())
+        }
+        18 -> Event.TodoCompleted(id, by, at, arbTodoIds.bind())
+        19 -> Event.TodoReopened(id, by, at, arbTodoIds.bind())
+        20 -> Event.TodoDeleted(id, by, at, arbTodoId.bind())
         else ->
             Event.OccurrenceAmended(
                 id,

@@ -55,6 +55,7 @@ screen or opened as a bottom sheet, and the bar is hidden while it is up.
 | People and balances | destination | navigation bar                           |
 | Activity            | destination | navigation bar                           |
 | Group settings      | destination | navigation bar                           |
+| To-dos              | destination | overview top bar, Activity               |
 | Entry editor        | pushed      | centre FAB, editing an entry             |
 | Amount calculator   | full sheet  | tapping the amount field                 |
 | Split editor        | sheet       | tapping a side in the entry editor       |
@@ -244,8 +245,40 @@ stacked in collapsible sections below it:
    opening an entry clears every line about it (HI-5, HI-6). The overflow holds
    **mark all as read** (HI-7).
 
+Between the suggestions and the history, **To-dos due** lists the to-dos not
+done whose due date has come, earliest first, as rows of the to-do list; one
+tapped opens it (TD-7). The section is shown only while there are some.
+
 The navigation bar's Activity icon carries a badge while anything above is
 pending.
+
+### To-dos
+
+Opened by the checklist icon in the Overview's top bar; the navigation bar
+stays, with Overview selected, and back returns to Overview. The centre FAB adds
+a to-do here instead of an entry (TD-1).
+
+The top bar's three icons filter the list: every to-do, those not done, and
+those with a due date, earliest first (TD-7). The one in force is filled.
+
+Each row is the height of an entry row: on the left, in the circle an entry's
+kind icon sits in, a drag handle (TD-3); the description, struck through once
+done (TD-5); who it is assigned to on the line below (TD-4); and the due date at
+the right. Dragging the handle moves the to-do, and the list scrolls when the
+finger nears an edge. Only the full list and the list of those not done can be
+dragged, because an order by date has no place to drop one into. A to-do dropped
+among those not done goes just before the one it landed on.
+
+- **Tap** opens the to-do's sheet, the same one the FAB opens: description, a
+  due date that can be removed, and a chip for each member (TD-2). Removed
+  members are offered only where they are already assigned.
+- **Swipe left** shows a checkbox, which ticks the to-do done or open again and
+  leaves the row open, and delete, which removes it with an undo snackbar,
+  written only once the snackbar goes, as for an entry (TD-6).
+- A new to-do goes to the end, and the list scrolls to it (TD-1).
+
+Moves and ticks show at once but are written only on leaving the list, when the
+app goes to the background, or before an add or a delete, as one event each.
 
 ### Group settings
 
@@ -477,6 +510,8 @@ on this screen happens automatically.
 | Tap             | entry row          | open detail                                     |
 | Long press      | entry row          | context sheet: edit, duplicate, delete, history |
 | Swipe left      | entry row          | show delete button; it deletes, with undo       |
+| Swipe left      | to-do row          | show done checkbox, and delete with undo        |
+| Drag the handle | to-do row          | move it in the list                             |
 | Tap             | member row         | member sheet                                    |
 | Long press      | member row         | inline rename                                   |
 | Tap             | group row          | open group                                      |

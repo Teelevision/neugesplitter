@@ -83,6 +83,7 @@ class OverviewScreenTest {
     private var problems = 0
     private var activities = 0
     private var balances = 0
+    private var todos = 0
 
     private fun eventId() = EventId.parse(id(0x100 + events++))
 
@@ -148,6 +149,7 @@ class OverviewScreenTest {
                     { problems++ },
                     { activities++ },
                     { balances++ },
+                    { todos++ },
                 )
             }
         }
@@ -268,6 +270,13 @@ class OverviewScreenTest {
         assertTrue(unmerged("You are owed 9.00").bottom <= unmerged("42.00").top)
         compose.onNodeWithText("You are owed 9.00").performClick()
         assertEquals(1, balances)
+    }
+
+    @Test
+    fun `the top bar opens the todo list (TD-1)`() {
+        show()
+        compose.onNodeWithContentDescription("To-dos").performClick()
+        assertEquals(1, todos)
     }
 
     @Test

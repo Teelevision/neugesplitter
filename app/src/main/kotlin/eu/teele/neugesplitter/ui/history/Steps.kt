@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,8 +35,11 @@ import eu.teele.neugesplitter.domain.history.Revision
 import eu.teele.neugesplitter.domain.history.SeriesChange
 import eu.teele.neugesplitter.domain.history.Setting
 import eu.teele.neugesplitter.domain.history.Settings
+import eu.teele.neugesplitter.domain.history.TodoChange
+import eu.teele.neugesplitter.domain.history.TodosChange
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.recurrence.Segment
+import eu.teele.neugesplitter.domain.todo.Todo
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.MemberId
@@ -197,7 +201,91 @@ fun told(happening: Happening, names: Map<MemberId, String>, scale: Scale, local
                 recurrenceText(happened.segment.interval, locale),
             )
         is Happened.Recurring -> recurring(happened, by, names, scale, locale)
+        is Happened.Todo -> todo(happened, by, names, locale)
+        is Happened.Todos -> todos(happened, by)
     }
+}
+
+/** One todo by its description, several by their number and descriptions below. */
+@Composable
+private fun todos(happened: Happened.Todos, by: String): Told {
+    val (icon, one, several) =
+        when (happened.change) {
+            TodosChange.MOVED ->
+                Triple(
+                    R.drawable.ic_drag_indicator,
+                    R.string.happened_todo_moved,
+                    R.plurals.happened_todos_moved,
+                )
+            TodosChange.COMPLETED ->
+                Triple(
+                    R.drawable.ic_check,
+                    R.string.happened_todo_completed,
+                    R.plurals.happened_todos_completed,
+                )
+            TodosChange.REOPENED ->
+                Triple(
+                    R.drawable.ic_check_box_outline_blank,
+                    R.string.happened_todo_reopened,
+                    R.plurals.happened_todos_reopened,
+                )
+        }
+    val descriptions = happened.descriptions
+    return descriptions.singleOrNull()?.let { Told(icon, stringResource(one, by, it), "") }
+        ?: Told(
+            icon,
+            pluralStringResource(several, descriptions.size, by, descriptions.size),
+            descriptions.joinToString(" · "),
+        )
+}
+
+@Composable
+private fun todo(
+    happened: Happened.Todo,
+    by: String,
+    names: Map<MemberId, String>,
+    locale: Locale,
+): Told {
+    val (icon, sentence, detail) =
+        when (val change = happened.change) {
+            TodoChange.Created -> Triple(R.drawable.ic_add, R.string.happened_todo_created, "")
+            is TodoChange.Edited ->
+                Triple(
+                    R.drawable.ic_edit,
+                    R.string.happened_todo_edited,
+                    todoChanges(change.before, change.after, names, locale),
+                )
+            TodoChange.Deleted -> Triple(R.drawable.ic_delete, R.string.happened_todo_deleted, "")
+        }
+    return Told(icon, stringResource(sentence, by, happened.description), detail)
+}
+
+/** One part for each field in which [after] differs from [before], the same todo. */
+@Composable
+private fun todoChanges(
+    before: Todo,
+    after: Todo,
+    names: Map<MemberId, String>,
+    locale: Locale,
+): String {
+    fun due(todo: Todo) = todo.due?.let { mediumDate(it, locale) } ?: NONE
+    fun assigned(todo: Todo) =
+        todo.assignees
+            .map { names[it] ?: it.hex.take(8) }
+            .ifEmpty { null }
+            ?.let { ListFormatter.getInstance(locale).format(it) } ?: NONE
+    val fields =
+        listOf(
+            Triple(R.string.entry_description, before.description, after.description),
+            Triple(R.string.todo_due, due(before), due(after)),
+            Triple(R.string.todo_assignees, assigned(before), assigned(after)),
+        )
+    return fields
+        .filter { (_, old, new) -> old != new }
+        .map { (field, old, new) ->
+            stringResource(R.string.history_field_changed, stringResource(field), new, old)
+        }
+        .joinToString(" · ")
 }
 
 @Composable

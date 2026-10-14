@@ -9,11 +9,14 @@ import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.event.GroupChanges
 import eu.teele.neugesplitter.domain.event.GroupDetails
+import eu.teele.neugesplitter.domain.event.TodoChanges
 import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.recurrence.Interval
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Template
+import eu.teele.neugesplitter.domain.todo.Todo
+import eu.teele.neugesplitter.domain.todo.TodoMove
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.AttachmentName
 import eu.teele.neugesplitter.domain.value.Colour
@@ -24,6 +27,7 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
+import eu.teele.neugesplitter.domain.value.TodoId
 import eu.teele.neugesplitter.format.Unsupported
 import java.time.DayOfWeek
 import java.time.Instant
@@ -153,6 +157,19 @@ internal object Events {
                     template(entry),
                 )
             }
+            "todo.created" -> Event.TodoCreated(id, by, at, json.required("todo", todo))
+            "todo.updated" ->
+                Event.TodoUpdated(
+                    id,
+                    by,
+                    at,
+                    json.required("target", todoId),
+                    json.required("todo", todoChanges),
+                )
+            "todo.moved" -> Event.TodoMoved(id, by, at, json.required("moves", moves))
+            "todo.completed" -> Event.TodoCompleted(id, by, at, json.required("targets", targets))
+            "todo.reopened" -> Event.TodoReopened(id, by, at, json.required("targets", targets))
+            "todo.deleted" -> Event.TodoDeleted(id, by, at, json.required("target", todoId))
             else -> throw Unsupported("event type '$type'")
         }
 
@@ -222,6 +239,28 @@ internal object Events {
                 put("due", event.due.toString())
                 put("entry", templateJson(event.entry, date = event.date))
             }
+            is Event.TodoCreated -> put("todo", todoJson(event.todo))
+            is Event.TodoUpdated -> {
+                put("target", event.target.hex)
+                put("todo", changesJson(event.todo))
+            }
+            is Event.TodoMoved ->
+                put(
+                    "moves",
+                    buildJsonArray {
+                        event.moves.forEach { move ->
+                            add(
+                                buildJsonObject {
+                                    put("target", move.target.hex)
+                                    put("position", move.position)
+                                }
+                            )
+                        }
+                    },
+                )
+            is Event.TodoCompleted -> put("targets", idsJson(event.targets))
+            is Event.TodoReopened -> put("targets", idsJson(event.targets))
+            is Event.TodoDeleted -> put("target", event.target.hex)
         }
     }
 }
@@ -232,6 +271,7 @@ private val eventId: Decoder<EventId> = parsed(EventId::parse)
 private val memberId: Decoder<MemberId> = parsed(MemberId::parse)
 private val entryId: Decoder<EntryId> = parsed(EntryId::parse)
 private val seriesId: Decoder<SeriesId> = parsed(SeriesId::parse)
+private val todoId: Decoder<TodoId> = parsed(TodoId::parse)
 private val groupId: Decoder<GroupId> = parsed(GroupId::parse)
 private val date: Decoder<EntryDate> = parsed(EntryDate::parse)
 private val colour: Decoder<Colour> = parsed(Colour::parse)
@@ -457,6 +497,67 @@ private fun sideJson(side: Side) = buildJsonObject {
                 buildJsonObject { side.input.forEach { (id, a) -> put(id.hex, a.toString()) } },
             )
     }
+}
+
+// --- Todos ---------------------------------------------------------------------------------------
+
+/** A place in the todo list; beyond its end it means the end, which races make legal. */
+private val position: Decoder<Int> = { value, name ->
+    val number = integer(value, name)
+    if (number < 0) throw Malformed("'$name' is negative")
+    number.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+}
+
+private val moves: Decoder<List<TodoMove>> = { value, name ->
+    array(value, name)
+        .map {
+            val json = obj(it, name)
+            TodoMove(json.required("target", todoId), json.required("position", position))
+        }
+        .ifEmpty { throw Malformed("'$name' is empty") }
+}
+
+private val targets: Decoder<List<TodoId>> = { value, name ->
+    distinct(todoId)(value, name).ifEmpty { throw Malformed("'$name' is empty") }
+}
+
+private val assignees: Decoder<List<MemberId>> = distinct(memberId)
+
+private val todo: Decoder<Todo> = { value, name ->
+    val json = obj(value, name)
+    Todo(
+        json.required("id", todoId),
+        json.required("description", ::text),
+        json.optional("due", date),
+        json.optional("assignees", assignees).orEmpty(),
+    )
+}
+
+private val todoChanges: Decoder<TodoChanges> = { value, name ->
+    val json = obj(value, name)
+    json.forbid("id", "an update")
+    TodoChanges(
+        json.change("description", ::text),
+        json.clearable("due", date),
+        json.clearable("assignees", assignees),
+    )
+}
+
+private fun idsJson(ids: List<TodoId>) = buildJsonArray { ids.forEach { add(it.hex) } }
+
+private fun todoJson(todo: Todo) = buildJsonObject {
+    put("id", todo.id.hex)
+    put("description", todo.description)
+    todo.due?.let { put("due", it.toString()) }
+    if (todo.assignees.isNotEmpty()) {
+        put("assignees", buildJsonArray { todo.assignees.forEach { add(it.hex) } })
+    }
+}
+
+private fun changesJson(todo: TodoChanges) = buildJsonObject {
+    put("description", todo.description) { JsonPrimitive(it) }
+    put("due", todo.due) { JsonPrimitive(it.toString()) }
+    put("assignees", todo.assignees) { ids -> buildJsonArray { ids.forEach { add(it.hex) } } }
 }
 
 // --- Recurrence ----------------------------------------------------------------------------------

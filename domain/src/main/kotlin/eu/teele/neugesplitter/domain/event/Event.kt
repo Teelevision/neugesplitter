@@ -6,6 +6,8 @@ import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Template
+import eu.teele.neugesplitter.domain.todo.Todo
+import eu.teele.neugesplitter.domain.todo.TodoMove
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.AttachmentName
 import eu.teele.neugesplitter.domain.value.Colour
@@ -16,6 +18,7 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
+import eu.teele.neugesplitter.domain.value.TodoId
 import java.time.Instant
 
 /**
@@ -72,6 +75,32 @@ data class EntryChanges(
                 beneficiaries = change(before.beneficiaries, after.beneficiaries),
                 note = change(before.note, after.note),
                 attachments = change(before.attachments, after.attachments),
+            )
+        }
+    }
+}
+
+/** The `todo` payload of `todo.updated`: the same fields, naming only what changed. */
+data class TodoChanges(
+    val description: Change<String> = Change.Unchanged,
+    val due: Change<EntryDate?> = Change.Unchanged,
+    val assignees: Change<List<MemberId>?> = Change.Unchanged,
+) {
+    /** True if this names no field, and so would change nothing. */
+    val isEmpty: Boolean
+        get() = this == TodoChanges()
+
+    companion object {
+        /** The fields in which [after] differs from [before]. */
+        fun between(before: Todo, after: Todo): TodoChanges {
+            fun <T> change(old: T, new: T): Change<T> =
+                if (old == new) Change.Unchanged else Change.To(new)
+            return TodoChanges(
+                description = change(before.description, after.description),
+                due = change(before.due, after.due),
+                assignees =
+                    if (before.assignees == after.assignees) Change.Unchanged
+                    else Change.To(after.assignees.ifEmpty { null }),
             )
         }
     }
@@ -252,5 +281,64 @@ sealed interface Event {
         val entry: Template,
     ) : Event {
         override val type = "occurrence.amended"
+    }
+
+    /** Adds [todo] at the end of the list (TD-1). */
+    data class TodoCreated(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val todo: Todo,
+    ) : Event {
+        override val type = "todo.created"
+    }
+
+    data class TodoUpdated(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val target: TodoId,
+        val todo: TodoChanges,
+    ) : Event {
+        override val type = "todo.updated"
+    }
+
+    /** Applies [moves] one after the other, in their order (TD-3). */
+    data class TodoMoved(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val moves: List<TodoMove>,
+    ) : Event {
+        override val type = "todo.moved"
+    }
+
+    /** Marks [targets] done (TD-5). */
+    data class TodoCompleted(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val targets: List<TodoId>,
+    ) : Event {
+        override val type = "todo.completed"
+    }
+
+    /** Marks [targets] not done (TD-5). */
+    data class TodoReopened(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val targets: List<TodoId>,
+    ) : Event {
+        override val type = "todo.reopened"
+    }
+
+    data class TodoDeleted(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val target: TodoId,
+    ) : Event {
+        override val type = "todo.deleted"
     }
 }

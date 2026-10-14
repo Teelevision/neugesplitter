@@ -486,6 +486,27 @@ there is no backup, the group is gone.
 - **UX-6** (Optional): The app MUST meet common accessibility expectations
   (screen reader labels, scalable text, sufficient contrast).
 
+### 4.14 To-dos
+
+- **TD-1** (Core): Each group MUST have one to-do list, synced like its entries.
+  A to-do has a description, an optional due date and any number of members
+  assigned to it. A new one MUST go to the end of the list, which scrolls to it.
+- **TD-2** (Core): All three fields MUST stay editable.
+- **TD-3** (Core): The list MUST be ordered by hand, by dragging. Every
+  installation MUST arrive at the same order once it has the same events, also
+  when two members reorder at once; the order one of them intended MAY then need
+  touching up.
+- **TD-4** (Core): Any member MUST be assignable; a removed member MUST stay
+  assigned until somebody takes them off.
+- **TD-5** (Core): A to-do MUST be markable done and not done again. A done one
+  stays in the list where it is, its description struck through.
+- **TD-6** (Core): A to-do MUST be deletable, which takes it out of the list for
+  good.
+- **TD-7** (Core): The list MUST be filterable to every to-do, those not done,
+  and those with a due date, earliest first. A to-do not done MUST appear on the
+  activity screen from its due date on.
+- **TD-8** (Core): A list MUST hold up to 10 000 to-dos.
+
 ---
 
 ## 5. Explicit Non-Goals

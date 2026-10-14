@@ -67,19 +67,22 @@ import eu.teele.neugesplitter.ui.sync.GroupTitle
 import eu.teele.neugesplitter.ui.sync.ago
 import eu.teele.neugesplitter.ui.sync.failed
 import eu.teele.neugesplitter.ui.sync.troubled
+import eu.teele.neugesplitter.ui.todo.TodoRow
 import java.time.Instant
 import java.util.Locale
 
 /**
  * How a group's sync stands, with a manual sync (SY-6, SY-9, TR-12), then the suggestions waiting
- * for someone (RE-4, RE-10), above what changed in it, by whom and when (HI-2), with what has not
- * been seen yet highlighted (HI-5, HI-7). The suggestions and the history fold away (ui-design 4).
+ * for someone (RE-4, RE-10) and the todos due (TD-7), above what changed in it, by whom and when
+ * (HI-2), with what has not been seen yet highlighted (HI-5, HI-7). The suggestions, the todos and
+ * the history fold away (ui-design 4).
  *
  * @param onOpen opens an entry a change names.
  * @param onEdit opens a suggestion in the editor, which confirms it as saved (RE-4).
  * @param onHistory opens the history of a deleted entry a change names.
  * @param onShare starts sharing a group kept only on this device.
  * @param onSyncProblem opens why the group stopped syncing.
+ * @param onTodos opens the todo list.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,11 +94,13 @@ fun ActivityScreen(
     onHistory: (EntryId) -> Unit,
     onShare: () -> Unit,
     onSyncProblem: () -> Unit,
+    onTodos: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val locale = LocalConfiguration.current.locales[0]
     var suggestions by rememberSaveable { mutableStateOf(true) }
+    var todos by rememberSaveable { mutableStateOf(true) }
     var history by rememberSaveable { mutableStateOf(true) }
     var menu by remember { mutableStateOf(false) }
 
@@ -170,6 +175,14 @@ fun ActivityScreen(
                         onEdit = { onEdit(suggestion.entry.id) },
                         onDecline = { viewModel.decline(suggestion) },
                     )
+                }
+            }
+            if (state.todos.isNotEmpty()) {
+                section("todos", R.string.todos_due, todos) { todos = !todos }
+            }
+            if (state.todos.isNotEmpty() && todos) {
+                items(state.todos, key = { "todo-${it.id.hex}" }) { todo ->
+                    TodoRow(todo, state.names, locale, Modifier.clickable(onClick = onTodos))
                 }
             }
             section("history", R.string.history, history) { history = !history }

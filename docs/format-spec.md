@@ -257,6 +257,12 @@ document does not define is ignored (section 8).
 | `occurrence.confirmed` | `series`, `due`             |                             |
 | `occurrence.deleted`   | `series`, `due`             | Also declining one (RE-5).  |
 | `occurrence.amended`   | `series`, `due`, `entry`    |                             |
+| `todo.created`         | `todo`                      | Appends it to the list.     |
+| `todo.updated`         | `target`, `todo`            | Only what changed.          |
+| `todo.moved`           | `moves`                     |                             |
+| `todo.completed`       | `targets`                   |                             |
+| `todo.reopened`        | `targets`                   | Undoes `todo.completed`.    |
+| `todo.deleted`         | `target`                    |                             |
 
 #### Deletion removes from the state, not from the log
 
@@ -280,11 +286,11 @@ An event MUST agree with the state the log has produced so far:
 - every identifier an event names MUST already be in the group — the `target` of
   `member.renamed`, `member.removed`, `entry.updated`, `entry.deleted`,
   `series.amended`, `series.stopped`, `series.continued` and `series.deleted`,
-  the `series` of an occurrence event, and every member identifier in a side or
-  in `defaultParticipants`;
-- `member.added`, `entry.created` and `series.created` MUST NOT reuse an
-  identifier the group already has, whether or not what it named has since been
-  removed or deleted.
+  the `series` of an occurrence event, the `target` of a todo event, and every
+  member identifier in a side, in `defaultParticipants` or in `assignees`;
+- `member.added`, `entry.created`, `series.created` and `todo.created` MUST NOT
+  reuse an identifier the group already has, whether or not what it named has
+  since been removed or deleted.
 
 An event breaking either is malformed and reading stops (section 8). Requiring
 it costs a writer nothing, because writing requires being caught up (sync-design
@@ -515,6 +521,58 @@ back, every occurrence event on it applies again, whenever it was written.
 An occurrence appears in the entry list with its occurrence identifier as its
 `id`. That identifier is not an entry's, so `entry.updated` and `entry.deleted`
 cannot name it; an occurrence is edited and deleted only by occurrence events.
+
+#### To-dos
+
+A group holds one ordered list of to-dos (TD-1), apart from its entries: nothing
+about one touches a balance.
+
+`todo`:
+
+| Field         | Type                                               |
+| ------------- | -------------------------------------------------- |
+| `id`          | identifier, `todo.created` only                    |
+| `description` | string                                             |
+| `due`         | date, optional                                     |
+| `assignees`   | array of member identifiers, optional, each unique |
+
+`todo.created` appends the to-do to the end of the list, not done.
+`todo.updated` is a merge exactly as `entry.updated` is: `due` and `assignees`
+are cleared with `null`, and `description` MUST NOT be. An empty `assignees`
+array means the same as none, and a writer omits it. A member named in
+`assignees` who is later removed stays named, as in `defaultParticipants`.
+
+`todo.moved` carries `moves`, a non-empty array of objects with a `target` and a
+`position`, applied one after the other in array order; an empty one is
+malformed. Each takes its to-do out of the list and puts it back at `position`,
+counted from 0 in the list without it, and is exactly a `todo.moved` of its own.
+A target may appear more than once. `position` is an integer of at least 0; a
+negative one is malformed. One at or beyond the end of the list puts the to-do
+last, and is **not** malformed: two installations moving to-dos at once can each
+name a place that the other's move has shifted, and each event applied in log
+order still yields one list every reader agrees on. Two to-dos both moved to
+position 0 end with the one moved later in the log on top, the other one below.
+That is the whole of the ordering; there are no keys between neighbours to
+reconcile, which keeps the event small and the result exact.
+
+`todo.completed` and `todo.reopened` mark each to-do in `targets`, a non-empty
+array of unique to-do identifiers, done and not done; a done one stays in the
+list where it is (TD-5). Either one repeated is accepted.
+
+An installation holds moves and ticks back while the list is open and writes
+them as one event each, so rearranging a list does not fill the log.
+
+`todo.deleted` takes the to-do out of the list (TD-6). Every todo event naming a
+to-do that is deleted is accepted and has **no effect** on it, the rest of a
+`todo.moved` or `todo.completed` still applying, a repeated `todo.deleted`
+included: one installation may edit, move or tick off what another has just
+deleted, and nothing should come back that somebody removed. A deleted to-do
+cannot be put back. A `target` the group has never had is malformed, as for
+every other event.
+
+A writer MUST NOT write `todo.created` while the list holds 10 000 to-dos. A
+reader accepts a longer list, which concurrent writers can produce, and the
+limit applies again once it is shorter.
 
 ## 5. Encryption and integrity
 

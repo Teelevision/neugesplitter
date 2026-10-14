@@ -1,5 +1,6 @@
 package eu.teele.neugesplitter.ui.activity
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -19,6 +20,7 @@ import eu.teele.neugesplitter.domain.recurrence.Interval
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Template
+import eu.teele.neugesplitter.domain.todo.Todo
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
@@ -26,6 +28,7 @@ import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.SeriesId
+import eu.teele.neugesplitter.domain.value.TodoId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.storage.settings.BackendSettings
@@ -64,6 +67,7 @@ class ActivityScreenTest {
     private val synced = mutableListOf<GroupId>()
     private var shares = 0
     private var problems = 0
+    private var todoLists = 0
 
     private fun id(n: Int) = "%032x".format(n)
 
@@ -136,6 +140,7 @@ class ActivityScreenTest {
                     onHistory = { histories += it },
                     onShare = { shares++ },
                     onSyncProblem = { problems++ },
+                    onTodos = { todoLists++ },
                 )
             }
         }
@@ -215,6 +220,46 @@ class ActivityScreenTest {
         val september = EntryDate.parse("2026-09-01")
         assertEquals(EventId.occurrence(cleaning, september), groups.events(trip).last().id)
         compose.waitUntil(5_000) { count("Due Tuesday, September 1, 2026") == 0 }
+    }
+
+    @Test
+    @Config(qualifiers = "+h1400dp")
+    fun `todos show from the day they are due, below the suggestions, until done (TD-7)`() {
+        fun todo(n: Int, description: String, due: String?) =
+            Todo(
+                TodoId.parse(id(0x40 + n)),
+                description,
+                due?.let(EntryDate::parse),
+                listOf(ben.id),
+            )
+        val done = todo(4, "Return the keys", "2026-10-01")
+        show {
+            suggesting()
+            groups.append(
+                trip,
+                listOf(
+                        todo(1, "Book the ferry", "2026-10-07"),
+                        todo(2, "Buy sunscreen", "2026-10-08"),
+                        todo(3, "Pack", null),
+                        done,
+                        todo(5, "Pay the deposit", "2026-10-02"),
+                    )
+                    .map { Event.TodoCreated(eventId(), anna.id, at, it) } +
+                    Event.TodoCompleted(eventId(), anna.id, at, listOf(done.id)),
+                today,
+            )
+        }
+        compose.onNodeWithText("To-dos due").assertExists()
+        assertTrue(top("Due Thursday, October 1, 2026") < top("To-dos due"))
+        assertTrue(top("Pay the deposit") < top("Book the ferry"))
+        assertTrue(top("Book the ferry") < top("History"))
+        compose.onAllNodesWithText("Ben").assertCountEquals(2)
+        assertEquals(0, count("Buy sunscreen"))
+        assertEquals(0, count("Pack"))
+        assertEquals(0, count("Return the keys"))
+
+        compose.onNodeWithText("Book the ferry").performClick()
+        assertEquals(1, todoLists)
     }
 
     @Test

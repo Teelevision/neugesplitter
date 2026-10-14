@@ -503,6 +503,43 @@
     <string name="happened_series_deleted">%1$s deleted the series \'%2$s\'</string>
     <string name="happened_occurrence_confirmed">%1$s confirmed \'%2$s\'</string>
     <string name="happened_occurrence_left_out">%1$s left out \'%2$s\'</string>
+    <string name="happened_todo_created">%1$s added the to-do \'%2$s\'</string>
+    <string name="happened_todo_edited">%1$s edited the to-do \'%2$s\'</string>
+    <string name="happened_todo_moved">%1$s moved the to-do \'%2$s\'</string>
+    <string name="happened_todo_completed">%1$s completed \'%2$s\'</string>
+    <string name="happened_todo_reopened">%1$s reopened \'%2$s\'</string>
+    <string name="happened_todo_deleted">%1$s deleted the to-do \'%2$s\'</string>
+    <plurals name="happened_todos_moved">
+        <item quantity="one">%1$s moved %2$d to-do</item>
+        <item quantity="other">%1$s moved %2$d to-dos</item>
+    </plurals>
+    <plurals name="happened_todos_completed">
+        <item quantity="one">%1$s completed %2$d to-do</item>
+        <item quantity="other">%1$s completed %2$d to-dos</item>
+    </plurals>
+    <plurals name="happened_todos_reopened">
+        <item quantity="one">%1$s reopened %2$d to-do</item>
+        <item quantity="other">%1$s reopened %2$d to-dos</item>
+    </plurals>
+    <string name="todos">To-dos</string>
+    <string name="todos_due">To-dos due</string>
+    <string name="todo_new">New to-do</string>
+    <string name="todo_edit">Edit to-do</string>
+    <string name="todo_due">Due date</string>
+    <string name="todo_due_on">Due %1$s</string>
+    <string name="todo_due_none">No due date</string>
+    <string name="todo_due_clear">Remove due date</string>
+    <string name="todo_assignees">Assigned to</string>
+    <string name="todo_nobody">Nobody</string>
+    <string name="todo_done">Done</string>
+    <string name="todo_drag">Drag to reorder</string>
+    <string name="todo_deleted">To-do deleted</string>
+    <string name="todo_filter_all">Show all</string>
+    <string name="todo_filter_open">Show not done</string>
+    <string name="todo_filter_due">Show those with a due date, earliest first</string>
+    <string name="todo_empty">Nothing to do yet. The plus button adds a to-do.</string>
+    <string name="todo_empty_filtered">No to-dos to show here.</string>
+    <string name="todo_full">The list holds 10,000 to-dos, as many as it can.</string>
     <string name="sync_in_sync">In sync</string>
     <string name="sync_pending">Changes waiting</string>
     <string name="sync_problem">Sync problem</string>

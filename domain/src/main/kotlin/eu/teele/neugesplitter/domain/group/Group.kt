@@ -14,6 +14,8 @@ import eu.teele.neugesplitter.domain.recurrence.Occurrence
 import eu.teele.neugesplitter.domain.recurrence.Series
 import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.recurrence.Template
+import eu.teele.neugesplitter.domain.todo.Todo
+import eu.teele.neugesplitter.domain.todo.moved
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
@@ -23,7 +25,9 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
+import eu.teele.neugesplitter.domain.value.TodoId
 import java.time.Instant
+import kotlinx.collections.immutable.toPersistentList
 import kotlinx.collections.immutable.toPersistentMap
 
 /**
@@ -51,6 +55,10 @@ data class Group(
     val authors: Map<EntryId, Authorship> = emptyMap(),
     /** Deleted ones included, because an occurrence amended after the deletion still stands. */
     val series: Map<SeriesId, Series> = emptyMap(),
+    /** The todo list in its order, done ones included (TD-1, TD-5). */
+    val todos: List<Todo> = emptyList(),
+    /** Every todo deleted, which a later event may still name and then leaves alone. */
+    val binned: Map<TodoId, Todo> = emptyMap(),
 ) {
 
     /**
@@ -141,6 +149,51 @@ data class Group(
                     it.decided(event.due, Decision.Amended(event.date, event.entry))
                 }
             }
+
+            is Event.TodoCreated -> {
+                val todo = event.todo
+                if (todo.id in binned || todos.any { it.id == todo.id }) {
+                    throw Malformed("todo ${todo.id} is created twice")
+                }
+                todo.assignees.forEach { known(it) }
+                copy(todos = todos.toPersistentList().add(todo.copy(done = false)))
+            }
+
+            is Event.TodoUpdated ->
+                todo(event.target) { todo ->
+                    val changes = event.todo
+                    todo.copy(
+                        description = changes.description.or(todo.description),
+                        due = changes.due.or(todo.due),
+                        assignees =
+                            changes.assignees.or(todo.assignees).orEmpty().onEach { known(it) },
+                    )
+                }
+
+            is Event.TodoMoved -> {
+                if (event.moves.isEmpty()) throw Malformed("todo.moved names no move")
+                event.moves.fold(this) { group, move ->
+                    if (move.position < 0) throw Malformed("todo.moved to a negative position")
+                    if (group.todos.none { it.id == move.target }) group.unlisted(move.target)
+                    else group.copy(todos = group.todos.moved(move))
+                }
+            }
+
+            is Event.TodoCompleted -> done(event.targets, true)
+
+            is Event.TodoReopened -> done(event.targets, false)
+
+            is Event.TodoDeleted -> {
+                val index = todos.indexOfFirst { it.id == event.target }
+                if (index < 0) {
+                    unlisted(event.target)
+                } else {
+                    copy(
+                        todos = todos.toPersistentList().removeAt(index),
+                        binned = binned.with(event.target, todos[index]),
+                    )
+                }
+            }
         }
 
     /**
@@ -214,6 +267,23 @@ data class Group(
     private fun revised(target: SeriesId, change: (Series) -> Series): Group {
         val known = series[target] ?: throw Malformed("no series $target in group $id")
         return copy(series = series.with(target, change(known)))
+    }
+
+    private fun todo(target: TodoId, change: (Todo) -> Todo): Group {
+        val index = todos.indexOfFirst { it.id == target }
+        if (index < 0) return unlisted(target)
+        return copy(todos = todos.toPersistentList().set(index, change(todos[index])))
+    }
+
+    private fun done(targets: List<TodoId>, done: Boolean): Group {
+        if (targets.isEmpty()) throw Malformed("a todo event names no todo")
+        return targets.fold(this) { group, target -> group.todo(target) { it.copy(done = done) } }
+    }
+
+    /** A deleted todo is left alone by what names it later, which may race its deletion. */
+    private fun unlisted(target: TodoId): Group {
+        if (target !in binned) throw Malformed("no todo $target in group $id")
+        return this
     }
 
     private fun span(from: EntryDate, until: EntryDate?, type: String): Stop {

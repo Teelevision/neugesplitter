@@ -84,6 +84,17 @@ value class SeriesId private constructor(val hex: String) : Comparable<SeriesId>
     }
 }
 
+@JvmInline
+value class TodoId private constructor(val hex: String) : Comparable<TodoId> {
+    override fun compareTo(other: TodoId): Int = hex.compareTo(other.hex)
+
+    override fun toString(): String = hex
+
+    companion object {
+        fun parse(hex: String): TodoId = TodoId(requireIdentifier(hex, "todo id"))
+    }
+}
+
 private fun occurrenceId(series: SeriesId, due: EntryDate): String {
     val digest = MessageDigest.getInstance("SHA-256")
     digest.update("neugesplitter/occurrence/v1".toByteArray(Charsets.US_ASCII))

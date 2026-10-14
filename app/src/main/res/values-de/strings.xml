@@ -498,6 +498,43 @@
     <string name="happened_series_deleted">%1$s hat die Serie \'%2$s\' gelöscht</string>
     <string name="happened_occurrence_confirmed">%1$s hat \'%2$s\' bestätigt</string>
     <string name="happened_occurrence_left_out">%1$s hat \'%2$s\' ausgelassen</string>
+    <string name="happened_todo_created">%1$s hat die Aufgabe \'%2$s\' hinzugefügt</string>
+    <string name="happened_todo_edited">%1$s hat die Aufgabe \'%2$s\' bearbeitet</string>
+    <string name="happened_todo_moved">%1$s hat die Aufgabe \'%2$s\' verschoben</string>
+    <string name="happened_todo_completed">%1$s hat \'%2$s\' erledigt</string>
+    <string name="happened_todo_reopened">%1$s hat \'%2$s\' wieder geöffnet</string>
+    <string name="happened_todo_deleted">%1$s hat die Aufgabe \'%2$s\' gelöscht</string>
+    <plurals name="happened_todos_moved">
+        <item quantity="one">%1$s hat %2$d Aufgabe verschoben</item>
+        <item quantity="other">%1$s hat %2$d Aufgaben verschoben</item>
+    </plurals>
+    <plurals name="happened_todos_completed">
+        <item quantity="one">%1$s hat %2$d Aufgabe erledigt</item>
+        <item quantity="other">%1$s hat %2$d Aufgaben erledigt</item>
+    </plurals>
+    <plurals name="happened_todos_reopened">
+        <item quantity="one">%1$s hat %2$d Aufgabe wieder geöffnet</item>
+        <item quantity="other">%1$s hat %2$d Aufgaben wieder geöffnet</item>
+    </plurals>
+    <string name="todos">Aufgaben</string>
+    <string name="todos_due">Fällige Aufgaben</string>
+    <string name="todo_new">Neue Aufgabe</string>
+    <string name="todo_edit">Aufgabe bearbeiten</string>
+    <string name="todo_due">Fällig am</string>
+    <string name="todo_due_on">Fällig am %1$s</string>
+    <string name="todo_due_none">Kein Fälligkeitsdatum</string>
+    <string name="todo_due_clear">Fälligkeitsdatum entfernen</string>
+    <string name="todo_assignees">Zuständig</string>
+    <string name="todo_nobody">Niemand</string>
+    <string name="todo_done">Erledigt</string>
+    <string name="todo_drag">Zum Umsortieren ziehen</string>
+    <string name="todo_deleted">Aufgabe gelöscht</string>
+    <string name="todo_filter_all">Alle zeigen</string>
+    <string name="todo_filter_open">Offene zeigen</string>
+    <string name="todo_filter_due">Die mit Fälligkeitsdatum zeigen, früheste zuerst</string>
+    <string name="todo_empty">Noch nichts zu tun. Mit dem Plus fügst du eine Aufgabe hinzu.</string>
+    <string name="todo_empty_filtered">Hier gibt es keine Aufgaben.</string>
+    <string name="todo_full">Die Liste enthält 10.000 Aufgaben, mehr passen nicht hinein.</string>
     <string name="sync_in_sync">Synchronisiert</string>
     <string name="sync_pending">Änderungen warten</string>
     <string name="sync_problem">Problem beim Synchronisieren</string>

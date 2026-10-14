@@ -9,12 +9,14 @@ import eu.teele.neugesplitter.domain.recurrence.Decision
 import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Series
 import eu.teele.neugesplitter.domain.recurrence.Stop
+import eu.teele.neugesplitter.domain.todo.Todo
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
+import eu.teele.neugesplitter.domain.value.TodoId
 import java.time.Instant
 
 /** A group setting a `group.updated` can change. */
@@ -67,6 +69,23 @@ sealed interface SeriesChange {
     data class Edited(val due: EntryDate, val before: Content?, val after: Content) : SeriesChange
 }
 
+/** What one event did to a todo (TD-1). */
+sealed interface TodoChange {
+    data object Created : TodoChange
+
+    /** It was [before] and became [after]; the same while it is deleted. */
+    data class Edited(val before: Todo, val after: Todo) : TodoChange
+
+    data object Deleted : TodoChange
+}
+
+/** What one event did to several todos at once (TD-3, TD-5). */
+enum class TodosChange {
+    MOVED,
+    COMPLETED,
+    REOPENED,
+}
+
 /** What one event did to a group, as its history tells it (HI-2). */
 sealed interface Happened {
     data object Created : Happened
@@ -111,6 +130,12 @@ sealed interface Happened {
         val series: SeriesId,
         val segment: Segment,
     ) : Happened
+
+    /** Todo [todo], which said [description] then, underwent [change] (TD-1). */
+    data class Todo(val todo: TodoId, val description: String, val change: TodoChange) : Happened
+
+    /** The todos that said [descriptions] then underwent [change], once each in that order. */
+    data class Todos(val change: TodosChange, val descriptions: List<String>) : Happened
 }
 
 /** The series [this] concerns, if any. */
@@ -265,6 +290,20 @@ fun history(events: List<Event>): List<Happening> {
                         ),
                     )
                 }
+                is Event.TodoCreated ->
+                    Happened.Todo(event.todo.id, event.todo.description, TodoChange.Created)
+                is Event.TodoUpdated -> {
+                    val after = group.todo(event.target)
+                    Happened.Todo(
+                        event.target,
+                        after.description,
+                        TodoChange.Edited(before.todo(event.target), after),
+                    )
+                }
+                is Event.TodoMoved -> before.todos(TodosChange.MOVED, event.moves.map { it.target })
+                is Event.TodoCompleted -> before.todos(TodosChange.COMPLETED, event.targets)
+                is Event.TodoReopened -> before.todos(TodosChange.REOPENED, event.targets)
+                is Event.TodoDeleted -> before.happened(event.target, TodoChange.Deleted)
             }
         history += Happening(happened, event.by, event.at)
     }
@@ -274,6 +313,16 @@ fun history(events: List<Event>): List<Happening> {
 /** [change] to [series], described as it was on [on], or as it last was without one. */
 private fun Group.recurring(series: SeriesId, on: EntryDate?, change: SeriesChange) =
     Happened.Recurring(series, described(series, on), change)
+
+/** Todo [target] as it is listed, or as it was deleted. */
+private fun Group.todo(target: TodoId): Todo =
+    todos.firstOrNull { it.id == target } ?: binned.getValue(target)
+
+private fun Group.happened(target: TodoId, change: TodoChange) =
+    Happened.Todo(target, todo(target).description, change)
+
+private fun Group.todos(change: TodosChange, targets: List<TodoId>) =
+    Happened.Todos(change, targets.distinct().map { todo(it).description })
 
 private fun Group.described(series: SeriesId, on: EntryDate?): String {
     val found = this.series.getValue(series)

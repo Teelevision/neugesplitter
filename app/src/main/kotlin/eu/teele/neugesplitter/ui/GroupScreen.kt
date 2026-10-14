@@ -43,14 +43,18 @@ enum class Destination(@param:DrawableRes val icon: Int, @param:StringRes val la
     PEOPLE(R.drawable.ic_people, R.string.destination_people),
     ACTIVITY(R.drawable.ic_activity, R.string.destination_activity),
     SETTINGS(R.drawable.ic_settings, R.string.destination_settings),
+
+    /** Opened from the overview, and under it in the navigation bar (TD-1). */
+    TODOS(R.drawable.ic_checklist, R.string.todos),
 }
 
 /**
  * A group's destinations under one navigation bar, with the new-entry action docked in its centre
- * (ui-design 1). Switching destinations never leaves the group, and back returns to the overview
- * before it does.
+ * (ui-design 1); on the todo list it adds a todo instead (TD-1). Switching destinations never
+ * leaves the group, and back returns to the overview before it does.
  *
  * @param onBack leaves the group, from the overview.
+ * @param onNew the centre action, on the destination shown.
  * @param attention whether Activity holds something to look at: unseen changes, a halted sync or
  *   suggestions waiting (ui-design 4, RE-10).
  * @param content the destination, given what its back arrow does and how to switch to another; it
@@ -59,7 +63,7 @@ enum class Destination(@param:DrawableRes val icon: Int, @param:StringRes val la
 @Composable
 fun GroupScreen(
     onBack: () -> Unit,
-    onNew: () -> Unit,
+    onNew: (Destination) -> Unit,
     attention: Boolean,
     content: @Composable (Destination, () -> Unit, (Destination) -> Unit, Modifier) -> Unit,
 ) {
@@ -73,7 +77,9 @@ fun GroupScreen(
         }
     }
     Scaffold(
-        bottomBar = { GroupBar(destination, { destination = it }, onNew, attention) },
+        bottomBar = {
+            GroupBar(destination, { destination = it }, { onNew(destination) }, attention)
+        },
         contentWindowInsets = WindowInsets(0),
     ) { padding ->
         content(
@@ -103,18 +109,25 @@ private fun GroupBar(
             unselectedTextColor = colours.onSurfaceVariant,
         )
     NavigationBar {
-        DestinationItem(Destination.OVERVIEW, selected, onSelect, itemColours)
-        DestinationItem(Destination.PEOPLE, selected, onSelect, itemColours)
+        // The todo list belongs to the overview it is opened from.
+        val shown = if (selected == Destination.TODOS) Destination.OVERVIEW else selected
+        DestinationItem(Destination.OVERVIEW, shown, onSelect, itemColours)
+        DestinationItem(Destination.PEOPLE, shown, onSelect, itemColours)
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
             FloatingActionButton(
                 onClick = onNew,
                 elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
             ) {
-                Icon(painterResource(R.drawable.ic_add), stringResource(R.string.new_entry))
+                Icon(
+                    painterResource(R.drawable.ic_add),
+                    stringResource(
+                        if (selected == Destination.TODOS) R.string.todo_new else R.string.new_entry
+                    ),
+                )
             }
         }
-        DestinationItem(Destination.ACTIVITY, selected, onSelect, itemColours, attention)
-        DestinationItem(Destination.SETTINGS, selected, onSelect, itemColours)
+        DestinationItem(Destination.ACTIVITY, shown, onSelect, itemColours, attention)
+        DestinationItem(Destination.SETTINGS, shown, onSelect, itemColours)
     }
 }
 

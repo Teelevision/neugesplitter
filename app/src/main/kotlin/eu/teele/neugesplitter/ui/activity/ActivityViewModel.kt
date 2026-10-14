@@ -8,6 +8,7 @@ import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.history.Step
 import eu.teele.neugesplitter.domain.history.history
 import eu.teele.neugesplitter.domain.history.steps
+import eu.teele.neugesplitter.domain.todo.Todo
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
@@ -36,6 +37,7 @@ import kotlinx.coroutines.launch
  * @property deleted the entries deleted now, which open in their history rather than their detail.
  * @property suggestions the suggested occurrences waiting to be confirmed or declined, oldest first
  *   (RE-4, RE-10), as the overview would list them once confirmed.
+ * @property todos the todos not done that are due, earliest first (TD-7).
  * @property scale the group's decimal places, which amounts are shown with.
  * @property sync how the group's sync stands; null for a group kept only on this device.
  * @property now when this state was read, which relative times count back from.
@@ -48,6 +50,7 @@ data class ActivityState(
     val unseen: Set<Int> = emptySet(),
     val deleted: Set<EntryId> = emptySet(),
     val suggestions: List<Suggestion> = emptyList(),
+    val todos: List<Todo> = emptyList(),
     val scale: Scale = Scale.of(2),
     val sync: SyncState? = null,
     val now: Instant = Instant.EPOCH,
@@ -55,6 +58,12 @@ data class ActivityState(
 
 /** The occurrence of [series] due on [due], offered as [entry] (RE-4). */
 data class Suggestion(val series: SeriesId, val due: EntryDate, val entry: ListedEntry)
+
+/** [group]'s todos not done that are due by [today], earliest first (TD-7). */
+fun dueTodos(group: Group, today: EntryDate): List<Todo> =
+    group.todos
+        .filter { todo -> !todo.done && todo.due.let { it != null && it <= today } }
+        .sortedBy { it.due }
 
 /**
  * What changed in a group and by whom (HI-2), which of it has not been seen yet (HI-5, HI-7), the
@@ -113,6 +122,7 @@ class ActivityViewModel(
                                     )
                                 Suggestion(occurrence.series, occurrence.due, listed)
                             },
+                    todos = dueTodos(replayed, today()),
                     scale = replayed.scale,
                     sync = sync,
                     now = now(),

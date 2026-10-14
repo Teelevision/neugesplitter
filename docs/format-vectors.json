@@ -74,9 +74,43 @@
     {
       "why": "a surrogate pair written as two escapes",
       "text": "{\"neugesplitter\":1,\"batch\":\"ba7cba7cba7cba7cba7cba7cba7cba7c\",\"events\":[{\"id\":\"00000000000000000000000000000001\",\"type\":\"member.renamed\",\"by\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"at\":\"2026-01-01T12:00:00Z\",\"target\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"name\":\"\\ud83d\\ude00\"}]}"
+    },
+    {
+      "why": "todos moved in one event, one to a position far beyond the end of any list, which means its end",
+      "text": "{\"neugesplitter\":1,\"batch\":\"ba7cba7cba7cba7cba7cba7cba7cba7c\",\"events\":[{\"id\":\"00000000000000000000000000000001\",\"type\":\"todo.moved\",\"by\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"at\":\"2026-01-01T12:00:00Z\",\"moves\":[{\"target\":\"7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d\",\"position\":9007199254740992},{\"target\":\"7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e\",\"position\":0}]}]}"
     }
   ],
   "refused": [
+    {
+      "why": "a todo moved to a negative position",
+      "text": "{\"neugesplitter\":1,\"batch\":\"ba7cba7cba7cba7cba7cba7cba7cba7c\",\"events\":[{\"id\":\"00000000000000000000000000000001\",\"type\":\"todo.moved\",\"by\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"at\":\"2026-01-01T12:00:00Z\",\"moves\":[{\"target\":\"7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d\",\"position\":-1}]}]}",
+      "as": "malformed"
+    },
+    {
+      "why": "a todo.moved that moves nothing",
+      "text": "{\"neugesplitter\":1,\"batch\":\"ba7cba7cba7cba7cba7cba7cba7cba7c\",\"events\":[{\"id\":\"00000000000000000000000000000001\",\"type\":\"todo.moved\",\"by\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"at\":\"2026-01-01T12:00:00Z\",\"moves\":[]}]}",
+      "as": "malformed"
+    },
+    {
+      "why": "a todo.completed that completes nothing",
+      "text": "{\"neugesplitter\":1,\"batch\":\"ba7cba7cba7cba7cba7cba7cba7cba7c\",\"events\":[{\"id\":\"00000000000000000000000000000001\",\"type\":\"todo.completed\",\"by\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"at\":\"2026-01-01T12:00:00Z\",\"targets\":[]}]}",
+      "as": "malformed"
+    },
+    {
+      "why": "a todo reopened twice in one event",
+      "text": "{\"neugesplitter\":1,\"batch\":\"ba7cba7cba7cba7cba7cba7cba7cba7c\",\"events\":[{\"id\":\"00000000000000000000000000000001\",\"type\":\"todo.reopened\",\"by\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"at\":\"2026-01-01T12:00:00Z\",\"targets\":[\"7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d\",\"7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d\"]}]}",
+      "as": "malformed"
+    },
+    {
+      "why": "a todo assigned to one member twice",
+      "text": "{\"neugesplitter\":1,\"batch\":\"ba7cba7cba7cba7cba7cba7cba7cba7c\",\"events\":[{\"id\":\"00000000000000000000000000000001\",\"type\":\"todo.created\",\"by\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"at\":\"2026-01-01T12:00:00Z\",\"todo\":{\"id\":\"7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d\",\"description\":\"a\",\"assignees\":[\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"]}}]}",
+      "as": "malformed"
+    },
+    {
+      "why": "a todo's description cleared, which is not optional",
+      "text": "{\"neugesplitter\":1,\"batch\":\"ba7cba7cba7cba7cba7cba7cba7cba7c\",\"events\":[{\"id\":\"00000000000000000000000000000001\",\"type\":\"todo.updated\",\"by\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"at\":\"2026-01-01T12:00:00Z\",\"target\":\"7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d\",\"todo\":{\"description\":null}}]}",
+      "as": "malformed"
+    },
     {
       "why": "a key twice in one object, even one this version does not define",
       "text": "{\"neugesplitter\":1,\"batch\":\"ba7cba7cba7cba7cba7cba7cba7cba7c\",\"events\":[{\"id\":\"00000000000000000000000000000001\",\"type\":\"member.renamed\",\"by\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"at\":\"2026-01-01T12:00:00Z\",\"target\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"name\":\"a\",\"x\":1,\"x\":1}]}",
