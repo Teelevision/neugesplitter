@@ -1,7 +1,6 @@
 package eu.teele.neugesplitter.ui.series
 
 import android.icu.text.ListFormatter
-import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -50,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.entry.Kind
+import eu.teele.neugesplitter.domain.recurrence.Impact
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.value.EntryDate
@@ -77,14 +77,20 @@ private enum class Dialog {
 }
 
 /**
- * A recurring series: what it produces, how it repeats and whether it runs, with stop, pause,
- * continue and delete (RE-7, RE-9), and the entries it produced.
+ * A recurring series: what it produces, how it repeats and whether it runs, with change, stop,
+ * pause, continue and delete (RE-6, RE-7, RE-9), and the entries it produced.
  *
+ * @param onChange opens the series to change it from a date on.
  * @param onOpen opens one of its entries.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun SeriesScreen(viewModel: SeriesViewModel, onBack: () -> Unit, onOpen: (EntryId) -> Unit) {
+fun SeriesScreen(
+    viewModel: SeriesViewModel,
+    onBack: () -> Unit,
+    onChange: () -> Unit,
+    onOpen: (EntryId) -> Unit,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val detail = state.detail
     var dialog by rememberSaveable { mutableStateOf<Dialog?>(null) }
@@ -126,6 +132,9 @@ fun SeriesScreen(viewModel: SeriesViewModel, onBack: () -> Unit, onOpen: (EntryI
                         }
                     }
                     if (!detail.ended) {
+                        OutlinedButton(onClick = onChange) {
+                            Text(stringResource(R.string.series_change))
+                        }
                         OutlinedButton(onClick = { dialog = Dialog.PAUSE }) {
                             Text(stringResource(R.string.series_pause))
                         }
@@ -166,10 +175,12 @@ fun SeriesScreen(viewModel: SeriesViewModel, onBack: () -> Unit, onOpen: (EntryI
                         )
                     }
                     if (date in waiting) {
-                        item(key = "waiting-$date") { Note(R.string.series_waiting) }
+                        item(key = "waiting-$date") {
+                            Note(stringResource(R.string.series_waiting))
+                        }
                     }
                     if (date in leftOut) {
-                        item(key = "left-$date") { Note(R.string.series_left_out) }
+                        item(key = "left-$date") { Note(stringResource(R.string.series_left_out)) }
                     }
                     done[date]?.forEachIndexed { index, happening ->
                         item(key = "done-$date-$index") {
@@ -283,9 +294,9 @@ private fun Heading(text: String) {
 
 /** What became of a due date that has no entry. */
 @Composable
-private fun Note(@StringRes text: Int) {
+private fun Note(text: String) {
     Text(
-        stringResource(text),
+        text,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -504,14 +515,20 @@ private fun ContinueDialog(
 
 /** What a change does to the entries already in the balances. */
 @Composable
-private fun note(change: Pair<Int, Int>): String {
-    val (removed, added) = change
+private fun note(impact: Impact): String =
+    impactText(impact) ?: stringResource(R.string.series_keeps)
+
+/** What a change to a series does to the entries already in the balances; null if nothing. */
+@Composable
+internal fun impactText(impact: Impact): String? {
+    val (removed, added, changed) = impact
     return listOfNotNull(
             pluralStringResource(R.plurals.series_removes, removed, removed).takeIf { removed > 0 },
             pluralStringResource(R.plurals.series_adds, added, added).takeIf { added > 0 },
+            pluralStringResource(R.plurals.series_changes, changed, changed).takeIf { changed > 0 },
         )
-        .ifEmpty { listOf(stringResource(R.string.series_keeps)) }
-        .joinToString(" ")
+        .takeIf { it.isNotEmpty() }
+        ?.joinToString(" ")
 }
 
 /** One date in a [DatesDialog]: what it is, and which dates it takes. */

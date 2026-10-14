@@ -1,5 +1,6 @@
 package eu.teele.neugesplitter.ui.editor
 
+import android.icu.text.ListFormatter
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -72,6 +73,7 @@ import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Scheme
 import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.recurrence.Impact
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
@@ -80,6 +82,7 @@ import eu.teele.neugesplitter.ui.calculator.CalculatorSheet
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.kindLabel
 import eu.teele.neugesplitter.ui.longDate
+import eu.teele.neugesplitter.ui.series.impactText
 import eu.teele.neugesplitter.ui.sideLabels
 import eu.teele.neugesplitter.ui.split.Mismatch
 import eu.teele.neugesplitter.ui.split.SplitSheet
@@ -109,6 +112,7 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
     val focus = LocalFocusManager.current
     val description = remember { FocusRequester() }
     val amountTaps = remember { MutableInteractionSource() }
+    val preview = remember(state) { viewModel.preview(state) }
 
     LaunchedEffect(state.done) { if (state.done) onClose() }
     // Amount first: a blank new entry asks for it right away, once.
@@ -140,7 +144,11 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                 title = {
                     Text(
                         stringResource(
-                            if (state.editing) R.string.edit_entry else R.string.new_entry
+                            when {
+                                state.changing -> R.string.series_change_title
+                                state.editing -> R.string.edit_entry
+                                else -> R.string.new_entry
+                            }
                         )
                     )
                 },
@@ -192,6 +200,13 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                                             label(Party.BENEFICIARIES),
                                             locale,
                                         )
+                                    Problem.DATE ->
+                                        state.earliest?.let {
+                                            stringResource(
+                                                R.string.problem_date,
+                                                longDate(it, locale),
+                                            )
+                                        }
                                     null -> null
                                 }
                         }
@@ -247,8 +262,20 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                 keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
                 modifier = Modifier.fillMaxWidth().focusRequester(description),
             )
-            Section(stringResource(R.string.entry_date)) {
+            Section(
+                stringResource(if (state.changing) R.string.series_from else R.string.entry_date)
+            ) {
                 OutlinedButton(onClick = { picking = true }) { Text(longDate(state.date, locale)) }
+                // With a changed rule, the occurrence is due on its own date.
+                (if (state.amending) state.date else state.due)
+                    ?.let { offDueText(state.date, it, !state.offSchedule, locale) }
+                    ?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
             }
             for (party in Party.entries) {
                 Section(stringResource(label(party))) {
@@ -274,6 +301,7 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
             }
             Repeats(
                 state,
+                preview,
                 locale,
                 onSwitch = { on ->
                     when {
@@ -291,7 +319,7 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
     if (recurring) {
         RecurrenceSheet(
             date = state.date,
-            choosesStart = !state.occurrence,
+            choosesStart = !state.occurrence && !state.changing,
             initial = state.recurrence ?: state.was ?: Recurrence.on(state.date),
             locale = locale,
             onStart = viewModel::date,
@@ -305,6 +333,8 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
     if (state.asking) {
         Following(
             fixed = state.fixed,
+            moved = state.source?.date != state.date,
+            impact = remember(state) { viewModel.preview(state, following = true)?.impact },
             onAnswer = { viewModel.save(following = it) },
             onDismiss = viewModel::dismiss,
         )
@@ -318,6 +348,9 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                 picking = false
             },
             onDismiss = { picking = false },
+            selectable = { date ->
+                !state.changing || state.earliest.let { it == null || date >= it }
+            },
         )
     }
     if (calculating) {
@@ -424,17 +457,28 @@ internal fun <T> Segments(
 /**
  * Whether the entry repeats and how. Switching it on opens the recurrence sheet, and so does a tap
  * on the rule (RE-1). An occurrence switched off says that its series ends after it (RE-7). A
- * series fixed by later decisions keeps its rule, and says why (RE-6).
+ * series fixed by later decisions keeps its rule, and says why (RE-6). A rule changed on an
+ * occurrence, or on the series itself, says when it is next due, which old dates it skips, and what
+ * it does to the entries in the balances (RE-6).
  */
 @Composable
 private fun Repeats(
     state: EntryEditorState,
+    preview: Preview?,
     locale: Locale,
     onSwitch: (Boolean) -> Unit,
     onOpen: () -> Unit,
 ) {
     val recurrence = state.recurrence
     val label = stringResource(R.string.repeats)
+    val note =
+        @Composable { text: String ->
+            Text(
+                text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     Row(
         modifier =
             Modifier.fillMaxWidth()
@@ -462,37 +506,59 @@ private fun Repeats(
                 }
             rule?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
             recurrence
-                ?.takeIf { !state.occurrence }
+                ?.takeIf { !state.occurrence && !state.changing }
                 ?.let { offPatternText(state.date, it.interval, locale) }
-                ?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            if (recurrence != null && state.fixed) {
-                Text(
-                    stringResource(R.string.series_fixed),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                ?.let { note(it) }
+            if (recurrence != null && state.fixed) note(stringResource(R.string.series_fixed))
+            if (state.amending) {
+                note(
+                    preview?.next?.let {
+                        stringResource(R.string.repeats_from_here_next, longDate(it, locale))
+                    } ?: stringResource(R.string.repeats_from_here)
                 )
             }
+            if (state.changing) {
+                preview?.next?.let {
+                    note(stringResource(R.string.series_next, longDate(it, locale)))
+                }
+            }
+            preview
+                ?.skipped
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { skipped ->
+                    note(
+                        stringResource(
+                            R.string.repeats_skips,
+                            ListFormatter.getInstance(locale)
+                                .format(skipped.map { longDate(it, locale) }),
+                        )
+                    )
+                }
+            preview?.impact?.let { impactText(it) }?.let { note(it) }
         }
-        Switch(
-            checked = recurrence != null,
-            onCheckedChange = onSwitch,
-            modifier = Modifier.semantics { contentDescription = label },
-        )
+        if (!state.changing) {
+            Switch(
+                checked = recurrence != null,
+                onCheckedChange = onSwitch,
+                modifier = Modifier.semantics { contentDescription = label },
+            )
+        }
     }
 }
 
 /**
  * Whether a change to an occurrence goes for the rest of its series too (RE-6); not if the series
- * is [fixed] by later decisions.
+ * is [fixed] by later decisions. A [moved] date goes for this one only, which it says. Going for
+ * the rest says what that does to the entries in the balances, its [impact].
  */
 @Composable
-private fun Following(fixed: Boolean, onAnswer: (Boolean) -> Unit, onDismiss: () -> Unit) {
+private fun Following(
+    fixed: Boolean,
+    moved: Boolean,
+    impact: Impact?,
+    onAnswer: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
     var following by rememberSaveable { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -537,6 +603,25 @@ private fun Following(fixed: Boolean, onAnswer: (Boolean) -> Unit, onDismiss: ()
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
+                if (moved) {
+                    Text(
+                        stringResource(R.string.following_date),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+                impact
+                    ?.takeIf { following }
+                    ?.let { impactText(it) }
+                    ?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
             }
         },
         confirmButton = {

@@ -451,6 +451,19 @@ are described in [sync-design.md](sync-design.md).
   import of many entries, which also shares a moment, still lists each. A merged
   line is unseen while any of its events is, and reading it reads them all
   (HI-5).
+- **What happens to the occurrence a rule change starts from?** (RE-6) It
+  becomes the first of the new rule: the change runs from the occurrence's date,
+  not its due date, so rent on the 2nd moved to the 10th comes once that month.
+  Its old due date is deleted, a confirmation there included, since a stop would
+  leave a confirmed or edited occurrence standing (format-spec 4.2) — unless the
+  date moved back and the new rule falls on the old one too, which then is
+  simply a date of the new rule. Old dates between the two are left out in a
+  pause rather than one by one. All of this is what any installation already
+  reads. A guess at which new date the occurrence stands for, offered as a
+  checkbox, came first, and was harder to explain than this. The date cannot go
+  back past an earlier confirmed or edited occurrence, which a writer should not
+  amend over (format-spec 4.2). A change known ahead — next year's rent — needs
+  no occurrence at all, and is made on the series from a date.
 
 ## Open Questions
 

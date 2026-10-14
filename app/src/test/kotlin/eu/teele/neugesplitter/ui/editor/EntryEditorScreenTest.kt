@@ -93,7 +93,8 @@ class EntryEditorScreenTest {
     /**
      * Anna's group, with her dinner for all three of them the day before, if [existing], and her
      * rent on the first of every month since August, if [renting], with the one due on [confirmed]
-     * confirmed.
+     * confirmed. With [tenth], August's was moved to the 10th and the series with it. With
+     * [changing], the editor changes that series from a date on.
      */
     private fun show(
         existing: Boolean = false,
@@ -103,6 +104,8 @@ class EntryEditorScreenTest {
         ready: String = "Description",
         renting: Boolean = false,
         confirmed: String? = null,
+        tenth: Boolean = false,
+        changing: SeriesId? = null,
     ) {
         groups.create(
             Group.create(trip, "Trip", null, "⛺", null, listOf(anna, ben, clara), at, ::eventId),
@@ -142,6 +145,18 @@ class EntryEditorScreenTest {
                 ),
                 today,
             )
+            if (tenth) {
+                val tenths = monthly.copy(interval = Interval.MonthlyOn(setOf(10)))
+                val moved = EntryDate.parse("2026-08-10")
+                groups.append(
+                    trip,
+                    listOf(
+                        Event.SeriesAmended(eventId(), anna.id, at, rent, moved, tenths),
+                        Event.OccurrenceDeleted(eventId(), anna.id, at, rent, august),
+                    ),
+                    today,
+                )
+            }
         }
         val viewModel =
             EntryEditorViewModel(
@@ -155,6 +170,7 @@ class EntryEditorScreenTest {
                 { id(0x200 + issued++) },
                 { today },
                 { at },
+                changing,
             )
         compose.setContent { NeugesplitterTheme { EntryEditorScreen(viewModel) { closed++ } } }
         compose.waitUntil(5_000) {
@@ -224,6 +240,26 @@ class EntryEditorScreenTest {
     private fun descriptions() = groups.load(trip)!!.occurrences(today).map { it.entry.description }
 
     private fun rentOn(date: String) = EntryId.occurrence(rent, EntryDate.parse(date))
+
+    private fun dues() = groups.load(trip)!!.occurrences(today).map { it.due.toString() }
+
+    /**
+     * Opens the date picker on [shown], goes [back] months, or forward if negative, and picks
+     * [date].
+     */
+    private fun pick(shown: String, date: String, back: Int = 0) {
+        compose.onNodeWithText(shown).performScrollTo().performClick()
+        val previous = if (back > 0) "Change to previous month" else "Change to next month"
+        for (i in 0 until kotlin.math.abs(back)) {
+            compose.onNodeWithContentDescription(previous).performClick()
+        }
+        compose
+            .onNode(
+                hasText(date, substring = true) and hasClickAction() and hasAnyAncestor(isDialog())
+            )
+            .performClick()
+        compose.onNode(hasText("OK") and hasAnyAncestor(isDialog())).performClick()
+    }
 
     private fun count(matcher: SemanticsMatcher) =
         compose.onAllNodes(matcher).fetchSemanticsNodes().size
@@ -537,6 +573,7 @@ class EntryEditorScreenTest {
         compose.onNodeWithText("Description").performTextReplacement("Rent, raised")
         compose.onNodeWithText("Save").performClick()
         compose.onNodeWithText("This one and the following").performClick()
+        compose.onNodeWithText("1 entry it already added changes.").assertExists()
         compose.onNodeWithText("OK").performClick()
         compose.waitUntil(5_000) {
             shadowOf(Looper.getMainLooper()).idle()
@@ -548,13 +585,157 @@ class EntryEditorScreenTest {
     }
 
     @Test
+    fun `an occurrence moved to another date goes alone, without asking (RE-6, RE-15)`() {
+        show(renting = true, entry = rentOn("2026-09-01"))
+        compose.onNodeWithText("Tuesday, September 1, 2026").performClick()
+        compose
+            .onNode(
+                hasText("September 3, 2026", substring = true) and
+                    hasClickAction() and
+                    hasAnyAncestor(isDialog())
+            )
+            .performClick()
+        compose.onNode(hasText("OK") and hasAnyAncestor(isDialog())).performClick()
+        compose.onNodeWithText("Thursday, September 3, 2026").assertExists()
+        compose.onNodeWithText("Moved from its due date, Tuesday, September 1, 2026").assertExists()
+        save()
+        val group = groups.load(trip)!!
+        val moved = group.occurrences(today).single { it.due == september }
+        assertEquals(EntryDate.parse("2026-09-03"), moved.entry.date)
+        assertEquals(1, group.series.getValue(rent).segments.size)
+    }
+
+    /** Changes the rent's rule, open on its September occurrence, to the 10th of every month. */
+    private fun toTenth() {
+        compose.onNodeWithText("Every month on the 1st").performScrollTo().performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Monthly").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("10").performClick()
+        compose.onNodeWithText("1").performClick()
+        confirmRecurrence()
+        compose.onNodeWithText("Every month on the 10th").assertExists()
+    }
+
+    @Test
+    fun `an occurrence moved onto a changed rule is its first, and its confirmed old date goes (RE-6)`() {
+        show(renting = true, entry = rentOn("2026-09-01"), confirmed = "2026-09-01")
+        pick("Tuesday, September 1, 2026", "September 10, 2026")
+        toTenth()
+        compose.onNodeWithText("Not a regular date of this series").assertDoesNotExist()
+        compose.onNodeWithText("From this one on. Next: Saturday, October 10, 2026").assertExists()
+        compose
+            .onNodeWithText("1 entry it already added is removed. Confirmed and edited ones stay.")
+            .assertExists()
+        save()
+        assertEquals(listOf("2026-08-01", "2026-09-10"), dues())
+    }
+
+    @Test
+    fun `a rule changed again on the same occurrence replaces the one before (RE-6)`() {
+        show(renting = true, entry = rentOn("2026-08-10"), tenth = true)
+        pick("Monday, August 10, 2026", "August 12, 2026")
+        compose.onNodeWithText("Every month on the 10th").performScrollTo().performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Monthly").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("12").performClick()
+        compose.onNodeWithText("10").performClick()
+        confirmRecurrence()
+        save()
+        assertEquals(listOf("2026-08-12", "2026-09-12"), dues())
+    }
+
+    @Test
+    fun `an occurrence kept off its changed rule is its first all the same (RE-6)`() {
+        show(renting = true, entry = rentOn("2026-09-01"))
+        toTenth()
+        compose.onNodeWithText("Not a regular date of this series").assertExists()
+        compose
+            .onNodeWithText("From this one on. Next: Thursday, September 10, 2026")
+            .assertExists()
+        save()
+        assertEquals(listOf("2026-08-01", "2026-09-01", "2026-09-10"), dues())
+    }
+
+    @Test
+    fun `an occurrence moved past the next old date pauses the series up to it (RE-6, RE-7)`() {
+        show(renting = true, entry = rentOn("2026-08-01"))
+        pick("Saturday, August 1, 2026", "September 10, 2026", back = -1)
+        toTenth()
+        compose.onNodeWithText("Skips Tuesday, September 1, 2026.").assertExists()
+        compose
+            .onNodeWithText(
+                "2 entries it already added are removed. Confirmed and edited ones stay."
+            )
+            .assertExists()
+        save()
+        assertEquals(listOf("2026-09-10"), dues())
+    }
+
+    @Test
+    fun `an occurrence moved back keeps its old date if the changed rule falls on it (RE-6)`() {
+        show(renting = true, entry = rentOn("2026-09-01"))
+        pick("Tuesday, September 1, 2026", "August 20, 2026", back = 1)
+        compose.onNodeWithText("Every month on the 1st").performScrollTo().performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Monthly").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("20").performClick()
+        confirmRecurrence()
+        compose.onNodeWithText("From this one on. Next: Tuesday, September 1, 2026").assertExists()
+        save()
+        assertEquals(
+            listOf("2026-08-01", "2026-08-20", "2026-09-01", "2026-09-20", "2026-10-01"),
+            dues(),
+        )
+    }
+
+    @Test
+    fun `a changed rule cannot go back past a confirmed occurrence (RE-6)`() {
+        show(renting = true, entry = rentOn("2026-09-01"), confirmed = "2026-08-01")
+        pick("Tuesday, September 1, 2026", "August 1, 2026", back = 1)
+        toTenth()
+        compose.onNodeWithText("Choose a date from Sunday, August 2, 2026 on").assertExists()
+        compose.onNodeWithText("Save").assertIsNotEnabled()
+    }
+
+    @Test
+    fun `a series changes from its next due date on, and says what that does (RE-6)`() {
+        show(renting = true, changing = rent)
+        compose.onNodeWithText("Change series").assertExists()
+        compose.onNodeWithText("From").assertExists()
+        compose.onNodeWithText("Sunday, November 1, 2026").assertExists()
+        compose.onNodeWithText("Description").performTextReplacement("Rent, raised")
+        compose.onNodeWithText("Next due on Sunday, November 1, 2026").assertExists()
+        compose.onNodeWithText("already added", substring = true).assertDoesNotExist()
+        val before = groups.events(trip).size
+        save()
+        val written = groups.events(trip).drop(before).single() as Event.SeriesAmended
+        assertEquals(EntryDate.parse("2026-11-01"), written.from)
+        assertEquals(listOf("Rent", "Rent", "Rent"), descriptions())
+    }
+
+    @Test
+    fun `a series changed from an earlier date changes the entries it already added (RE-6)`() {
+        show(renting = true, changing = rent)
+        pick("Sunday, November 1, 2026", "September 1, 2026", back = 2)
+        compose.onNodeWithText("Description").performTextReplacement("Rent, raised")
+        compose.onNodeWithText("2 entries it already added change.").assertExists()
+        save()
+        assertEquals(listOf("Rent", "Rent, raised", "Rent, raised"), descriptions())
+    }
+
+    @Test
     fun `an occurrence switched off ends its series after it, without asking (RE-7)`() {
         show(renting = true, entry = rentOn("2026-09-01"))
         compose.onNodeWithContentDescription("Repeats").performScrollTo().performClick()
         compose.onNodeWithText("The series ends after this one").assertExists()
+        compose
+            .onNodeWithText("1 entry it already added is removed. Confirmed and edited ones stay.")
+            .assertExists()
         save()
-        val dues = groups.load(trip)!!.occurrences(today).map { it.due.toString() }
-        assertEquals(listOf("2026-08-01", "2026-09-01"), dues)
+        assertEquals(listOf("2026-08-01", "2026-09-01"), dues())
     }
 
     @Test

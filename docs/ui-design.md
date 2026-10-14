@@ -301,8 +301,19 @@ is, since the rule alone would suggest a different first date. Switching it on
 for an existing entry turns that entry into the series' first occurrence.
 Editing an occurrence asks on save whether the change is for **only this one**
 or **this one and the following** (RE-6); a change to the rule itself always
-goes for the following. Switching Repeats off on an occurrence stops the series
-after it (RE-7).
+goes for the following. Its date goes for this one only, so a change to the date
+alone does not ask, and where the question comes with a moved date it says so.
+Switching Repeats off on an occurrence stops the series after it (RE-7).
+
+Under the date, an occurrence moved off its due date names that date, and one
+due on a date its rule does not, or no longer, fall on says so. A rule changed
+on an occurrence makes it the first of the new rule, from its date on, and reads
+"from this one on" with the next date. Its old due date goes, confirmed or not,
+unless the new rule falls on it too; old dates between the two are skipped in a
+pause, which it names. It cannot go back past an earlier confirmed or edited
+occurrence. Wherever a save changes the series — a changed rule, **this one and
+the following**, switching Repeats off — the editor says beforehand how many
+entries already in the balances it removes, adds or changes.
 
 Once somebody has confirmed or edited a later occurrence of the series, it can
 no longer change from this one, as that would rewrite their decision (RE-6): the
@@ -354,8 +365,9 @@ deletion if there is one (HI-3), newest first under their days, in lines like
 Activity's history; tapping one shows all of it: each changed field on its own
 line, or the entry as it was recorded. Opening this screen clears the entry's
 unseen highlight (HI-6). An entry from a series says how the series repeats and
-links to it (RE-9); it has no history of its own, and deleting it deletes only
-that occurrence (RE-15).
+links to it (RE-9), and under its date, like the editor, whether it was moved
+off its due date or is due off the series' dates; it has no history of its own,
+and deleting it deletes only that occurrence (RE-15).
 
 ### Recurring series
 
@@ -364,6 +376,11 @@ ahead: description, who pays, the amount, the rule read back with automatic or
 suggested, and whether it runs, starts later, is paused until a date, pauses or
 stops ahead, or stopped (RE-7, RE-9). Below that its actions:
 
+- **Change** opens the entry editor on the series from a date on, by default its
+  next due date and at the earliest the day after its last confirmed or edited
+  occurrence, without adding an entry of its own: next year's rent, known now
+  (RE-6). It says when it is next due and what it does to the entries already in
+  the balances.
 - **Continue**, while a pause or stop is in force or ahead, goes on from a date
   within it, by default today or its first day. What fell due before that date
   is not made up; a pause still ends when it would have.
@@ -374,10 +391,10 @@ stops ahead, or stopped (RE-7, RE-9). Below that its actions:
 - **Delete** asks first, and says that every entry it produced goes with it and
   that stopping keeps them.
 
-Pause and stop are hidden once it is stopped for good. Each dialog says how many
-entries already in the balances it would remove or add; confirmed and edited
-ones stand either way (format-spec 4.2). Pauses and stops that overlap or meet
-become one.
+Change, pause and stop are hidden once it is stopped for good. Each dialog says
+how many entries already in the balances it would remove or add; confirmed and
+edited ones stand either way (format-spec 4.2). Pauses and stops that overlap or
+meet become one.
 
 Under the actions, every pause and stop, past ones included, each with
 **Remove**, which asks first and says how many entries it held back come back;

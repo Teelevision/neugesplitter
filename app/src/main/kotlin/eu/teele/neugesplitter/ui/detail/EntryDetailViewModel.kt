@@ -28,6 +28,8 @@ data class Part(val name: String, val amount: Amount)
  * @property series the series the entry came from, if it did (RE-9).
  * @property recurrence how that series repeats on the occurrence's due date; null where it no
  *   longer does.
+ * @property due the occurrence's due date.
+ * @property scheduled whether the series makes [due] due (format-spec 4.2).
  */
 data class Detail(
     val entry: Entry,
@@ -38,6 +40,8 @@ data class Detail(
     val edited: Boolean,
     val series: SeriesId? = null,
     val recurrence: Recurrence? = null,
+    val due: EntryDate? = null,
+    val scheduled: Boolean = true,
 )
 
 /** @property detail null once loaded only if the entry is gone, deleted or with its group. */
@@ -82,6 +86,8 @@ class EntryDetailViewModel(
                 occurrence
                     ?.let { series[it.series]?.segment(it.due) }
                     ?.let { Recurrence(it.interval, it.mode) },
+            due = occurrence?.due,
+            scheduled = occurrence?.let { series[it.series]?.scheduled(it.due) } != false,
         )
     }
 }

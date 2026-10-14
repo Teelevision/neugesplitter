@@ -14,6 +14,7 @@ import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
+import eu.teele.neugesplitter.domain.recurrence.Impact
 import eu.teele.neugesplitter.domain.recurrence.Interval
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.recurrence.Segment
@@ -52,6 +53,7 @@ class SeriesScreenTest {
     private val at = Instant.parse("2026-10-07T12:00:00Z")
     private var events = 0
     private var back = 0
+    private var changes = 0
     private val opened = mutableListOf<EntryId>()
 
     private fun id(n: Int) = "%032x".format(n)
@@ -93,7 +95,12 @@ class SeriesScreenTest {
             SeriesViewModel(groups, trip, rent, { id(0x200 + events++) }, { today }, { at })
         compose.setContent {
             NeugesplitterTheme {
-                SeriesScreen(viewModel, onBack = { back++ }, onOpen = { opened += it })
+                SeriesScreen(
+                    viewModel,
+                    onBack = { back++ },
+                    onChange = { changes++ },
+                    onOpen = { opened += it },
+                )
             }
         }
         awaitText(repeats)
@@ -149,6 +156,13 @@ class SeriesScreenTest {
         assertTrue(top("Wednesday, October 7, 2026") < top("Ben left out 'Rent'"))
         assertTrue(top("Ben left out 'Rent'") < top("Anna added 'Rent', repeating"))
         assertTrue(top("Anna added 'Rent', repeating") < top("Thursday, October 1, 2026"))
+    }
+
+    @Test
+    fun `a running series can be changed from a date on (RE-6)`() {
+        show()
+        compose.onNodeWithText("Change").performClick()
+        assertEquals(1, changes)
     }
 
     @Test
@@ -213,9 +227,9 @@ class SeriesScreenTest {
         show(Event.OccurrenceConfirmed(eventId(), anna.id, at, rent, date("2026-09-01")))
         val detail = SeriesDetail(today, series(), monthly, emptyList(), Scale.DEFAULT, emptyList())
         assertEquals(date("2026-08-02"), detail.earliestStop)
-        assertEquals(1 to 0, detail.change(series().stopped(Stop(date("2026-08-15")))))
+        assertEquals(Impact(1, 0, 0), detail.change(series().stopped(Stop(date("2026-08-15")))))
         val stopped = series().stopped(Stop(date("2026-08-15")))
-        assertEquals(0 to 1, detail.copy(series = stopped).change(series()))
+        assertEquals(Impact(0, 1, 0), detail.copy(series = stopped).change(series()))
     }
 
     @Test

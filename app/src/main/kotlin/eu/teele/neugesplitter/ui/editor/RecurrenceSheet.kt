@@ -95,6 +95,19 @@ fun offPatternText(date: EntryDate, interval: Interval, locale: Locale): String?
 }
 
 /**
+ * How an occurrence on [date] stands off its series' schedule, if it does: moved from its [due]
+ * date, or due on a date the schedule does not make due, as [scheduled] says (RE-6). Null where
+ * neither.
+ */
+@Composable
+fun offDueText(date: EntryDate, due: EntryDate, scheduled: Boolean, locale: Locale): String? =
+    when {
+        date != due -> stringResource(R.string.occurrence_moved, longDate(due, locale))
+        !scheduled -> stringResource(R.string.occurrence_off_schedule)
+        else -> null
+    }
+
+/**
  * Edits [initial] and hands the result to [onDone]; leaving any other way drops it. With
  * [choosesStart], the first row picks the start date, which is the entry's own [date] (RE-2, RE-3).
  */

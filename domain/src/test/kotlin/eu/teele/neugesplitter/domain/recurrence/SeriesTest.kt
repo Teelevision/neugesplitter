@@ -243,6 +243,60 @@ class SeriesTest {
     }
 
     @Test
+    fun `a date is scheduled where the schedule makes it due, stops or not (format-spec 4_2)`() {
+        val series =
+            threePeople()
+                .start(RENT, "2026-05-01", monthly(900))
+                .stop(RENT, "2026-06-15")
+                .amend(RENT, "2026-07-01", segment(Interval.MonthlyOn(setOf(10)), rent(900)))
+                .replay()
+                .series
+                .getValue(RENT)
+        assertTrue(series.scheduled(date("2026-06-01")))
+        assertFalse(series.scheduled(date("2026-06-02")))
+        assertFalse(series.scheduled(date("2026-07-01")))
+        assertTrue(series.scheduled(date("2026-07-10")))
+    }
+
+    @Test
+    fun `the upcoming date is the next one past the stops (RE-7)`() {
+        val series =
+            threePeople()
+                .start(RENT, "2026-05-01", monthly(900))
+                .stop(RENT, "2026-05-15", until = "2026-07-15")
+                .stop(RENT, "2026-09-15")
+                .replay()
+                .series
+                .getValue(RENT)
+        assertEquals(date("2026-05-01"), series.upcoming(date("2026-05-01")))
+        assertEquals(date("2026-08-01"), series.upcoming(date("2026-05-02")))
+        assertEquals(null, series.upcoming(date("2026-09-02")))
+    }
+
+    @Test
+    fun `the impact of a change counts the entries in the balances it removes, adds and changes (RE-6, RE-7)`() {
+        val log =
+            threePeople()
+                .start(RENT, "2026-05-01", monthly(900))
+                .stop(RENT, "2026-06-15", until = "2026-07-15")
+        val before = log.replay().series.getValue(RENT)
+        val after =
+            log.resume(RENT, "2026-06-15", until = "2026-07-15")
+                .amend(RENT, "2026-08-01", monthly(1200))
+                .stop(RENT, "2026-05-01", until = "2026-05-02")
+                .replay()
+                .series
+                .getValue(RENT)
+        assertEquals(Impact(removed = 1, added = 1, changed = 1), before.impact(after, TODAY))
+        val except = setOf(date("2026-05-01"))
+        assertEquals(
+            Impact(removed = 0, added = 1, changed = 1),
+            before.impact(after, TODAY, except),
+        )
+        assertTrue(before.impact(before, TODAY).none)
+    }
+
+    @Test
     fun `of two segments from the same date the later in the log is in force (format-spec 4_2)`() {
         val log =
             threePeople()

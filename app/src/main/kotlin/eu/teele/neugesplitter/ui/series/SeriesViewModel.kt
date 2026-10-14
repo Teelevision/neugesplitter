@@ -10,6 +10,7 @@ import eu.teele.neugesplitter.domain.history.history
 import eu.teele.neugesplitter.domain.history.series
 import eu.teele.neugesplitter.domain.history.steps
 import eu.teele.neugesplitter.domain.recurrence.Decision
+import eu.teele.neugesplitter.domain.recurrence.Impact
 import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Series
 import eu.teele.neugesplitter.domain.recurrence.Stop
@@ -64,15 +65,7 @@ data class SeriesDetail(
 
     /** The next day after today it makes something due, past its stops; null if none. */
     val next: EntryDate?
-        get() {
-            var next = series.nextDue(today.plusDays(1))
-            while (next != null) {
-                val due: EntryDate = next
-                val stop = series.stops.find { due in it } ?: break
-                next = stop.until?.let(series::nextDue)
-            }
-            return next
-        }
+        get() = series.upcoming(today.plusDays(1))
 
     /** The due dates whose suggestion nobody confirmed or declined yet (RE-4). */
     val waiting: List<EntryDate>
@@ -107,14 +100,10 @@ data class SeriesDetail(
     fun pauseUntil(from: EntryDate): EntryDate = (series.nextDue(from) ?: from).plusDays(1)
 
     /**
-     * How many entries in the balances today [revised] would remove, and how many it would add;
-     * those somebody confirmed or edited stand either way (format-spec 4.2).
+     * What [revised] would do to the entries in the balances today; those somebody confirmed or
+     * edited stand either way (format-spec 4.2).
      */
-    fun change(revised: Series): Pair<Int, Int> {
-        val before = series.occurrences(today).filterNot { it.pending }.map { it.due }.toSet()
-        val after = revised.occurrences(today).filterNot { it.pending }.map { it.due }.toSet()
-        return (before - after).size to (after - before).size
-    }
+    fun change(revised: Series): Impact = series.impact(revised, today)
 }
 
 private fun EntryDate.plusDays(days: Long) = EntryDate.of(value.plusDays(days))

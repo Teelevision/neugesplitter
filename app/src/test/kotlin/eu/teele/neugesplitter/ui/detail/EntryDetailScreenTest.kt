@@ -212,6 +212,48 @@ class EntryDetailScreenTest {
         compose.onNodeWithContentDescription("More options").performClick()
         compose.onNodeWithText("Duplicate").assertExists()
         compose.onNodeWithText("History").assertDoesNotExist()
+        compose.onNodeWithText("Not a regular date of this series").assertDoesNotExist()
+    }
+
+    /**
+     * A series monthly on the 1st from September, whose September occurrence moved to today, and
+     * which goes monthly on the 10th from its October one, kept on the 1st.
+     */
+    private fun moved(): SeriesId {
+        seed()
+        val rent = SeriesId.parse(id(20))
+        val first = EntryDate.parse("2026-09-01")
+        val second = EntryDate.parse("2026-10-01")
+        val template = Template.of(dinner())
+        val monthly = Segment(Interval.MonthlyOn(setOf(1)), Mode.AUTOMATIC, template)
+        val tenth = Segment(Interval.MonthlyOn(setOf(10)), Mode.AUTOMATIC, template)
+        groups.append(
+            trip,
+            listOf(
+                Event.SeriesCreated(eventId(), anna.id, at, rent, first, monthly),
+                Event.OccurrenceAmended(eventId(), anna.id, at, rent, first, today, template),
+                Event.SeriesAmended(eventId(), anna.id, at, rent, second, tenth),
+                Event.OccurrenceAmended(eventId(), anna.id, at, rent, second, second, template),
+            ),
+            today,
+        )
+        return rent
+    }
+
+    @Test
+    fun `an occurrence moved off its due date says so (RE-6)`() {
+        val rent = moved()
+        show(EntryId.occurrence(rent, EntryDate.parse("2026-09-01")))
+        waitForText("Moved from its due date, Tuesday, September 1, 2026")
+        compose.onNodeWithText("Wednesday, October 7, 2026").assertExists()
+    }
+
+    @Test
+    fun `an occurrence due off its series' dates says so (RE-6)`() {
+        val rent = moved()
+        show(EntryId.occurrence(rent, EntryDate.parse("2026-10-01")))
+        waitForText("Not a regular date of this series")
+        compose.onNodeWithText("Thursday, October 1, 2026").assertExists()
     }
 
     @Test

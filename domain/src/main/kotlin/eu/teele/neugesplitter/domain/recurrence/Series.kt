@@ -23,6 +23,12 @@ data class Occurrence(
     val pending: Boolean,
 )
 
+/** How many entries in the balances a change to a series removes, adds and changes. */
+data class Impact(val removed: Int, val added: Int, val changed: Int) {
+    val none: Boolean
+        get() = removed == 0 && added == 0 && changed == 0
+}
+
 /**
  * Days on which a series produces nothing: from [from] up to [until], which is the day it
  * continues, or for good without one (RE-7).
@@ -120,6 +126,42 @@ data class Series(
      */
     fun nextDue(date: EntryDate): EntryDate? =
         dues(EntryDate.of(date.value.plusYears(1))).keys.filter { it >= date }.minOrNull()
+
+    /**
+     * Whether the schedule makes [due] due, stops or not; an occurrence amended or confirmed there
+     * may stand where it no longer does (format-spec 4.2).
+     */
+    fun scheduled(due: EntryDate): Boolean = due in dues(due)
+
+    /** The first day on or after [date] the schedule makes due past its stops; null if none. */
+    fun upcoming(date: EntryDate): EntryDate? {
+        var next = nextDue(date)
+        while (next != null) {
+            val due: EntryDate = next
+            val stop = stops.find { due in it } ?: break
+            next = stop.until?.let(::nextDue)
+        }
+        return next
+    }
+
+    /**
+     * What [revised] does to this series' entries in the balances by [today], leaving out the due
+     * dates in [except].
+     */
+    fun impact(revised: Series, today: EntryDate, except: Set<EntryDate> = emptySet()): Impact {
+        fun counted(series: Series) =
+            series
+                .occurrences(today)
+                .filterNot { it.pending || it.due in except }
+                .associate { it.due to it.entry }
+        val before = counted(this)
+        val after = counted(revised)
+        return Impact(
+            removed = (before.keys - after.keys).size,
+            added = (after.keys - before.keys).size,
+            changed = before.count { (due, entry) -> after[due].let { it != null && it != entry } },
+        )
+    }
 
     /**
      * Every occurrence due on or before [today], the installation's local date (RE-14), in order of

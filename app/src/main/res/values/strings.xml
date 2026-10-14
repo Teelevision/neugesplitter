@@ -98,13 +98,20 @@
     <string name="problem_description">Add a description</string>
     <string name="problem_amount">Enter an amount</string>
     <string name="problem_side">Choose someone under “%1$s”</string>
+    <string name="problem_date">Choose a date from %1$s on</string>
     <string name="save_failed">The entry could not be saved.</string>
     <string name="created_by">Created by %1$s</string>
     <string name="repeats">Repeats</string>
     <string name="repeats_ends_here">The series ends after this one</string>
+    <string name="repeats_from_here">From this one on.</string>
+    <string name="repeats_from_here_next">From this one on. Next: %1$s</string>
+    <string name="repeats_skips">Skips %1$s.</string>
+    <string name="occurrence_moved">Moved from its due date, %1$s</string>
+    <string name="occurrence_off_schedule">Not a regular date of this series</string>
     <string name="following_title">Change recurring entry</string>
     <string name="following_only">Only this one</string>
     <string name="following_too">This one and the following</string>
+    <string name="following_date">The date applies to this one only.</string>
     <string name="series_fixed">Later entries of this series were confirmed or edited, so it can change only from the last of them.</string>
 
     <!-- Recurrence editor -->
@@ -160,7 +167,13 @@
         <item quantity="one">%d entry that fell due meanwhile is added.</item>
         <item quantity="other">%d entries that fell due meanwhile are added.</item>
     </plurals>
+    <plurals name="series_changes">
+        <item quantity="one">%d entry it already added changes.</item>
+        <item quantity="other">%d entries it already added change.</item>
+    </plurals>
     <string name="series_keeps">Entries it already added stay.</string>
+    <string name="series_change">Change</string>
+    <string name="series_change_title">Change series</string>
     <string name="series_stops_list">Pauses and stops</string>
     <string name="series_stop_span">From %1$s, continues on %2$s</string>
     <string name="series_stop_open">From %1$s, for good</string>

@@ -96,13 +96,20 @@
     <string name="problem_description">Beschreibung fehlt</string>
     <string name="problem_amount">Betrag fehlt</string>
     <string name="problem_side">Wähle jemanden unter „%1$s“</string>
+    <string name="problem_date">Wähle ein Datum ab dem %1$s</string>
     <string name="save_failed">Der Eintrag konnte nicht gespeichert werden.</string>
     <string name="created_by">Erstellt von %1$s</string>
     <string name="repeats">Wiederholen</string>
     <string name="repeats_ends_here">Die Serie endet nach diesem Eintrag</string>
+    <string name="repeats_from_here">Ab diesem Eintrag.</string>
+    <string name="repeats_from_here_next">Ab diesem Eintrag. Nächster: %1$s</string>
+    <string name="repeats_skips">Überspringt %1$s.</string>
+    <string name="occurrence_moved">Verschoben vom Fälligkeitstag, %1$s</string>
+    <string name="occurrence_off_schedule">Kein regulärer Termin dieser Serie</string>
     <string name="following_title">Wiederkehrenden Eintrag ändern</string>
     <string name="following_only">Nur diesen</string>
     <string name="following_too">Diesen und alle folgenden</string>
+    <string name="following_date">Das Datum gilt nur für diesen Eintrag.</string>
     <string name="series_fixed">Spätere Einträge dieser Serie wurden bestätigt oder bearbeitet, daher lässt sie sich erst ab dem letzten davon ändern.</string>
 
     <!-- Recurrence editor -->
@@ -158,7 +165,13 @@
         <item quantity="one">%d Eintrag, der inzwischen fällig wurde, kommt hinzu.</item>
         <item quantity="other">%d Einträge, die inzwischen fällig wurden, kommen hinzu.</item>
     </plurals>
+    <plurals name="series_changes">
+        <item quantity="one">%d Eintrag, den sie schon hinzugefügt hat, ändert sich.</item>
+        <item quantity="other">%d Einträge, die sie schon hinzugefügt hat, ändern sich.</item>
+    </plurals>
     <string name="series_keeps">Einträge, die sie schon hinzugefügt hat, bleiben.</string>
+    <string name="series_change">Ändern</string>
+    <string name="series_change_title">Serie ändern</string>
     <string name="series_stops_list">Pausen und Enden</string>
     <string name="series_stop_span">Ab %1$s, geht am %2$s weiter</string>
     <string name="series_stop_open">Ab %1$s, endgültig</string>

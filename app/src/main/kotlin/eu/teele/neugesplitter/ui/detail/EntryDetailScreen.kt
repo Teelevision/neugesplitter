@@ -45,6 +45,7 @@ import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
+import eu.teele.neugesplitter.ui.editor.offDueText
 import eu.teele.neugesplitter.ui.editor.recurrenceText
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.kindIcon
@@ -162,6 +163,15 @@ private fun Content(detail: Detail, onSeries: (SeriesId) -> Unit, modifier: Modi
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                detail.due
+                    ?.let { offDueText(entry.date, it, detail.scheduled, locale) }
+                    ?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
             }
         }
         Text(

@@ -94,7 +94,8 @@ import kotlinx.serialization.Serializable
 
 /**
  * A new entry, or a change to [entry]; with [duplicate], a new entry copied from it. With [from],
- * [to] and [amount] (in 10⁻⁸ units), a new entry recording that transfer. Ids are hex.
+ * [to] and [amount] (in 10⁻⁸ units), a new entry recording that transfer. With [series], a change
+ * to that series from a date on. Ids are hex.
  */
 @Serializable
 data class EntryEditor(
@@ -104,6 +105,7 @@ data class EntryEditor(
     val from: String? = null,
     val to: String? = null,
     val amount: Long? = null,
+    val series: String? = null,
 ) : NavKey {
     val settling: Transfer?
         get() =
@@ -473,6 +475,7 @@ fun App(graph: AppGraph) {
                                 graph::identifier,
                                 graph::today,
                                 graph::now,
+                                key.series?.let(SeriesId::parse),
                             )
                         },
                         onClose = { pop() },
@@ -514,6 +517,7 @@ fun App(graph: AppGraph) {
                             )
                         },
                         onBack = { pop() },
+                        onChange = { stack.add(EntryEditor(key.group, series = key.series)) },
                         onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
                     )
                 }
