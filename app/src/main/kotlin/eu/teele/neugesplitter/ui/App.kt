@@ -462,6 +462,7 @@ fun App(graph: AppGraph) {
                         DecimalFormatSymbols.getInstance(LocalConfiguration.current.locales[0])
                             .decimalSeparator
                     val settlement = stringResource(R.string.settle_description)
+                    val transferDescription = stringResource(R.string.kind_transfer)
                     EntryEditorScreen(
                         viewModel {
                             EntryEditorViewModel(
@@ -471,6 +472,7 @@ fun App(graph: AppGraph) {
                                 key.duplicate,
                                 key.settling,
                                 settlement,
+                                transferDescription,
                                 separator,
                                 graph::identifier,
                                 graph::today,

@@ -291,7 +291,9 @@ adjustments add up to more than the total (SP-6), or when the amount is missing
 or meaningless (AM-6).
 
 A transfer relabels the two sides as "from" and "to" and hides the split schemes
-unless more than one member is selected (EN-7).
+unless more than one member is selected (EN-7). Chosen with the description
+empty, it fills in "Transfer", which goes again if the kind changes back before
+anyone edits it.
 
 With Repeats on, the entry is the first occurrence of a new series starting on
 its date; a suggested one is confirmed at once, since someone just entered it

@@ -166,6 +166,7 @@ class EntryEditorScreenTest {
                 duplicate,
                 settling,
                 "Settlement",
+                "Transfer",
                 '.',
                 { id(0x200 + issued++) },
                 { today },
@@ -315,6 +316,17 @@ class EntryEditorScreenTest {
         assertEquals(Side.Equal(listOf(anna.id)), entry.payers)
         assertEquals(yesterday, entry.date)
         assertEquals(1, stored().size)
+    }
+
+    @Test
+    fun `a transfer starts out with a generic description, which goes again with it (EN-7)`() {
+        show()
+        enterAmount("5")
+        compose.onNodeWithText("Transfer").performClick()
+        compose.onAllNodesWithText("Transfer").assertCountEquals(2)
+        compose.onNodeWithText("Expense").performClick()
+        compose.onAllNodesWithText("Transfer").assertCountEquals(1)
+        compose.onNodeWithText("Add a description").assertExists()
     }
 
     @Test

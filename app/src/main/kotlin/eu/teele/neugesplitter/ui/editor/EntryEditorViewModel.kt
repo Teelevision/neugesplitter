@@ -201,6 +201,7 @@ class EntryEditorViewModel(
     duplicate: Boolean,
     settling: Transfer?,
     settlement: String,
+    private val transfer: String,
     private val separator: Char,
     private val identifier: () -> String,
     private val today: () -> EntryDate,
@@ -321,7 +322,8 @@ class EntryEditorViewModel(
 
     /**
      * Chooses [kind]. A transfer goes to somebody in particular, so until the user has chosen the
-     * beneficiaries, a transfer starts with none and the other kinds with the defaults (EN-7).
+     * beneficiaries, a transfer starts with none and the other kinds with the defaults (EN-7). A
+     * transfer without a description gets a generic one, which goes again with the transfer.
      */
     fun kind(kind: Kind) =
         mutable.update {
@@ -331,7 +333,13 @@ class EntryEditorViewModel(
                     kind == Kind.TRANSFER -> emptySet()
                     else -> defaults
                 }
-            it.copy(kind = kind, beneficiaries = beneficiaries)
+            val description =
+                when {
+                    kind == Kind.TRANSFER && it.description.isBlank() -> transfer
+                    kind != Kind.TRANSFER && it.description == transfer -> ""
+                    else -> it.description
+                }
+            it.copy(kind = kind, beneficiaries = beneficiaries, description = description)
         }
 
     fun description(text: String) = mutable.update { it.copy(description = text) }
