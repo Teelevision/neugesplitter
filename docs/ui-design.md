@@ -252,6 +252,14 @@ tapped opens it (TD-7). The section is shown only while there are some.
 The navigation bar's Activity icon carries a badge while anything above is
 pending.
 
+What a background poll receives from others is also told as a **notification**
+(SY-10), one per group: the group's emoji and name, the newest unseen line of
+the history, and up to five such lines expanded, the rest counted. Each change
+is told about once, nothing is told while the app is on screen, and bringing the
+app on screen takes every notification back. Tapping one opens the group on
+Activity. The app asks for the permission once, the first time a shared group is
+opened.
+
 ### To-dos
 
 Opened by the checklist icon in the Overview's top bar; the navigation bar

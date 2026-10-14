@@ -1,5 +1,6 @@
 package eu.teele.neugesplitter.ui.editor
 
+import android.content.res.Resources
 import android.icu.text.ListFormatter
 import android.icu.text.MessageFormat
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -60,14 +62,13 @@ private enum class Pattern(val label: Int) {
 }
 
 /** [interval] read back in plain language, without times of day (RE-14, ui-design 5). */
-@Composable
-fun recurrenceText(interval: Interval, locale: Locale): String {
+fun Resources.recurrenceText(interval: Interval, locale: Locale): String {
     val list = ListFormatter.getInstance(locale)
     return when (interval) {
         is Interval.EveryDays ->
-            pluralStringResource(R.plurals.recurrence_days, interval.days, interval.days)
+            getQuantityString(R.plurals.recurrence_days, interval.days, interval.days)
         is Interval.WeeklyOn ->
-            stringResource(
+            getString(
                 R.string.recurrence_weekly,
                 list.format(
                     week(locale)
@@ -76,7 +77,7 @@ fun recurrenceText(interval: Interval, locale: Locale): String {
                 ),
             )
         is Interval.MonthlyOn ->
-            pluralStringResource(
+            getQuantityString(
                 R.plurals.recurrence_monthly,
                 interval.months,
                 interval.months,
@@ -258,7 +259,9 @@ fun RecurrenceSheet(
             Row(padded, verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(end = 16.dp)) {
                     Text(
-                        interval?.let { recurrenceText(it, locale) }.orEmpty(),
+                        interval
+                            ?.let { LocalResources.current.recurrenceText(it, locale) }
+                            .orEmpty(),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                     interval

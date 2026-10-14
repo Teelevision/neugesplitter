@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -194,7 +195,9 @@ private fun Content(detail: Detail, onSeries: (SeriesId) -> Unit, modifier: Modi
                     Text(
                         listOfNotNull(
                                 stringResource(R.string.entry_repeats),
-                                detail.recurrence?.let { recurrenceText(it.interval, locale) },
+                                detail.recurrence?.let {
+                                    LocalResources.current.recurrenceText(it.interval, locale)
+                                },
                             )
                             .joinToString(" · "),
                         style = MaterialTheme.typography.bodyMedium,

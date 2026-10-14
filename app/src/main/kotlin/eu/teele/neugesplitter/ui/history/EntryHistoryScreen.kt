@@ -22,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -104,7 +105,13 @@ private fun VersionItem(version: Version, state: EntryHistoryState, locale: Loca
         when (version.change) {
             Revision.EDITED,
             Revision.RESTORED ->
-                revised(version.before, version.after, state.scale, state.names, locale)
+                LocalResources.current.revised(
+                    version.before,
+                    version.after,
+                    state.scale,
+                    state.names,
+                    locale,
+                )
             else -> summary(version.after, state.scale, locale)
         }
     Column {
@@ -124,9 +131,12 @@ private fun VersionItem(version: Version, state: EntryHistoryState, locale: Loca
                     Modifier.fillMaxWidth().padding(start = 72.dp, end = 16.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                val resources = LocalResources.current
                 val lines =
                     version.before
-                        ?.let { changes(it, version.after, state.scale, state.names, locale) }
+                        ?.let {
+                            resources.changes(it, version.after, state.scale, state.names, locale)
+                        }
                         .orEmpty()
                 if (version.change == Revision.EDITED || version.change == Revision.RESTORED) {
                     for (line in lines) Text(line, style = MaterialTheme.typography.bodyLarge)

@@ -472,6 +472,14 @@
     <string name="words_english">English word list</string>
     <string name="adapted">adapted</string>
 
+    <!-- Notifications -->
+    <string name="notification_channel">Changes from others</string>
+    <string name="notification_channel_description">What others changed in a shared group while the app was closed</string>
+    <plurals name="notification_more">
+        <item quantity="one">+%d more</item>
+        <item quantity="other">+%d more</item>
+    </plurals>
+
     <!-- Activity -->
     <string name="expand">Expand</string>
     <string name="collapse">Collapse</string>

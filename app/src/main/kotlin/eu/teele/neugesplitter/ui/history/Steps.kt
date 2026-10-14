@@ -1,5 +1,6 @@
 package eu.teele.neugesplitter.ui.history
 
+import android.content.res.Resources
 import android.icu.text.ListFormatter
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
@@ -17,10 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -135,18 +133,21 @@ fun HistoryRow(
     }
 }
 
-/** [happening] as a row tells it: who did what, and what changed (HI-2). */
-@Composable
-fun told(happening: Happening, names: Map<MemberId, String>, scale: Scale, locale: Locale): Told {
+/** [happening] as a row or a notification tells it: who did what, and what changed (HI-2). */
+fun Resources.told(
+    happening: Happening,
+    names: Map<MemberId, String>,
+    scale: Scale,
+    locale: Locale,
+): Told {
     fun name(member: MemberId) = names[member] ?: member.hex.take(8)
     val by = name(happening.by)
     return when (val happened = happening.happened) {
-        Happened.Created ->
-            Told(R.drawable.ic_add, stringResource(R.string.happened_created, by), "")
+        Happened.Created -> Told(R.drawable.ic_add, getString(R.string.happened_created, by), "")
         is Happened.Changed ->
             Told(
                 R.drawable.ic_settings,
-                stringResource(
+                getString(
                     when (happened.settings.singleOrNull()) {
                         Setting.NAME -> R.string.happened_name
                         Setting.DESCRIPTION -> R.string.happened_description
@@ -164,20 +165,20 @@ fun told(happening: Happening, names: Map<MemberId, String>, scale: Scale, local
         is Happened.MemberAdded ->
             Told(
                 R.drawable.ic_people,
-                if (happened.member == happening.by) stringResource(R.string.happened_joined, by)
-                else stringResource(R.string.happened_added, by, name(happened.member)),
+                if (happened.member == happening.by) getString(R.string.happened_joined, by)
+                else getString(R.string.happened_added, by, name(happened.member)),
                 "",
             )
         is Happened.MemberRenamed ->
             Told(
                 R.drawable.ic_people,
-                stringResource(R.string.happened_renamed, by, happened.from, happened.to),
+                getString(R.string.happened_renamed, by, happened.from, happened.to),
                 "",
             )
         is Happened.MemberRemoved ->
             Told(
                 R.drawable.ic_people,
-                stringResource(R.string.happened_removed, by, name(happened.member)),
+                getString(R.string.happened_removed, by, name(happened.member)),
                 "",
             )
         is Happened.Entry -> {
@@ -190,14 +191,14 @@ fun told(happening: Happening, names: Map<MemberId, String>, scale: Scale, local
                 }
             Told(
                 icon,
-                stringResource(sentence, by, happened.description),
+                getString(sentence, by, happened.description),
                 revised(happened.before, happened.after, scale, names, locale),
             )
         }
         is Happened.MadeRecurring ->
             Told(
                 R.drawable.ic_repeat,
-                stringResource(R.string.happened_made_recurring, by, happened.description),
+                getString(R.string.happened_made_recurring, by, happened.description),
                 recurrenceText(happened.segment.interval, locale),
             )
         is Happened.Recurring -> recurring(happened, by, names, scale, locale)
@@ -207,8 +208,7 @@ fun told(happening: Happening, names: Map<MemberId, String>, scale: Scale, local
 }
 
 /** One todo by its description, several by their number and descriptions below. */
-@Composable
-private fun todos(happened: Happened.Todos, by: String): Told {
+private fun Resources.todos(happened: Happened.Todos, by: String): Told {
     val (icon, one, several) =
         when (happened.change) {
             TodosChange.MOVED ->
@@ -231,16 +231,15 @@ private fun todos(happened: Happened.Todos, by: String): Told {
                 )
         }
     val descriptions = happened.descriptions
-    return descriptions.singleOrNull()?.let { Told(icon, stringResource(one, by, it), "") }
+    return descriptions.singleOrNull()?.let { Told(icon, getString(one, by, it), "") }
         ?: Told(
             icon,
-            pluralStringResource(several, descriptions.size, by, descriptions.size),
+            getQuantityString(several, descriptions.size, by, descriptions.size),
             descriptions.joinToString(" · "),
         )
 }
 
-@Composable
-private fun todo(
+private fun Resources.todo(
     happened: Happened.Todo,
     by: String,
     names: Map<MemberId, String>,
@@ -257,12 +256,11 @@ private fun todo(
                 )
             TodoChange.Deleted -> Triple(R.drawable.ic_delete, R.string.happened_todo_deleted, "")
         }
-    return Told(icon, stringResource(sentence, by, happened.description), detail)
+    return Told(icon, getString(sentence, by, happened.description), detail)
 }
 
 /** One part for each field in which [after] differs from [before], the same todo. */
-@Composable
-private fun todoChanges(
+private fun Resources.todoChanges(
     before: Todo,
     after: Todo,
     names: Map<MemberId, String>,
@@ -283,13 +281,12 @@ private fun todoChanges(
     return fields
         .filter { (_, old, new) -> old != new }
         .map { (field, old, new) ->
-            stringResource(R.string.history_field_changed, stringResource(field), new, old)
+            getString(R.string.history_field_changed, getString(field), new, old)
         }
         .joinToString(" · ")
 }
 
-@Composable
-private fun recurring(
+private fun Resources.recurring(
     happened: Happened.Recurring,
     by: String,
     names: Map<MemberId, String>,
@@ -309,7 +306,7 @@ private fun recurring(
                         .joinToString(" · ")
             is SeriesChange.Amended ->
                 R.string.happened_series_amended to
-                    (listOf(stringResource(R.string.history_from, from(change.from))) +
+                    (listOf(getString(R.string.history_from, from(change.from))) +
                             (change.before?.let {
                                 amended(
                                     happened.series,
@@ -326,36 +323,31 @@ private fun recurring(
                 val until = change.stop.until
                 if (until == null) {
                     R.string.happened_series_stopped to
-                        stringResource(R.string.series_stop_open, from(change.stop.from))
+                        getString(R.string.series_stop_open, from(change.stop.from))
                 } else {
                     R.string.happened_series_paused to
-                        stringResource(
-                            R.string.series_stop_span,
-                            from(change.stop.from),
-                            from(until),
-                        )
+                        getString(R.string.series_stop_span, from(change.stop.from), from(until))
                 }
             }
             is SeriesChange.Continued ->
                 R.string.happened_series_continued to
-                    stringResource(R.string.history_from, from(change.span.from))
+                    getString(R.string.history_from, from(change.span.from))
             SeriesChange.Deleted -> R.string.happened_series_deleted to ""
             is SeriesChange.Confirmed ->
                 R.string.happened_occurrence_confirmed to
-                    stringResource(R.string.suggestion_due, from(change.due))
+                    getString(R.string.suggestion_due, from(change.due))
             is SeriesChange.LeftOut ->
                 R.string.happened_occurrence_left_out to
-                    stringResource(R.string.suggestion_due, from(change.due))
+                    getString(R.string.suggestion_due, from(change.due))
             is SeriesChange.Edited ->
                 R.string.happened_entry_edited to
                     revised(change.before, change.after, scale, names, locale)
         }
-    return Told(R.drawable.ic_repeat, stringResource(sentence, by, what), detail)
+    return Told(R.drawable.ic_repeat, getString(sentence, by, what), detail)
 }
 
 /** What changed from [before] to [after], or what [after] is where there was nothing before. */
-@Composable
-fun revised(
+fun Resources.revised(
     before: Entry?,
     after: Entry,
     scale: Scale,
@@ -372,8 +364,7 @@ fun summary(entry: Entry, scale: Scale, locale: Locale): String =
     "${formatted(entry.amount, scale, locale)} · ${mediumDate(entry.date, locale)}"
 
 /** What [series] does from [from] on as [after] where it did [before], field by field. */
-@Composable
-private fun amended(
+private fun Resources.amended(
     series: SeriesId,
     from: EntryDate,
     before: Segment,
@@ -386,9 +377,9 @@ private fun amended(
     val repeats =
         if (before.interval == after.interval && before.mode == after.mode) null
         else {
-            stringResource(
+            getString(
                 R.string.history_field_changed,
-                stringResource(R.string.field_repeats),
+                getString(R.string.field_repeats),
                 rule(after, locale),
                 rule(before, locale),
             )
@@ -398,10 +389,9 @@ private fun amended(
 }
 
 /** "Every month on the 1st, suggested". */
-@Composable
-private fun rule(segment: Segment, locale: Locale): String {
+private fun Resources.rule(segment: Segment, locale: Locale): String {
     val mode =
-        stringResource(
+        getString(
             if (segment.mode == Mode.SUGGESTED) R.string.mode_suggested else R.string.mode_automatic
         )
     return "${recurrenceText(segment.interval, locale)}, ${mode.lowercase(locale)}"
@@ -411,34 +401,26 @@ private fun rule(segment: Segment, locale: Locale): String {
  * One line for each field in which [after] differs from [before], the same entry (HI-3): "Amount
  * changed to 15.00 (previous 12.00)".
  */
-@Composable
-fun changes(
+fun Resources.changes(
     before: Entry,
     after: Entry,
     scale: Scale,
     names: Map<MemberId, String>,
     locale: Locale,
 ): List<String> {
-    val resources = LocalResources.current
     val diff = EntryChanges.between(before, after)
     val (payersLabel, beneficiariesLabel) = sideLabels(after.kind)
     val lines = mutableListOf<String>()
     fun field(label: Int, change: Change<*>, old: String, new: String) {
         if (change is Change.To) {
-            lines +=
-                resources.getString(
-                    R.string.history_field_changed,
-                    resources.getString(label),
-                    new,
-                    old,
-                )
+            lines += getString(R.string.history_field_changed, getString(label), new, old)
         }
     }
     field(
         R.string.field_kind,
         diff.kind,
-        resources.getString(kindLabel(before.kind)),
-        resources.getString(kindLabel(after.kind)),
+        getString(kindLabel(before.kind)),
+        getString(kindLabel(after.kind)),
     )
     field(R.string.entry_description, diff.description, before.description, after.description)
     field(
@@ -466,13 +448,12 @@ fun changes(
         sideText(after.beneficiaries, after, scale, names, locale),
     )
     field(R.string.field_note, diff.note, before.note ?: NONE, after.note ?: NONE)
-    if (diff.attachments is Change.To) lines += resources.getString(R.string.history_attachments)
+    if (diff.attachments is Change.To) lines += getString(R.string.history_attachments)
     return lines
 }
 
 /** One line for each of [settings], changed from [before] to [after]. */
-@Composable
-private fun settingChanges(
+private fun Resources.settingChanges(
     settings: Set<Setting>,
     before: Settings,
     after: Settings,
@@ -516,7 +497,7 @@ private fun settingChanges(
                             participants(after.defaultParticipants),
                         )
                 }
-            stringResource(R.string.history_field_changed, stringResource(label), new, old)
+            getString(R.string.history_field_changed, getString(label), new, old)
         }
 }
 

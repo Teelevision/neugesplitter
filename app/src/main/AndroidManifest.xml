@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Plain HTTP is allowed, after a warning, for a backend at home (PR-5). A large heap fits
          scrypt's 256 MiB, which some devices' default heap does not. -->
@@ -19,6 +20,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.Neugesplitter">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

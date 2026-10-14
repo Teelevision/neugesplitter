@@ -270,10 +270,12 @@ are described in [sync-design.md](sync-design.md).
 - **Mark a period as settled, so balances start fresh?** No. A group that has
   run its course can simply be replaced by a new group.
 - **How does a member notice changes made by others?** Unseen changes are
-  highlighted in the app (HI-5 to HI-8) and, later, surfaced as local
-  notifications (SY-10). Unseen means received from another installation after
-  joining, so the user's own changes on a second phone count too, while the
-  history a group brings along when joining does not.
+  highlighted in the app (HI-5 to HI-8) and told as a local notification once a
+  pass in the background has received them (SY-10): once per change, never while
+  the app is on screen, and taken back when it comes on screen. Unseen means
+  received from another installation after joining, so the user's own changes on
+  a second phone count too, while the history a group brings along when joining
+  does not.
 - **Is it recorded which installation acts as which member?** No, and no event
   mentions an installation. The choice made at setup (BE-6) stays on the device,
   and authorship is whatever the app writes into the event (event-model section

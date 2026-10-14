@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -293,7 +294,7 @@ private fun HappeningRow(
 ) {
     val entry = (happening.happened as? Happened.Entry)?.entry
     HistoryRow(
-        told(happening, state.names, state.scale, locale),
+        LocalResources.current.told(happening, state.names, state.scale, locale),
         happening.at,
         locale,
         unseen = unseen,

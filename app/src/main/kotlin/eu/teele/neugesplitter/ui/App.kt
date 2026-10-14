@@ -1,5 +1,7 @@
 package eu.teele.neugesplitter.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.tween
@@ -77,6 +79,7 @@ import eu.teele.neugesplitter.ui.todo.TodoViewModel
 import java.io.IOException
 import java.text.DecimalFormatSymbols
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 
 @Serializable data object GroupList : NavKey
@@ -92,8 +95,11 @@ import kotlinx.serialization.Serializable
 /** @property name the notice's name. */
 @Serializable data class Licence(val name: String) : NavKey
 
-/** @property group the group's id, as hex. */
-@Serializable data class GroupOverview(val group: String) : NavKey
+/**
+ * @property group the group's id, as hex.
+ * @property activity whether it opens on Activity, as a notification about it does (SY-10).
+ */
+@Serializable data class GroupOverview(val group: String, val activity: Boolean = false) : NavKey
 
 /**
  * A new entry, or a change to [entry]; with [duplicate], a new entry copied from it. With [from],
@@ -153,13 +159,24 @@ private const val SLIDE = 250
 private fun opening(graph: AppGraph): Array<NavKey> {
     val last =
         graph.preferences.lastGroup?.takeIf { graph.groups.actingAs(GroupId.parse(it)) != null }
-    return listOfNotNull(GroupList, last?.let(::GroupOverview)).toTypedArray()
+    return listOfNotNull(GroupList, last?.let { GroupOverview(it) }).toTypedArray()
 }
 
-/** Every screen, and how one leads to the next (ui-design 2). */
+/**
+ * Every screen, and how one leads to the next (ui-design 2).
+ *
+ * @param notified the group a tapped notification told about, as hex, to open on Activity.
+ */
 @Composable
-fun App(graph: AppGraph) {
+fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit = {}) {
     val stack = rememberNavBackStack(*remember { opening(graph) })
+    LaunchedEffect(notified) {
+        if (notified == null) return@LaunchedEffect
+        onNotifiedTaken()
+        // A group open on top gives way; anything else, such as an editor, stays underneath.
+        while (stack.size > 1 && stack.last() is GroupOverview) stack.removeAt(stack.lastIndex)
+        stack.add(GroupOverview(notified, activity = true))
+    }
     // Several screens may react to one deletion, so a pop can arrive when only the root is left.
     val pop = { if (stack.size > 1) stack.removeLastOrNull() }
     // An entry deleted from its detail screen, for the overview under it to offer undo for.
@@ -270,7 +287,10 @@ fun App(graph: AppGraph) {
                                 graph.groups,
                                 graph.preferences,
                                 graph.languages,
-                                graph.syncing::forgetAll,
+                                {
+                                    graph.syncing.forgetAll()
+                                    graph.notifications.forgetAll()
+                                },
                             )
                         },
                         version = version,
@@ -351,6 +371,27 @@ fun App(graph: AppGraph) {
                 entry<GroupOverview> { key ->
                     val group = GroupId.parse(key.group)
                     LaunchedEffect(key.group) { graph.preferences.lastGroup = key.group }
+                    val context = LocalContext.current
+                    val permission =
+                        rememberLauncherForActivityResult(
+                            ActivityResultContracts.RequestPermission()
+                        ) {}
+                    val shared by
+                        remember(group) { graph.groups.backends.state(group).map { it != null } }
+                            .collectAsStateWithLifecycle(false)
+                    // Others' changes are told about only once a group is shared (SY-10).
+                    LaunchedEffect(shared) {
+                        val notify = Manifest.permission.POST_NOTIFICATIONS
+                        if (
+                            shared &&
+                                !graph.preferences.askedToNotify &&
+                                context.checkSelfPermission(notify) !=
+                                    PackageManager.PERMISSION_GRANTED
+                        ) {
+                            graph.preferences.askedToNotify = true
+                            permission.launch(notify)
+                        }
+                    }
                     val attention by
                         remember(group) {
                                 combine(
@@ -377,6 +418,7 @@ fun App(graph: AppGraph) {
                             else stack.add(EntryEditor(key.group))
                         },
                         attention = attention,
+                        start = if (key.activity) Destination.ACTIVITY else Destination.OVERVIEW,
                     ) { destination, back, go, modifier ->
                         when (destination) {
                             Destination.OVERVIEW ->
@@ -476,7 +518,10 @@ fun App(graph: AppGraph) {
                                             graph::identifier,
                                             graph::today,
                                             graph::now,
-                                            graph.syncing::forget,
+                                            {
+                                                graph.syncing.forget(it)
+                                                graph.notifications.forget(it)
+                                            },
                                             graph.syncing::interval,
                                             graph.scope,
                                         )

@@ -55,6 +55,11 @@ class Preferences(context: Context) {
         get() = store.getString(LAST_GROUP, null)
         set(value) = store.edit().putString(LAST_GROUP, value).apply()
 
+    /** Whether the app has asked to post notifications, which it does once (SY-10). */
+    var askedToNotify: Boolean
+        get() = store.getBoolean(ASKED_TO_NOTIFY, false)
+        set(value) = store.edit().putBoolean(ASKED_TO_NOTIFY, value).apply()
+
     /** Forgets every setting. */
     fun clear() {
         store.edit().clear().apply()
@@ -64,5 +69,6 @@ class Preferences(context: Context) {
     private companion object {
         const val THEME = "theme"
         const val LAST_GROUP = "last_group"
+        const val ASKED_TO_NOTIFY = "asked_to_notify"
     }
 }

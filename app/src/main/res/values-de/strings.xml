@@ -467,6 +467,14 @@
     <string name="words_english">Englische Wortliste</string>
     <string name="adapted">angepasst</string>
 
+    <!-- Notifications -->
+    <string name="notification_channel">Änderungen von anderen</string>
+    <string name="notification_channel_description">Was andere in einer geteilten Gruppe geändert haben, während die App geschlossen war</string>
+    <plurals name="notification_more">
+        <item quantity="one">+%d weitere</item>
+        <item quantity="other">+%d weitere</item>
+    </plurals>
+
     <!-- Activity -->
     <string name="expand">Ausklappen</string>
     <string name="collapse">Einklappen</string>

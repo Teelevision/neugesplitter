@@ -59,6 +59,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -495,7 +496,7 @@ private fun Repeats(
                 when {
                     recurrence != null ->
                         listOfNotNull(
-                                recurrenceText(recurrence.interval, locale),
+                                LocalResources.current.recurrenceText(recurrence.interval, locale),
                                 stringResource(modeLabel(Mode.SUGGESTED)).takeIf {
                                     recurrence.mode == Mode.SUGGESTED
                                 },

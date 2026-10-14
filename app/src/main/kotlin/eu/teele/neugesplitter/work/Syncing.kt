@@ -65,6 +65,8 @@ class Syncing(
     /** The first wait before a pass that could not reach the backend goes again; it doubles. */
     private val retry: Duration = 30.seconds,
     private val context: CoroutineContext = Dispatchers.IO,
+    /** Told about each group a pass succeeded over, which may have received changes (SY-10). */
+    private val received: suspend (GroupId) -> Unit = {},
 ) {
     private val running = ConcurrentHashMap<GroupId, Runner>()
     private val opened = AtomicBoolean()
@@ -294,6 +296,7 @@ class Syncing(
                     else -> groups.backends.succeeded(id, now())
                 }
                 failures = 0
+                received(id)
             } catch (e: StoreException) {
                 val failure = Failure.of(e)
                 groups.backends.failed(id, failure)

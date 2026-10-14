@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -185,7 +186,12 @@ fun SeriesScreen(
                     done[date]?.forEachIndexed { index, happening ->
                         item(key = "done-$date-$index") {
                             HistoryRow(
-                                told(happening, detail.names, detail.scale, locale),
+                                LocalResources.current.told(
+                                    happening,
+                                    detail.names,
+                                    detail.scale,
+                                    locale,
+                                ),
                                 happening.at,
                                 locale,
                             )
@@ -369,7 +375,7 @@ private fun Header(detail: SeriesDetail, locale: Locale) {
             )
             Text(
                 listOf(
-                        recurrenceText(detail.segment.interval, locale),
+                        LocalResources.current.recurrenceText(detail.segment.interval, locale),
                         stringResource(
                             if (detail.segment.mode == Mode.SUGGESTED) R.string.mode_suggested
                             else R.string.mode_automatic

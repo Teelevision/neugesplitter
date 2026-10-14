@@ -16,6 +16,7 @@ import eu.teele.neugesplitter.storage.settings.Secrets
 import eu.teele.neugesplitter.storage.settings.SecretsDatabase
 import eu.teele.neugesplitter.sync.Keyring
 import eu.teele.neugesplitter.sync.LogStore
+import eu.teele.neugesplitter.work.Notifications
 import eu.teele.neugesplitter.work.Syncing
 import eu.teele.neugesplitter.work.WorkPolls
 import java.security.SecureRandom
@@ -40,6 +41,11 @@ class AppGraph(context: Context) {
     private val codec = KageCodec()
 
     val keyring = Keyring(codec)
+
+    /** Whether the app is on screen, as [MainActivity] sets it. */
+    @Volatile var shown = false
+
+    val notifications = Notifications(context, groups) { shown }
 
     /** The backend at a location, given its secret key. */
     val stores: (BackendSettings, String) -> LogStore = { at, secretKey ->
@@ -70,6 +76,7 @@ class AppGraph(context: Context) {
             now = ::now,
             stores = stores,
             polls = WorkPolls(context),
+            received = notifications::received,
         )
 
     private val random = SecureRandom()
@@ -92,6 +99,7 @@ class Neugesplitter : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        graph.notifications.channel()
         graph.syncing.start()
     }
 }

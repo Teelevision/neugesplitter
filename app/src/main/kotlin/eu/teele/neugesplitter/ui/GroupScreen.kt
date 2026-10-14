@@ -57,6 +57,7 @@ enum class Destination(@param:DrawableRes val icon: Int, @param:StringRes val la
  * @param onNew the centre action, on the destination shown.
  * @param attention whether Activity holds something to look at: unseen changes, a halted sync or
  *   suggestions waiting (ui-design 4, RE-10).
+ * @param start the destination shown first.
  * @param content the destination, given what its back arrow does and how to switch to another; it
  *   must apply the modifier it is given.
  */
@@ -65,9 +66,10 @@ fun GroupScreen(
     onBack: () -> Unit,
     onNew: (Destination) -> Unit,
     attention: Boolean,
+    start: Destination = Destination.OVERVIEW,
     content: @Composable (Destination, () -> Unit, (Destination) -> Unit, Modifier) -> Unit,
 ) {
-    var destination by rememberSaveable { mutableStateOf(Destination.OVERVIEW) }
+    var destination by rememberSaveable { mutableStateOf(start) }
     BackHandler(destination != Destination.OVERVIEW) { destination = Destination.OVERVIEW }
     val back = {
         if (destination == Destination.OVERVIEW) {
