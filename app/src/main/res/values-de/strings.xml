@@ -156,6 +156,7 @@
     <string name="series_stop_title">Diese Serie beenden</string>
     <string name="series_continue_title">Diese Serie fortsetzen</string>
     <string name="series_from">Ab</string>
+    <string name="series_continue_from">Weiter ab</string>
     <string name="series_continues_on">Geht weiter am</string>
     <plurals name="series_removes">
         <item quantity="one">%d Eintrag, den sie schon hinzugefügt hat, wird entfernt. Bestätigte und bearbeitete bleiben.</item>

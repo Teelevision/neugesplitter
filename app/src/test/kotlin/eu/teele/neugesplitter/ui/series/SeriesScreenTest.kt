@@ -166,6 +166,13 @@ class SeriesScreenTest {
     }
 
     @Test
+    fun `a series shows what it produces next, a change made ahead included (RE-6, RE-9)`() {
+        val raised = monthly.copy(template = monthly.template.copy(description = "Rent, raised"))
+        show(Event.SeriesAmended(eventId(), anna.id, at, rent, date("2026-11-01"), raised))
+        compose.onNodeWithText("Rent, raised").assertExists()
+    }
+
+    @Test
     fun `a suggestion nobody decided yet is listed as waiting (RE-4, RE-9)`() {
         val suggested = monthly.copy(mode = Mode.SUGGESTED)
         show(
@@ -208,16 +215,17 @@ class SeriesScreenTest {
     }
 
     @Test
-    fun `a series stopped in the past continues from today and skips what fell due meanwhile (RE-7)`() {
+    fun `a series stopped in the past continues from its next due date and skips what fell due meanwhile (RE-7)`() {
         show(Event.SeriesStopped(eventId(), anna.id, at, rent, date("2026-09-15")))
         compose.onNodeWithText("Stopped since Tuesday, September 15, 2026").assertExists()
         compose.onNodeWithText("Pause").assertDoesNotExist()
         assertEquals(3, compose.onAllNodesWithText("Rent").fetchSemanticsNodes().size)
 
         compose.onNodeWithText("Continue").performClick()
-        inDialog("Wednesday, October 7, 2026").assertExists()
+        inDialog("Continue from").assertExists()
+        inDialog("Sunday, November 1, 2026").assertExists()
         inDialog("Continue").performClick()
-        awaitText("Running")
+        awaitText("Paused, continues on Sunday, November 1, 2026")
         val dues = series().occurrences(date("2026-11-01")).map { it.due.toString() }
         assertEquals(listOf("2026-08-01", "2026-09-01", "2026-11-01"), dues)
     }

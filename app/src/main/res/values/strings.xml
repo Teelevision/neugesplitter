@@ -158,6 +158,7 @@
     <string name="series_stop_title">Stop this series</string>
     <string name="series_continue_title">Continue this series</string>
     <string name="series_from">From</string>
+    <string name="series_continue_from">Continue from</string>
     <string name="series_continues_on">Continues on</string>
     <plurals name="series_removes">
         <item quantity="one">%d entry it already added is removed. Confirmed and edited ones stay.</item>

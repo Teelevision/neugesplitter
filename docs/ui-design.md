@@ -371,8 +371,9 @@ and deleting it deletes only that occurrence (RE-15).
 
 ### Recurring series
 
-What the series produces as it stands today, or on its first day while that is
-ahead: description, who pays, the amount, the rule read back with automatic or
+What the series produces on its next due date, or else as it stands today or on
+its first day while that is ahead, so that a change made ahead shows at once:
+description, who pays, the amount, the rule read back with automatic or
 suggested, and whether it runs, starts later, is paused until a date, pauses or
 stops ahead, or stopped (RE-7, RE-9). Below that its actions:
 
@@ -382,8 +383,9 @@ stops ahead, or stopped (RE-7, RE-9). Below that its actions:
   (RE-6). It says when it is next due and what it does to the entries already in
   the balances.
 - **Continue**, while a pause or stop is in force or ahead, goes on from a date
-  within it, by default today or its first day. What fell due before that date
-  is not made up; a pause still ends when it would have.
+  within it, by default the next due date from today or its first day on, so
+  that the date it offers is the one the series comes back with. What fell due
+  before that date is not made up; a pause still ends when it would have.
 - **Pause** takes a first day and a day it continues, by default today and the
   day after the next occurrence, so that it skips one.
 - **Stop** takes a first day, by default today and at the earliest the day after

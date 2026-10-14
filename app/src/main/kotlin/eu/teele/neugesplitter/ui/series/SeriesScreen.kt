@@ -485,7 +485,7 @@ private fun PauseDialog(
     )
 }
 
-/** Has it go on from a date within [stop], by default today or the stop's first day (RE-7). */
+/** Has it go on from a date within [stop], by default the next due date (RE-7). */
 @Composable
 private fun ContinueDialog(
     detail: SeriesDetail,
@@ -494,14 +494,14 @@ private fun ContinueDialog(
     onDismiss: () -> Unit,
     onContinue: (EntryDate) -> Unit,
 ) {
-    var from by rememberSaveable { mutableStateOf(maxOf(detail.today, stop.from).toString()) }
+    var from by rememberSaveable { mutableStateOf(detail.continueFrom(stop).toString()) }
     val date = EntryDate.parse(from)
     val until = stop.until
     DatesDialog(
         title = R.string.series_continue_title,
         fields =
             listOf(
-                DateField(R.string.series_from, date, { from = it.toString() }) {
+                DateField(R.string.series_continue_from, date, { from = it.toString() }) {
                     it >= stop.from && (until == null || it < until)
                 }
             ),

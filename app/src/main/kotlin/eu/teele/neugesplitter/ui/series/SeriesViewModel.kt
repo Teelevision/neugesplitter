@@ -32,7 +32,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * @property segment what the series does today, or on its first day while that is ahead.
+ * @property segment what the series does on its next due date, or else today or on its first day
+ *   while that is ahead.
  * @property entries its occurrences in the entry list, newest first.
  * @property history what was done to it and its occurrences, newest first (HI-2).
  * @property names every member of the group by name, removed ones too.
@@ -98,6 +99,16 @@ data class SeriesDetail(
 
     /** A pause from [from] offers to skip one occurrence: it continues the day after the next. */
     fun pauseUntil(from: EntryDate): EntryDate = (series.nextDue(from) ?: from).plusDays(1)
+
+    /**
+     * Continuing [stop] offers the next due date from today or its first day on, within it; else
+     * that day itself.
+     */
+    fun continueFrom(stop: Stop): EntryDate {
+        val from = maxOf(today, stop.from)
+        val until = stop.until
+        return series.nextDue(from)?.takeIf { until == null || it < until } ?: from
+    }
 
     /**
      * What [revised] would do to the entries in the balances today; those somebody confirmed or
@@ -174,7 +185,7 @@ class SeriesViewModel(
     private fun Group.detail(listed: List<ListedEntry>, events: List<Event>): SeriesDetail? {
         val found = series[this@SeriesViewModel.series]?.takeUnless { it.deleted } ?: return null
         val today = today()
-        val segment = found.current(today)
+        val segment = found.upcoming(today.plusDays(1))?.let(found::segment) ?: found.current(today)
         val ids = found.occurrences(today).filterNot { it.pending }.map { it.entry.id }.toSet()
         return SeriesDetail(
             today = today,
