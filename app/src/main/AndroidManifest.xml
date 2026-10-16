@@ -27,6 +27,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Offered in other apps' text selection toolbar, for an amount selected there (AM-9). -->
+        <activity
+            android:name=".AddFromTextActivity"
+            android:exported="true"
+            android:label="@string/process_text"
+            android:theme="@style/Theme.Neugesplitter">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>

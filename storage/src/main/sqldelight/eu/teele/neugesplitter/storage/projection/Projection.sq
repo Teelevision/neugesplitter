@@ -174,6 +174,7 @@ SELECT
     mp.part AS paid,
     mb.part AS owed,
     m.name AS payer,
+    p.member AS payer_id,
     EXISTS (SELECT 1 FROM unseen u WHERE u.group_id = e.group_id AND u.entry = e.id) AS unseen
 FROM entry e
 JOIN side p ON p.group_id = e.group_id AND p.entry = e.id AND p.role = 'payers'
@@ -187,6 +188,19 @@ LEFT JOIN side mb ON mb.group_id = e.group_id AND mb.entry = e.id
     AND mb.role = 'beneficiaries' AND mb.member = a.member
 WHERE e.group_id = ? AND e.deleted = 0 AND coalesce(o.pending, 0) = 0
 ORDER BY e.date DESC, e.position DESC, e.id DESC, p.position;
+
+-- Who each of a group's entries is for, for the overview's filter (EN-12).
+beneficiaries:
+SELECT entry, member
+FROM side
+WHERE group_id = ? AND role = 'beneficiaries';
+
+-- Everyone a group's entries can name, removed members too, for the overview's filter (EN-12).
+members:
+SELECT id, name
+FROM member
+WHERE group_id = ?
+ORDER BY name;
 
 -- How many of a group's occurrences are offered and wait for someone to confirm them (RE-10).
 pending:

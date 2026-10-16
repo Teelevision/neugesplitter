@@ -1,5 +1,7 @@
 package eu.teele.neugesplitter.ui.overview
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -7,6 +9,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
@@ -170,6 +174,17 @@ class OverviewScreenTest {
 
     private fun stored() = groups.load(trip)!!.entries.keys
 
+    /** Taps the scrim at the top, which no sheet reaches. */
+    private fun closeSheet() {
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Close sheet").performTouchInput {
+            click(Offset(width / 2f, 10f))
+        }
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Description contains").fetchSemanticsNodes().isEmpty()
+        }
+    }
+
     private fun share() {
         groups.backends.connect(
             trip,
@@ -277,6 +292,43 @@ class OverviewScreenTest {
         show()
         compose.onNodeWithContentDescription("To-dos").performClick()
         assertEquals(1, todos)
+    }
+
+    @Test
+    fun `entries are searched and filtered from the top bar, and the filter cleared again (EN-12)`() {
+        show()
+        compose.onNodeWithContentDescription("Search and filter").performClick()
+        compose.onNodeWithText("Description contains").performTextInput("TAX")
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Dinner").fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithText("Taxi").assertExists()
+        compose.onNodeWithText("Description contains").performTextClearance()
+        compose.onAllNodesWithText("Anna")[0].performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Taxi").fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithText("Dinner").assertExists()
+        closeSheet()
+        compose.onNodeWithText("1 entry matches").assertExists()
+        // The total is the group's, whatever is listed.
+        compose.onNodeWithText("42.00").assertExists()
+    }
+
+    @Test
+    fun `a filter that matches nothing says so, and the line under the header clears it (EN-12)`() {
+        show()
+        compose.onNodeWithContentDescription("Search and filter").performClick()
+        compose.onNodeWithText("Description contains").performTextInput("Hotel")
+        closeSheet()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("No entries match").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("0 entries match").assertExists()
+        compose.onNodeWithText("Clear").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Dinner").fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     @Test

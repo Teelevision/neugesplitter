@@ -3,6 +3,21 @@
     <string name="group_list_empty">Eine Gruppe bleibt lokal oder wird geteilt.</string>
     <string name="new_group">Neue Gruppe</string>
     <string name="group_no_entries">Noch keine Einträge</string>
+    <string name="filter">Suchen und filtern</string>
+    <string name="filter_text">Beschreibung enthält</string>
+    <string name="filter_least">Betrag ab</string>
+    <string name="filter_most">Betrag bis</string>
+    <string name="filter_unreadable">Kein Betrag</string>
+    <string name="filter_from">Ab %1$s</string>
+    <string name="filter_from_any">Ab Datum</string>
+    <string name="filter_until">Bis %1$s</string>
+    <string name="filter_until_any">Bis Datum</string>
+    <string name="filter_clear">Zurücksetzen</string>
+    <string name="filter_none">Keine passenden Einträge</string>
+    <plurals name="filter_matches">
+        <item quantity="one">%1$d Eintrag passt</item>
+        <item quantity="other">%1$d Einträge passen</item>
+    </plurals>
     <string name="group_settled">Ausgeglichen</string>
     <string name="group_owed">Du bekommst %1$s</string>
     <string name="group_owe">Du schuldest %1$s</string>
@@ -217,6 +232,12 @@
     <string name="calculator_divide">Geteilt durch</string>
     <string name="calculator_division_by_zero">Division durch null nicht möglich</string>
     <string name="calculator_too_large">Zu groß</string>
+    <string name="calculator_paste">Einfügen</string>
+    <string name="calculator_paste_nothing">Kein Betrag in der Zwischenablage</string>
+    <string name="process_text">In Neugesplitter eintragen</string>
+    <string name="process_text_nothing">Kein Betrag im markierten Text</string>
+    <string name="process_text_no_group">Leg zuerst eine Gruppe an</string>
+    <string name="process_text_pick">In welche Gruppe?</string>
 
     <!-- Split editor -->
     <string name="scheme_equal">Gleich</string>

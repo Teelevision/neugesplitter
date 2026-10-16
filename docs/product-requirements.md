@@ -212,8 +212,10 @@ of everyone entering the same backend settings.
 - **EN-11** (Later): A user MUST be able to attach a note and one or more images
   (e.g. a receipt photo) to an entry. Attachments are stored on the group's
   backend alongside its entries.
-- **EN-12** (Later): The entry list MUST be searchable and filterable (by
-  member, category, date range, type).
+- **EN-12** (Core): The entry list MUST be searchable and filterable: by a part
+  of the description, an amount range, the type, payers, beneficiaries and a
+  date range, each optional and each range open at either end. It matches single
+  occurrences, not whole series. Filtering by category comes with EN-10.
 
 ### 4.5 History
 
@@ -294,6 +296,12 @@ of everyone entering the same backend settings.
   the result is committed.
 - **AM-8** (Later): The user MAY choose the number of decimal places when
   creating a group. It MUST NOT be changeable afterwards.
+- **AM-9** (Core): An amount copied from elsewhere — "100€", "1,99", "1.99",
+  "USD 1,234" — MUST be pasteable into the calculator, and a number selected in
+  another app MUST be able to start a new entry from that app's text selection
+  toolbar, in a group the user picks if there are several. A currency and digit
+  grouping are left out. Where a lone `.` or `,` could group digits or separate
+  decimals, the group's decimal places decide; otherwise it separates decimals.
 
 ### 4.8 Recurring Entries
 

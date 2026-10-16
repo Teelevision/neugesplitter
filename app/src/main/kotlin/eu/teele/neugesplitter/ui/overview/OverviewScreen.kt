@@ -39,6 +39,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,7 +80,7 @@ private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
 
 /**
  * A group's total spending, the suggestions waiting, how its sync stands in brief, and its entries,
- * newest first (ui-design 4).
+ * newest first (ui-design 4), narrowed by a filter if the user sets one (EN-12).
  *
  * @param onActivity opens the group's activity, where its sync stands in full and its suggestions
  *   are decided.
@@ -107,6 +108,7 @@ fun OverviewScreen(
     val overview = state.overview
     val snackbar = remember { SnackbarHostState() }
     var menu by remember { mutableStateOf<ListedEntry?>(null) }
+    var filtering by rememberSaveable { mutableStateOf(false) }
     val deleted = stringResource(R.string.entry_deleted)
     val undo = stringResource(R.string.undo)
 
@@ -151,6 +153,12 @@ fun OverviewScreen(
                 },
                 actions = {
                     if (overview != null) {
+                        IconButton(onClick = { filtering = true }) {
+                            Icon(
+                                painterResource(R.drawable.ic_search),
+                                stringResource(R.string.filter),
+                            )
+                        }
                         IconButton(onClick = onTodos) {
                             Icon(
                                 painterResource(R.drawable.ic_checklist),
@@ -173,9 +181,22 @@ fun OverviewScreen(
                 onSyncProblem = onSyncProblem,
                 onActivity = onActivity,
                 onBalances = onBalances,
+                onFilter = { filtering = true },
+                onClearFilter = { viewModel.filter(EntryFilter()) },
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         }
+    }
+
+    if (filtering && overview != null) {
+        FilterSheet(
+            state.filter,
+            overview.members,
+            overview.scale,
+            viewModel.today(),
+            onChange = viewModel::filter,
+            onDismiss = { filtering = false },
+        )
     }
 
     menu?.let { entry ->
@@ -231,13 +252,18 @@ private fun Entries(
     onSyncProblem: () -> Unit,
     onActivity: () -> Unit,
     onBalances: () -> Unit,
+    onFilter: () -> Unit,
+    onClearFilter: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val locale = LocalConfiguration.current.locales[0]
-    val days = overview.entries.groupBy { it.date }
+    val days = state.listed.groupBy { it.date }
     val sync = state.sync
     LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 16.dp)) {
         item(key = "header") { Header(overview, locale, onBalances) }
+        if (state.filter.active) {
+            item(key = "filter") { FilterLine(state.listed.size, onFilter, onClearFilter) }
+        }
         if (state.suggestions > 0) {
             item(key = "suggestions") {
                 SuggestionsBanner(
@@ -260,7 +286,9 @@ private fun Entries(
         if (days.isEmpty()) {
             item(key = "empty") {
                 Text(
-                    stringResource(R.string.group_no_entries),
+                    stringResource(
+                        if (state.filter.active) R.string.filter_none else R.string.group_no_entries
+                    ),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -336,6 +364,35 @@ private fun Header(overview: Overview, locale: Locale, onBalances: () -> Unit) {
                 color = content,
             )
         }
+    }
+}
+
+/** That the entries are narrowed, and to how many (EN-12); tapping it changes the filter. */
+@Composable
+private fun FilterLine(count: Int, onFilter: () -> Unit, onClear: () -> Unit) {
+    val colours = MaterialTheme.colorScheme
+    Row(
+        Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(colours.secondaryContainer)
+            .clickable(onClick = onFilter)
+            .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painterResource(R.drawable.ic_search),
+            contentDescription = null,
+            tint = colours.onSecondaryContainer,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(
+            pluralStringResource(R.plurals.filter_matches, count, count),
+            style = MaterialTheme.typography.bodyLarge,
+            color = colours.onSecondaryContainer,
+            modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+        )
+        TextButton(onClick = onClear) { Text(stringResource(R.string.filter_clear)) }
     }
 }
 

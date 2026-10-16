@@ -391,12 +391,14 @@ class GroupRepositoryTest {
         groups.actAs(GROUP, ANNA)
         val group = Group.replay(household)
         val groceries = group.entries.getValue(entryId(1))
+        val income = group.entries.getValue(entryId(2))
 
         val overview = assertNotNull(runBlocking { groups.overview(GROUP, { TODAY }).first() })
 
         assertEquals("WG", overview.name)
         assertEquals(Colour.parse("#3366cc"), overview.colour)
         assertEquals(group.settlement(TODAY).getValue(ANNA), overview.own)
+        assertEquals(group.members.values.associate { it.id to it.name }, overview.members)
         assertEquals(
             listOf(
                 ListedEntry(
@@ -411,6 +413,8 @@ class GroupRepositoryTest {
                     repeats = false,
                     edited = false,
                     unseen = false,
+                    payerIds = income.payers.members.toSet(),
+                    beneficiaryIds = income.beneficiaries.members.toSet(),
                 ),
                 ListedEntry(
                     entryId(1),
@@ -423,6 +427,8 @@ class GroupRepositoryTest {
                     repeats = false,
                     edited = true,
                     unseen = false,
+                    payerIds = groceries.payers.members.toSet(),
+                    beneficiaryIds = groceries.beneficiaries.members.toSet(),
                 ),
             ),
             overview.entries.take(2),

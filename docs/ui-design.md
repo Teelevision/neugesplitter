@@ -58,6 +58,7 @@ screen or opened as a bottom sheet, and the bar is hidden while it is up.
 | To-dos              | destination | overview top bar, Activity               |
 | Entry editor        | pushed      | centre FAB, editing an entry             |
 | Amount calculator   | full sheet  | tapping the amount field                 |
+| Group picker        | pushed      | another app's text selection toolbar     |
 | Split editor        | sheet       | tapping a side in the entry editor       |
 | Entry detail        | pushed      | tapping an entry                         |
 | Entry history       | pushed      | entry detail                             |
@@ -186,6 +187,14 @@ Interactions:
   leaves no trace in the history (HI-1).
 - Swipe right is unassigned on purpose. One swipe means one thing.
 - Empty state: "No entries yet" and an arrow toward the centre FAB.
+
+The search icon in the top bar opens a filter sheet (EN-12): a part of the
+description, an amount from and up to, the kind, members who all paid, members
+it was all for, and a date from and until, each optional. The list narrows as
+they are chosen, occurrence by occurrence rather than by series; the header
+still shows the whole group. While a filter is set, a line under the header says
+how many entries match, opens the sheet again, and clears it. Nothing matching
+says so in place of the list.
 
 ### People and balances
 
@@ -377,6 +386,17 @@ leaves out an operator still waiting for its number, rounds to the group's two
 places and writes the number into the entry; the calculation itself is not kept
 (AM-5, AM-6, AM-7).
 
+Holding the large number offers the system's paste. Text copied elsewhere is
+read for the one amount in it (AM-9): a pasted amount stands as the result, or
+is the number a waiting operator takes; text with no amount, or several, says so
+under the number.
+
+Other apps' text selection toolbars offer **Add to Neugesplitter** for a
+selected amount (AM-9). With one group, the entry editor opens on it at once;
+with several, a list of them asks which first. The calculator opens on the
+amount, for the user to confirm, and saving or leaving returns to the app the
+text came from.
+
 ### Split editor
 
 A sheet for one side, opened by tapping that side's scheme. Four choices as
@@ -524,6 +544,7 @@ on this screen happens automatically.
 | Long press      | member row         | inline rename                                   |
 | Tap             | group row          | open group                                      |
 | Long press      | group row          | selection: archive, delete                      |
+| Long press      | calculator number  | paste an amount                                 |
 | Pull to refresh | Overview, Activity | manual sync (SY-9)                              |
 
 Destructive actions are either undoable by snackbar or confirmed by dialogue,
@@ -671,8 +692,7 @@ destination labels are always shown and never reduced to icons (UX-6).
 
 ## 10. Not in the first version
 
-Search and filtering (EN-12), categories (EN-10), attachments (EN-11), charts
-and per-member statistics (BA-8), and export (DA-2) are all later, and none of
-them gets a placeholder in the navigation. There is no onboarding carousel, no
-avatar or photo anywhere — there are no profiles to put one on (ID-2) — and no
-empty dashboard.
+Categories (EN-10), attachments (EN-11), charts and per-member statistics
+(BA-8), and export (DA-2) are all later, and none of them gets a placeholder in
+the navigation. There is no onboarding carousel, no avatar or photo anywhere —
+there are no profiles to put one on (ID-2) — and no empty dashboard.

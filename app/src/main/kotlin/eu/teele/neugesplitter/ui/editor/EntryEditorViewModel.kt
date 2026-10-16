@@ -64,7 +64,7 @@ enum class Party {
  *   removed ones still on the entry.
  * @property source the entry being edited or duplicated. A side that comes out the same as there
  *   stays as it was saved.
- * @property blank a new entry with nothing prefilled.
+ * @property blank a new entry with nothing prefilled but an amount, which the calculator opens on.
  * @property recurrence how the entry repeats, if it does (RE-1).
  * @property occurrence whether the entry being edited came from a series (RE-15).
  * @property was how that series repeated on the occurrence's due date.
@@ -187,7 +187,8 @@ data class EntryEditorState(
 /**
  * Writes a new entry, or a change to [entry] — or, with [duplicate], a new entry starting out as a
  * copy of it, dated today (EN-1 to EN-9). A new entry starts out as [settling], described as
- * [settlement], when one is given (BA-6).
+ * [settlement], when one is given (BA-6), or else with the amount [prefilled], as selected in
+ * another app (AM-9).
  *
  * A recurring entry is a series whose first occurrence is the entry itself (RE-1). An [entry] that
  * came from a series is changed as that occurrence, and the series with it from there on if the
@@ -207,6 +208,7 @@ class EntryEditorViewModel(
     private val today: () -> EntryDate,
     private val now: () -> Instant,
     private val changing: SeriesId? = null,
+    private val prefilled: Amount? = null,
 ) : ViewModel() {
 
     private val mutable = MutableStateFlow(EntryEditorState(date = today()))
@@ -262,7 +264,10 @@ class EntryEditorViewModel(
                         beneficiaries = defaults,
                     )
                 if (source == null) {
-                    if (settling == null) base
+                    if (settling == null)
+                        base.copy(
+                            amount = prefilled?.roundedTo(loaded.scale)?.takeIf { it.isPositive }
+                        )
                     else
                         base.copy(
                             kind = Kind.TRANSFER,

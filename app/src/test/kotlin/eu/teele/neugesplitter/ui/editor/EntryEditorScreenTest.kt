@@ -106,6 +106,7 @@ class EntryEditorScreenTest {
         confirmed: String? = null,
         tenth: Boolean = false,
         changing: SeriesId? = null,
+        prefilled: Amount? = null,
     ) {
         groups.create(
             Group.create(trip, "Trip", null, "⛺", null, listOf(anna, ben, clara), at, ::eventId),
@@ -172,6 +173,7 @@ class EntryEditorScreenTest {
                 { today },
                 { at },
                 changing,
+                prefilled,
             )
         compose.setContent { NeugesplitterTheme { EntryEditorScreen(viewModel) { closed++ } } }
         compose.waitUntil(5_000) {
@@ -285,6 +287,19 @@ class EntryEditorScreenTest {
         assertEquals(Side.Equal(listOf(ben.id)), entry.payers)
         assertEquals(Side.Equal(listOf(anna.id, ben.id)), entry.beneficiaries)
         assertEquals(1, closed)
+    }
+
+    @Test
+    fun `an amount selected elsewhere opens the calculator on it, rounded to the group (AM-9)`() {
+        show(prefilled = Amount.ofUnits(1_234_500_000L))
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithContentDescription("OK").fetchSemanticsNodes().isNotEmpty()
+        }
+        // In the field, and standing in the calculator over it.
+        compose.onAllNodesWithText("12.35").assertCountEquals(2)
+        enterAmount("")
+        compose.onNodeWithText("12.35").assertExists()
+        compose.onNodeWithText("New entry").assertExists()
     }
 
     @Test

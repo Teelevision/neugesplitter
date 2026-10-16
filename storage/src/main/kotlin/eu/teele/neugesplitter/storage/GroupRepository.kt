@@ -188,6 +188,7 @@ class GroupRepository(private val driver: SqlDriver) {
                 paid,
                 owed,
                 payer,
+                payerId,
                 unseen ->
                 val type = Kind.valueOf(kind.uppercase())
                 ListedEntry(
@@ -197,6 +198,7 @@ class GroupRepository(private val driver: SqlDriver) {
                     date = EntryDate.parse(date),
                     amount = Amount.ofUnits(amount),
                     payers = listOf(payer),
+                    payerIds = setOf(MemberId.parse(payerId)),
                     own =
                         if (paid == null && owed == null) null
                         else {
@@ -213,6 +215,11 @@ class GroupRepository(private val driver: SqlDriver) {
             .map {
                 database.transactionWithResult {
                     heading.executeAsOneOrNull()?.let {
+                        val beneficiaries =
+                            queries
+                                .beneficiaries(id.hex)
+                                .executeAsList()
+                                .groupBy({ EntryId.parse(it.entry) }, { MemberId.parse(it.member) })
                         Overview(
                             name = it.name,
                             emoji = it.emoji,
@@ -225,8 +232,20 @@ class GroupRepository(private val driver: SqlDriver) {
                                     .groupBy { it.id }
                                     .values
                                     .map { rows ->
-                                        rows.first().copy(payers = rows.map { it.payers.single() })
+                                        rows
+                                            .first()
+                                            .copy(
+                                                payers = rows.map { it.payers.single() },
+                                                payerIds =
+                                                    rows.flatMapTo(mutableSetOf()) { it.payerIds },
+                                                beneficiaryIds =
+                                                    beneficiaries[rows.first().id].orEmpty().toSet(),
+                                            )
                                     },
+                            members =
+                                queries.members(id.hex).executeAsList().associate {
+                                    MemberId.parse(it.id) to it.name
+                                },
                         )
                     }
                 }

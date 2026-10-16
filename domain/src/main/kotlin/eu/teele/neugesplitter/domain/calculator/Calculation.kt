@@ -102,6 +102,16 @@ data class Calculation(
 
     fun clear(): Calculation = Calculation(scale)
 
+    /**
+     * [amount] pasted in, rounded to [scale] (AM-9): the number a waiting operator takes, or else a
+     * result standing alone, as [start] makes it.
+     */
+    fun pasted(amount: Amount): Calculation {
+        if (operator == null) return start(scale, amount)
+        val text = text(amount)
+        return if (fits(text)) copy(typed = text) else this
+    }
+
     /** A digit or point after a result with no operator starts a new calculation. */
     private fun fresh(): Calculation = if (result != null && operator == null) clear() else this
 

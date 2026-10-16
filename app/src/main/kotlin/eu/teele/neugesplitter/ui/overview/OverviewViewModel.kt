@@ -9,6 +9,7 @@ import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.storage.ListedEntry
 import eu.teele.neugesplitter.storage.Overview
 import eu.teele.neugesplitter.storage.settings.SyncState
 import java.time.Instant
@@ -37,6 +38,8 @@ import kotlinx.coroutines.launch
  *   device.
  * @property suggestions how many suggested occurrences wait for someone (RE-10).
  * @property now when this state was read, which relative times count back from.
+ * @property filter what the entries are narrowed to (EN-12).
+ * @property listed the entries that match [filter], which the overview lists.
  */
 data class OverviewState(
     val loaded: Boolean = false,
@@ -45,6 +48,8 @@ data class OverviewState(
     val sync: SyncState? = null,
     val suggestions: Int = 0,
     val now: Instant = Instant.EPOCH,
+    val filter: EntryFilter = EntryFilter(),
+    val listed: List<ListedEntry> = emptyList(),
 )
 
 /**
@@ -55,12 +60,13 @@ class OverviewViewModel(
     private val repository: GroupRepository,
     private val group: GroupId,
     private val identifier: () -> String,
-    private val today: () -> EntryDate,
+    val today: () -> EntryDate,
     private val now: () -> Instant,
     private val scope: CoroutineScope,
 ) : ViewModel() {
 
     private val deleting = MutableStateFlow<EntryId?>(null)
+    private val filter = MutableStateFlow(EntryFilter())
 
     /** The settled balance (BA-7) as it would be without the entry offered for undo. */
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -101,7 +107,19 @@ class OverviewViewModel(
                     now = now(),
                 )
             }
+            .combine(filter) { state, filter ->
+                val overview = state.overview
+                state.copy(
+                    filter = filter,
+                    listed = overview?.let { filter.matching(it.entries, it.scale) }.orEmpty(),
+                )
+            }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), OverviewState())
+
+    /** Narrows the entries listed to those [filter] matches (EN-12). */
+    fun filter(filter: EntryFilter) {
+        this.filter.value = filter
+    }
 
     /** Hides [entry] and offers to undo; the one offered before is deleted for good (HI-1). */
     fun delete(entry: EntryId) {

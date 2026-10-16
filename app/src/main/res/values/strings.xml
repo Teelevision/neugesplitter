@@ -5,6 +5,21 @@
     <string name="group_list_empty">A group stays on this device or is shared.</string>
     <string name="new_group">New group</string>
     <string name="group_no_entries">No entries yet</string>
+    <string name="filter">Search and filter</string>
+    <string name="filter_text">Description contains</string>
+    <string name="filter_least">Amount from</string>
+    <string name="filter_most">Amount up to</string>
+    <string name="filter_unreadable">Not an amount</string>
+    <string name="filter_from">From %1$s</string>
+    <string name="filter_from_any">From date</string>
+    <string name="filter_until">Until %1$s</string>
+    <string name="filter_until_any">Until date</string>
+    <string name="filter_clear">Clear</string>
+    <string name="filter_none">No entries match</string>
+    <plurals name="filter_matches">
+        <item quantity="one">%1$d entry matches</item>
+        <item quantity="other">%1$d entries match</item>
+    </plurals>
     <string name="group_settled">All settled</string>
     <string name="group_owed">You are owed %1$s</string>
     <string name="group_owe">You owe %1$s</string>
@@ -219,6 +234,12 @@
     <string name="calculator_divide">Divided by</string>
     <string name="calculator_division_by_zero">Cannot divide by zero</string>
     <string name="calculator_too_large">Too large</string>
+    <string name="calculator_paste">Paste</string>
+    <string name="calculator_paste_nothing">No amount on the clipboard</string>
+    <string name="process_text">Add to Neugesplitter</string>
+    <string name="process_text_nothing">No amount in the selected text</string>
+    <string name="process_text_no_group">Create a group first</string>
+    <string name="process_text_pick">Add to which group?</string>
 
     <!-- Split editor -->
     <string name="scheme_equal">Equal</string>

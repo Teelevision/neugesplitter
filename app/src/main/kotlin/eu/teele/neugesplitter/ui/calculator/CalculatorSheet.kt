@@ -1,6 +1,7 @@
 package eu.teele.neugesplitter.ui.calculator
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -21,16 +22,27 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -43,18 +55,20 @@ import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.calculator.Calculation
 import eu.teele.neugesplitter.domain.calculator.Fault
 import eu.teele.neugesplitter.domain.calculator.Operator
+import eu.teele.neugesplitter.domain.calculator.amountIn
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.Scale
 import java.math.BigDecimal
 import java.text.DecimalFormatSymbols
 import java.text.NumberFormat
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 /**
  * The amount calculator, in place of the keyboard (AM-2 to AM-7, ui-design 5). It starts from
  * [start], and confirming hands [onConfirm] the result rounded to [scale] if [accepts] takes it;
  * the calculation itself is not kept (AM-5). With [onBlank], an empty calculation confirms as
- * nothing.
+ * nothing. An amount copied elsewhere can be pasted in (AM-9).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,6 +85,7 @@ fun CalculatorSheet(
         rememberSaveable(stateSaver = saver(scale)) {
             mutableStateOf(Calculation.start(scale, start))
         }
+    var unpasted by remember { mutableStateOf(false) }
     val value = calculation.value?.takeIf(accepts)
     val blank = calculation.result == null && calculation.typed.isEmpty()
     ModalBottomSheet(
@@ -81,11 +96,18 @@ fun CalculatorSheet(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(GAP),
         ) {
-            Display(calculation, locale)
+            Display(calculation, locale, unpasted) { text ->
+                val amount = amountIn(text, scale)
+                unpasted = amount == null
+                if (amount != null) calculation = calculation.pasted(amount)
+            }
             Keypad(
                 calculation,
                 locale,
-                onChange = { calculation = it },
+                onChange = {
+                    unpasted = false
+                    calculation = it
+                },
                 onConfirm =
                     when {
                         value != null -> {
@@ -99,12 +121,42 @@ fun CalculatorSheet(
     }
 }
 
-/** The result so far with its operator (AM-3), the number being typed, and any fault (AM-6). */
+/**
+ * The result so far with its operator (AM-3), the number being typed, and any fault (AM-6). Holding
+ * the number offers to paste, and [onPaste] takes the clipboard's text (AM-9); [unpasted] tells
+ * that it held no amount.
+ */
 @Composable
-private fun Display(calculation: Calculation, locale: Locale) {
+private fun Display(
+    calculation: Calculation,
+    locale: Locale,
+    unpasted: Boolean,
+    onPaste: (String) -> Unit,
+) {
     val result = calculation.result
     val operator = calculation.operator
     val separator = DecimalFormatSymbols.getInstance(locale).decimalSeparator
+    val toolbar = LocalTextToolbar.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    var bounds by remember { mutableStateOf(Rect.Zero) }
+    val pasting by rememberUpdatedState(onPaste)
+    val offer = {
+        toolbar.showMenu(
+            bounds,
+            onPasteRequested = {
+                toolbar.hide()
+                scope.launch {
+                    val clip = clipboard.getClipEntry()?.clipData
+                    val item = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)
+                    pasting(item?.text?.toString().orEmpty())
+                }
+            },
+        )
+    }
+    val paste = stringResource(R.string.calculator_paste)
+    // The menu goes with any key pressed, and with the sheet.
+    DisposableEffect(calculation) { onDispose { toolbar.hide() } }
     Text(
         if (result != null && operator != null) {
             "${exact(result, calculation.scale, locale)} ${symbol(operator)}"
@@ -134,13 +186,22 @@ private fun Display(calculation: Calculation, locale: Locale) {
         style = MaterialTheme.typography.displayMedium.merge(TABULAR),
         textAlign = TextAlign.End,
         maxLines = 1,
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier.fillMaxWidth()
+                .onGloballyPositioned { bounds = it.boundsInRoot() }
+                .pointerInput(Unit) { detectTapGestures(onLongPress = { offer() }) }
+                .semantics {
+                    onLongClick(paste) {
+                        offer()
+                        true
+                    }
+                },
     )
     Text(
         when (calculation.fault) {
             Fault.DIVISION_BY_ZERO -> stringResource(R.string.calculator_division_by_zero)
             Fault.TOO_LARGE -> stringResource(R.string.calculator_too_large)
-            null -> ""
+            null -> if (unpasted) stringResource(R.string.calculator_paste_nothing) else ""
         },
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.error,
