@@ -26,8 +26,18 @@ tells you who owes whom.
 
 ## Status
 
-Early. Nothing is implemented yet; the current artefacts are the requirements
-and design notes. The Android client will be added as a top-level module.
+The Android client and its supporting Kotlin modules are implemented and under
+active development. The app currently supports offline group and entry
+management, split schemes and balances, recurring entries, activity and entry
+history, and a shared group to-do list. Groups can sync through S3-compatible
+storage, optionally encrypted; the app also includes backend setup, joining,
+notifications for received changes, and data import and export. Recent work has
+added entry search and filters, pasting amounts, and creating an entry from
+selected text.
+
+To build the debug app, run `./gradlew assembleDebug`. Run the JVM and app tests
+with `./gradlew test`; the S3 integration tests use Docker and SeaweedFS via
+`make integration`.
 
 - [Product requirements](docs/product-requirements.md) — what the product does.
 - [Technical requirements](docs/technical-requirements.md) — what the software
