@@ -10,8 +10,8 @@ dependencies {
 
 testing {
     suites {
-        val test by
-            getting(JvmTestSuite::class) {
+        val test =
+            getByName<JvmTestSuite>("test") {
                 useJUnit(libs.versions.junit)
                 dependencies {
                     implementation(libs.kotlin.test.junit)
