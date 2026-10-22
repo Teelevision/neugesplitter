@@ -1,5 +1,6 @@
 package eu.teele.neugesplitter.storage
 
+import app.cash.sqldelight.Query
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOne
@@ -29,12 +30,24 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
+
+/** Once at first, then whenever any of [queries] may have changed; bursts of changes collapse. */
+private fun changes(vararg queries: Query<*>): Flow<Unit> =
+    callbackFlow {
+            val listener = Query.Listener { trySend(Unit) }
+            queries.forEach { it.addListener(listener) }
+            send(Unit)
+            awaitClose { queries.forEach { it.removeListener(listener) } }
+        }
+        .conflate()
 
 /**
  * The groups this installation holds: each one's local event log, which is the source of truth, and
@@ -52,8 +65,29 @@ class GroupRepository(private val driver: SqlDriver) {
     /** Each group's latest replay, and how many events of its log it took. */
     private val replays = ConcurrentHashMap<GroupId, Pair<Long, Group>>()
 
-    /** Group [id] as its log produces it, or null if this installation holds no such group. */
-    fun load(id: GroupId): Group? = database.transactionWithResult { replayed(id) }
+    /**
+     * Group [id] as its log produces it, or null if this installation holds no such group. Only
+     * reading the log takes the database; parsing and replaying it leave it to others meanwhile.
+     */
+    fun load(id: GroupId): Group? {
+        var cached: Group? = null
+        val (length, texts) =
+            database.transactionWithResult {
+                val length = database.eventRowQueries.length(id.hex).executeAsOne()
+                cached = replays[id]?.takeIf { it.first == length }?.second
+                val texts =
+                    if (cached != null) emptyList()
+                    else database.eventRowQueries.inGroup(id.hex).executeAsList()
+                length to texts
+            }
+        cached?.let {
+            return it
+        }
+        if (texts.isEmpty()) return null
+        val group = Group.replay(texts.map(EventJson::read))
+        replays.merge(id, length to group) { old, new -> if (old.first > new.first) old else new }
+        return group
+    }
 
     /** [load], again whenever group [id]'s log changes. */
     fun group(id: GroupId, context: CoroutineContext = Dispatchers.IO): Flow<Group?> =
@@ -211,7 +245,7 @@ class GroupRepository(private val driver: SqlDriver) {
                 )
             }
         // Either query may be told of a write first; both are read again, together, either way.
-        return merge(heading.asFlow(), entries.asFlow())
+        return changes(heading, entries)
             .map {
                 database.transactionWithResult {
                     heading.executeAsOneOrNull()?.let {

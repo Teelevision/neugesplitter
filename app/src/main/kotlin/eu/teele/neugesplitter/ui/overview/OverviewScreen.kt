@@ -1,6 +1,7 @@
 package eu.teele.neugesplitter.ui.overview
 
 import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.ReportDrawnWhen
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
@@ -106,6 +107,7 @@ fun OverviewScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val overview = state.overview
+    ReportDrawnWhen { overview != null }
     val snackbar = remember { SnackbarHostState() }
     var menu by remember { mutableStateOf<ListedEntry?>(null) }
     var filtering by rememberSaveable { mutableStateOf(false) }
