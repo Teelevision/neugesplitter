@@ -93,4 +93,14 @@ class KageCodecTest {
     fun `a key never prints its identity`() {
         assertEquals("GroupKey(redacted)", codec.generate().toString())
     }
+
+    @Test
+    fun `an encoded key reads back as the same key, and anything else as malformed`() {
+        val key = codec.generate()
+        val payload = "{}".encodeToByteArray()
+        val read = codec.key(key.encoded())
+        assertContentEquals(payload, codec.decrypt(read, codec.encrypt(key, payload)))
+        assertFailsWith<Malformed> { codec.key("AGE-SECRET-KEY-1") }
+        assertFailsWith<Malformed> { codec.key(passphrase) }
+    }
 }

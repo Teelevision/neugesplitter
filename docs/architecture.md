@@ -206,9 +206,9 @@ the date changing while the app stays in front; what fell due shows the next
 time either happens.
 
 Secrets are in a second database, `secrets.db`, whose one table `secret` holds
-each group's backend secret key and passphrase sealed with an AES key from the
-Android keystore (TR-25, TR-36). Being a file of its own is what lets backups
-leave it out (TR-37).
+each group's backend secret key, passphrase and unlocked key sealed with an AES
+key from the Android keystore (TR-25, TR-36). Being a file of its own is what
+lets backups leave it out (TR-37).
 
 ## 6. Lifecycle and threading
 

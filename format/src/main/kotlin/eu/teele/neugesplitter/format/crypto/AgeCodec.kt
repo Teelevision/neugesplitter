@@ -31,6 +31,9 @@ interface AgeCodec {
      */
     fun unlock(root: ByteArray, passphrase: CharArray): GroupKey
 
+    /** The key [GroupKey.encoded] wrote, without scrypt. @throws Malformed if it is none. */
+    fun key(encoded: String): GroupKey
+
     /** A log object or attachment: [payload] encrypted to [key]'s recipient, in binary. */
     fun encrypt(key: GroupKey, payload: ByteArray): ByteArray
 
@@ -43,6 +46,9 @@ class GroupKey internal constructor(internal val identity: String) {
 
     /** The key [eu.teele.neugesplitter.format.chain.Link]s are computed with. */
     val chain: ChainKey by lazy { ChainKey.of(identity) }
+
+    /** The identity as text, only ever to be kept sealed on the device (TR-25). */
+    fun encoded(): String = identity
 
     override fun toString(): String = "GroupKey(redacted)"
 }

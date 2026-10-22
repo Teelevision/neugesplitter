@@ -146,10 +146,10 @@ unsatisfying.
   ever created depends on it.
 - **TR-24** (Core): The group key pair and all random identifiers MUST come from
   the platform's cryptographically secure generator (threat model TM-11).
-- **TR-25** (Core): Passphrases MUST be held in memory only as long as needed,
-  MUST NOT be written to logs or backups (PR-12), and MUST NOT be written to
-  disk unless sealed with a key held in the platform keystore, as backend
-  credentials are (TR-36).
+- **TR-25** (Core): Passphrases and unlocked group keys MUST be held in memory
+  only as long as needed, MUST NOT be written to logs or backups (PR-12), and
+  MUST NOT be written to disk unless sealed with a key held in the platform
+  keystore, as backend credentials are (TR-36).
 - **TR-25a** (Core): A generated passphrase (PR-12a) MUST be at least six words
   drawn with the platform's secure generator from a list of at least 7 776
   words, about 77 bits, with every draw uniform and independent. The list MUST
@@ -161,8 +161,9 @@ unsatisfying.
   breach-checking service.
 - **TR-26** (Core): Unlocking the identity MUST run off the main thread and MUST
   show progress: age's scrypt work factor is deliberately expensive and is
-  perceptible on a low-end phone. It MUST happen once per session and MUST NOT
-  be on the path of reading an object.
+  perceptible on a low-end phone. It MUST happen at most once per session, and
+  not at all once the unlocked key is kept sealed (TR-25), and MUST NOT be on
+  the path of reading an object.
 - **TR-26a** (Core): The chain link MUST be verified on every object before its
   events are applied, and a mismatch MUST stop the sync and mark the group
   compromised. Skipping verification is not an optimisation; the threat model

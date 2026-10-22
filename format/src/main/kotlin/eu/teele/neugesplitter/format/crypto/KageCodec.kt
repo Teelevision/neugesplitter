@@ -53,6 +53,8 @@ class KageCodec : AgeCodec {
         return GroupKey(identityIn(plaintext.decodeToString()))
     }
 
+    override fun key(encoded: String): GroupKey = GroupKey(decoded(encoded, "the kept key"))
+
     override fun encrypt(key: GroupKey, payload: ByteArray): ByteArray {
         val out = ByteArrayOutputStream()
         Age.encryptStream(listOf(X25519Identity.decode(key.identity).recipient()), out).use {
@@ -116,12 +118,16 @@ class KageCodec : AgeCodec {
             val identity =
                 lines.singleOrNull()
                     ?: throw Malformed("the root object holds ${lines.size} identities")
+            return decoded(identity, "the root object")
+        }
+
+        fun decoded(identity: String, what: String): String {
             if (!identity.startsWith("AGE-SECRET-KEY-1"))
-                throw Malformed("the root object holds no X25519 identity")
+                throw Malformed("$what holds no X25519 identity")
             try {
                 X25519Identity.decode(identity)
             } catch (_: Exception) {
-                throw Malformed("the root object holds an identity that does not decode")
+                throw Malformed("$what holds an identity that does not decode")
             }
             return identity
         }

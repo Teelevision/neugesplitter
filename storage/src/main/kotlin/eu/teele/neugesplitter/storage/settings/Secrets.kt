@@ -7,9 +7,9 @@ import java.nio.CharBuffer
 import java.security.GeneralSecurityException
 
 /**
- * Each shared group's backend secret key and, for an encrypted group, its passphrase, sealed by
- * [vault] and never written in the clear (TR-25, TR-36). One that no longer opens, as after the
- * keystore lost its key, reads as absent and has to be entered again.
+ * Each shared group's backend secret key and, for an encrypted group, its passphrase and unlocked
+ * key, sealed by [vault] and never written in the clear (TR-25, TR-36). One that no longer opens,
+ * as after the keystore lost its key, reads as absent and has to be entered again.
  *
  * [driver] must have [SecretsDatabase.Schema] created, in a file no backup takes (TR-37).
  */
@@ -30,6 +30,13 @@ class Secrets(driver: SqlDriver, private val vault: Vault) {
 
     /** Group [id]'s passphrase, for the caller to wipe once used. */
     fun passphrase(id: GroupId): CharArray? = opened(id, Kind.PASSPHRASE)
+
+    /** Keeps an encrypted group's unlocked key, so that a new process skips scrypt (TR-26). */
+    fun keepGroupKey(id: GroupId, key: String) {
+        keep(id, Kind.GROUP_KEY, key.toCharArray())
+    }
+
+    fun groupKey(id: GroupId): String? = opened(id, Kind.GROUP_KEY)?.let(::String)
 
     fun forget(id: GroupId) {
         queries.forget(id.hex)
@@ -68,6 +75,7 @@ class Secrets(driver: SqlDriver, private val vault: Vault) {
     private enum class Kind {
         SECRET_KEY,
         PASSPHRASE,
+        GROUP_KEY,
     }
 }
 

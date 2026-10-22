@@ -197,7 +197,7 @@ class SyncingTest {
     }
 
     @Test
-    fun `an encrypted group publishes its root, and after a restart unlocks it with the kept passphrase (format-spec 5_1, TR-26)`() {
+    fun `an encrypted group publishes its root, and after a restart reads with the kept key (format-spec 5_1, TR-26)`() {
         created()
         val first = Keyring(codec)
         val syncing = syncing(first)
@@ -221,8 +221,36 @@ class SyncingTest {
         syncing(restarted).start()
         appended()
         settled { it.waiting == 0L }
-        assertEquals(1, codec.unlocks)
+        assertEquals(0, codec.unlocks)
         assertNotNull(bucket.at(2))
+    }
+
+    @Test
+    fun `a group kept with its passphrase only is unlocked once, and its key kept from then on (TR-26)`() {
+        created()
+        val syncing = syncing()
+        val newKey = runBlocking { syncing.newKey(passphrase.toCharArray()) }
+        runBlocking { syncing.connect(trip, settings, "secret", newKey) }
+        settled { it.waiting == 0L }
+        newKey.wipe()
+        restart()
+        val kept = secrets.passphrase(trip)!!
+        secrets.forget(trip)
+        secrets.keepSecretKey(trip, "secret")
+        secrets.keepPassphrase(trip, kept)
+
+        syncing(Keyring(codec)).start()
+        appended()
+        settled { it.waiting == 0L }
+        assertEquals(1, codec.unlocks)
+        assertNotNull(secrets.groupKey(trip))
+
+        restart()
+        syncing(Keyring(codec)).start()
+        appended()
+        settled { it.waiting == 0L }
+        assertEquals(1, codec.unlocks)
+        assertNotNull(bucket.at(3))
     }
 
     @Test
@@ -237,6 +265,7 @@ class SyncingTest {
         assertNull(groups.backends.settings(trip))
         assertNull(secrets.secretKey(trip))
         assertNull(secrets.passphrase(trip))
+        assertNull(secrets.groupKey(trip))
         assertNull(groups.backends.root(trip))
     }
 
@@ -412,6 +441,7 @@ class SyncingTest {
         joined(syncing, emptyList(), passphrase.toCharArray())
         assertEquals(anna.id, groups.actingAs(trip))
         assertContentEquals(passphrase.toCharArray(), secrets.passphrase(trip))
+        assertNotNull(secrets.groupKey(trip))
         appended()
         settled { it.waiting == 0L }
         assertNotNull(bucket.at(2))

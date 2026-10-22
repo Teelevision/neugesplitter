@@ -296,17 +296,19 @@ are described in [sync-design.md](sync-design.md).
   with the group's name and members as what an attacker tries first; below 10¹⁴
   guesses it is weak, because at 10⁴ scrypt guesses a second that is about three
   centuries, and nothing can raise the work factor afterwards.
-- **What does an installation keep to reopen an encrypted group?** Its
-  passphrase, sealed with an AES key the Android keystore holds and never lets
-  out, in a database file of its own that no backup takes, together with the
-  backend's secret key (TR-25, TR-36, TR-37). The key is unlocked from the
-  retained root object once per session, as format-spec 5.1 and TR-26 describe;
-  asking for the passphrase after every restart would be safer on paper and
-  abandoned in practice. Keeping the unlocked identity instead would skip scrypt
-  but keep the one secret that reads everything in a second form. If the
-  keystore loses its key, the secrets read as absent and are asked for again.
-  `androidx.security.crypto` is not used (TR-36): the keystore and
-  `javax.crypto` are all it would have wrapped.
+- **What does an installation keep to reopen an encrypted group?** Its unlocked
+  key and its passphrase, sealed with an AES key the Android keystore holds and
+  never lets out, in a database file of its own that no backup takes, together
+  with the backend's secret key (TR-25, TR-36, TR-37). Asking for the passphrase
+  after every restart would be safer on paper and abandoned in practice. Keeping
+  only the passphrase meant scrypt's 256 MiB for every background poll in a
+  fresh process, and protected nothing: whoever can open the sealed passphrase
+  has the key one scrypt later. The key is what is read first; the passphrase
+  stays for showing it to another member. A group kept before this is unlocked
+  once more and its key kept from then on. If the keystore loses its key, the
+  secrets read as absent and are asked for again. `androidx.security.crypto` is
+  not used (TR-36): the keystore and `javax.crypto` are all it would have
+  wrapped.
 - **What are the parser limits?** 8 MiB per object, nesting depth 32, 64 KiB per
   string, 10 000 events, enforced while parsing rather than after (format-spec
   2.2). An object over any of them stops the log instead of being skipped,

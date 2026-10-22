@@ -143,6 +143,7 @@ class Syncing(
                     GroupSync(store, groups.local(id, today), sealing).publish(newKey.root)
                 if (!published) return@withContext false
                 secrets.keepPassphrase(id, newKey.passphrase)
+                secrets.keepGroupKey(id, newKey.key.encoded())
                 keyring.hold(id, newKey.key)
             }
             secrets.keepSecretKey(id, secretKey)
@@ -218,6 +219,7 @@ class Syncing(
             joining.withLock {
                 secrets.keepSecretKey(id, secretKey)
                 passphrase?.let { secrets.keepPassphrase(id, it) }
+                keyring[id]?.let { secrets.keepGroupKey(id, it.encoded()) }
                 groups.backends.connect(id, settings)
                 if (events.isNotEmpty()) groups.append(id, events, today())
                 // Acting as somebody is what makes the group this installation's to keep.
@@ -323,17 +325,32 @@ class Syncing(
             return GroupSync(stores(settings, secretKey), groups.local(id, today, context), sealing)
         }
 
+        /** Held, else kept, else unlocked with the kept passphrase and kept from then on. */
         private suspend fun key(root: ByteArray): GroupKey? =
-            keyring[id]
-                ?: secrets.passphrase(id)?.let {
+            keyring[id] ?: kept() ?: unlocked(root)?.also { secrets.keepGroupKey(id, it.encoded()) }
+
+        private fun kept(): GroupKey? =
+            secrets
+                .groupKey(id)
+                ?.let {
                     try {
-                        keyring.unlock(id, root, it)
-                    } catch (_: WrongPassphrase) {
-                        null
-                    } catch (_: TooLittleMemory) {
+                        codec.key(it)
+                    } catch (_: Malformed) {
                         null
                     }
                 }
+                ?.also { keyring.hold(id, it) }
+
+        private suspend fun unlocked(root: ByteArray): GroupKey? =
+            secrets.passphrase(id)?.let {
+                try {
+                    keyring.unlock(id, root, it)
+                } catch (_: WrongPassphrase) {
+                    null
+                } catch (_: TooLittleMemory) {
+                    null
+                }
+            }
     }
 }
 

@@ -18,10 +18,12 @@ class SecretsTest {
 
     private val secretKey = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
     private val passphrase = "ähnlich fluss kabel nebel raupe wolke"
+    private val groupKey =
+        "AGE-SECRET-KEY-1QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
 
     private fun stored(): List<ByteArray> =
         SecretsDatabase(driver).secretQueries.let { queries ->
-            listOf("SECRET_KEY", "PASSPHRASE").mapNotNull {
+            listOf("SECRET_KEY", "PASSPHRASE", "GROUP_KEY").mapNotNull {
                 queries.sealed(GROUP.hex, it).executeAsOneOrNull()
             }
         }
@@ -30,17 +32,19 @@ class SecretsTest {
     fun `secrets are kept sealed and come back as they were (TR-25, TR-36)`() {
         secrets.keepSecretKey(GROUP, secretKey)
         secrets.keepPassphrase(GROUP, passphrase.toCharArray())
+        secrets.keepGroupKey(GROUP, groupKey)
 
         assertEquals(secretKey, secrets.secretKey(GROUP))
         assertContentEquals(passphrase.toCharArray(), secrets.passphrase(GROUP))
-        val clear = listOf(secretKey, passphrase).map { it.encodeToByteArray() }
+        assertEquals(groupKey, secrets.groupKey(GROUP))
+        val clear = listOf(secretKey, passphrase, groupKey).map { it.encodeToByteArray() }
         for (sealed in stored()) {
             for (text in clear) {
                 val found = sealed.asList().windowed(text.size).any { it == text.asList() }
                 assertEquals(false, found)
             }
         }
-        assertEquals(2, stored().size)
+        assertEquals(3, stored().size)
     }
 
     @Test
@@ -58,12 +62,14 @@ class SecretsTest {
     fun `forgetting a group's secrets leaves the others`() {
         secrets.keepSecretKey(GROUP, secretKey)
         secrets.keepPassphrase(GROUP, passphrase.toCharArray())
+        secrets.keepGroupKey(GROUP, groupKey)
         secrets.keepSecretKey(other, "another")
 
         secrets.forget(GROUP)
 
         assertNull(secrets.secretKey(GROUP))
         assertNull(secrets.passphrase(GROUP))
+        assertNull(secrets.groupKey(GROUP))
         assertEquals("another", secrets.secretKey(other))
 
         secrets.forgetAll()

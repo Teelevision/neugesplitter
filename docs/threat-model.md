@@ -34,7 +34,7 @@ against a member of the group.
 flowchart TB
   subgraph device["Device — trusted while locked"]
     app["App"]
-    ks["Keystore: credentials, passphrase"]
+    ks["Keystore: credentials, passphrase, group key"]
   end
   subgraph net["Network — untrusted"]
     tls["TLS, or not (PR-5)"]
