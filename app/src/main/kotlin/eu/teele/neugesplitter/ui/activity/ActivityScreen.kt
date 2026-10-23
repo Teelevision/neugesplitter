@@ -31,6 +31,8 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -57,6 +59,7 @@ import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.history.Happened
 import eu.teele.neugesplitter.domain.history.Happening
 import eu.teele.neugesplitter.domain.value.EntryId
+import eu.teele.neugesplitter.domain.value.TodoId
 import eu.teele.neugesplitter.storage.settings.SyncState
 import eu.teele.neugesplitter.ui.DayHeading
 import eu.teele.neugesplitter.ui.EntryRow
@@ -68,7 +71,9 @@ import eu.teele.neugesplitter.ui.sync.GroupTitle
 import eu.teele.neugesplitter.ui.sync.ago
 import eu.teele.neugesplitter.ui.sync.failed
 import eu.teele.neugesplitter.ui.sync.troubled
-import eu.teele.neugesplitter.ui.todo.TodoRow
+import eu.teele.neugesplitter.ui.todo.SwipeableTodoRow
+import eu.teele.neugesplitter.ui.todo.TodoViewModel
+import eu.teele.neugesplitter.ui.todo.TodoWrites
 import java.time.Instant
 import java.util.Locale
 
@@ -76,7 +81,8 @@ import java.util.Locale
  * How a group's sync stands, with a manual sync (SY-6, SY-9, TR-12), then the suggestions waiting
  * for someone (RE-4, RE-10) and the todos due (TD-7), above what changed in it, by whom and when
  * (HI-2), with what has not been seen yet highlighted (HI-5, HI-7). The suggestions, the todos and
- * the history fold away (ui-design 4).
+ * the history fold away (ui-design 4). The todos are swiped for done and delete as in their list,
+ * through its [todoViewModel] (TD-5, TD-6).
  *
  * @param onOpen opens an entry a change names.
  * @param onEdit opens a suggestion in the editor, which confirms it as saved (RE-4).
@@ -89,6 +95,7 @@ import java.util.Locale
 @Composable
 fun ActivityScreen(
     viewModel: ActivityViewModel,
+    todoViewModel: TodoViewModel,
     onBack: () -> Unit,
     onOpen: (EntryId) -> Unit,
     onEdit: (EntryId) -> Unit,
@@ -99,17 +106,31 @@ fun ActivityScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val todoState by todoViewModel.state.collectAsStateWithLifecycle()
     val locale = LocalConfiguration.current.locales[0]
+    val snackbar = remember { SnackbarHostState() }
     var suggestions by rememberSaveable { mutableStateOf(true) }
     var todos by rememberSaveable { mutableStateOf(true) }
     var history by rememberSaveable { mutableStateOf(true) }
     var menu by remember { mutableStateOf(false) }
+    // Those ticked here stay, struck through, so that they can be ticked open again.
+    var ticked by remember { mutableStateOf(emptySet<TodoId>()) }
+    val due =
+        todoState.today?.let { today ->
+            todoState.all
+                .filter { todo ->
+                    todo.due.let { it != null && it <= today } && (!todo.done || todo.id in ticked)
+                }
+                .sortedBy { it.due }
+        } ?: emptyList()
 
     // Deleted while open, which only another screen can do.
     LaunchedEffect(state) { if (state.loaded && state.title == null) onBack() }
+    TodoWrites(todoViewModel, todoState, snackbar)
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { GroupTitle(state.title.orEmpty(), state.sync) },
@@ -178,12 +199,22 @@ fun ActivityScreen(
                     )
                 }
             }
-            if (state.todos.isNotEmpty()) {
+            if (due.isNotEmpty()) {
                 section("todos", R.string.todos_due, todos) { todos = !todos }
             }
-            if (state.todos.isNotEmpty() && todos) {
-                items(state.todos, key = { "todo-${it.id.hex}" }) { todo ->
-                    TodoRow(todo, state.names, locale, Modifier.clickable(onClick = onTodos))
+            if (due.isNotEmpty() && todos) {
+                items(due, key = { "todo-${it.id.hex}" }) { todo ->
+                    SwipeableTodoRow(
+                        todo,
+                        todoState.names,
+                        locale,
+                        onDone = {
+                            ticked += todo.id
+                            todoViewModel.done(todo.id, it)
+                        },
+                        onDelete = { todoViewModel.delete(todo.id) },
+                        onClick = onTodos,
+                    )
                 }
             }
             section("history", R.string.history, history) { history = !history }

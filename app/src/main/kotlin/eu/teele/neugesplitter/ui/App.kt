@@ -500,6 +500,18 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                             graph.syncing::now,
                                         )
                                     },
+                                    // The same one as the todo list's, which shares the group's
+                                    // store.
+                                    viewModel {
+                                        TodoViewModel(
+                                            graph.groups,
+                                            group,
+                                            graph::identifier,
+                                            graph::today,
+                                            graph::now,
+                                            graph.scope,
+                                        )
+                                    },
                                     onBack = back,
                                     onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
                                     onEdit = { stack.add(EntryEditor(key.group, it.hex)) },

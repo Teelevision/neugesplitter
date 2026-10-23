@@ -7,6 +7,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
@@ -38,11 +40,14 @@ import eu.teele.neugesplitter.sync.writer.Halt
 import eu.teele.neugesplitter.sync.writer.Upload
 import eu.teele.neugesplitter.ui.receive
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
+import eu.teele.neugesplitter.ui.todo.TodoViewModel
 import java.time.Instant
 import java.util.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -130,10 +135,20 @@ class ActivityScreenTest {
         )
         before()
         val viewModel = ActivityViewModel(groups, trip, { today }, { hours(2) }, { synced += it })
+        val todos =
+            TodoViewModel(
+                groups,
+                trip,
+                { id(0x200 + events++) },
+                { today },
+                { hours(2) },
+                CoroutineScope(Dispatchers.IO),
+            )
         compose.setContent {
             NeugesplitterTheme {
                 ActivityScreen(
                     viewModel,
+                    todos,
                     onBack = {},
                     onOpen = { opened += it },
                     onEdit = { edited += it },
@@ -260,6 +275,36 @@ class ActivityScreenTest {
 
         compose.onNodeWithText("Book the ferry").performClick()
         assertEquals(1, todoLists)
+    }
+
+    @Test
+    fun `a todo due is swiped done or deleted as in the list (TD-5, TD-6)`() {
+        val ferry = Todo(TodoId.parse(id(0x41)), "Book the ferry", today, emptyList())
+        val keys = Todo(TodoId.parse(id(0x42)), "Return the keys", today, emptyList())
+        show {
+            groups.actAs(trip, anna.id)
+            groups.append(
+                trip,
+                listOf(ferry, keys).map { Event.TodoCreated(eventId(), anna.id, at, it) },
+                today,
+            )
+        }
+        compose.waitUntil(5_000) { count("Book the ferry") > 0 }
+        compose.onNodeWithText("Book the ferry").performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        compose.onNodeWithText("Done").performClick()
+        // Ticked here, it stays to be ticked open again, and is written with the deletion.
+        compose.waitForIdle()
+        compose.onNodeWithText("Book the ferry").assertExists()
+
+        compose.onNodeWithText("Return the keys").performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        compose.onAllNodesWithContentDescription("Delete")[1].performClick()
+        compose.waitUntil(5_000) { groups.load(trip)!!.todos.first().done }
+        compose.waitUntil(5_000) { count("To-do deleted") > 0 }
+        assertEquals(0, count("Return the keys"))
+        compose.mainClock.advanceTimeBy(11_000)
+        compose.waitUntil(5_000) { groups.load(trip)!!.todos.size == 1 }
     }
 
     @Test

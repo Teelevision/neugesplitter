@@ -126,8 +126,6 @@ fun TodoScreen(
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val full = stringResource(R.string.todo_full)
-    val deleted = stringResource(R.string.todo_deleted)
-    val undo = stringResource(R.string.undo)
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Todo?>(null) }
     var added by remember { mutableStateOf<TodoId?>(null) }
@@ -138,18 +136,7 @@ fun TodoScreen(
         if (state.full) scope.launch { snackbar.showSnackbar(full) } else creating = true
         onNewTaken()
     }
-    LaunchedEffect(state.deleting?.id) {
-        if (state.deleting == null) return@LaunchedEffect
-        val result = snackbar.showSnackbar(deleted, undo, duration = SnackbarDuration.Long)
-        if (result == SnackbarResult.ActionPerformed) viewModel.undo() else viewModel.commit()
-    }
-    // Leaving the list takes the undo with it.
-    val activity = LocalActivity.current
-    DisposableEffect(viewModel) {
-        onDispose { if (activity?.isChangingConfigurations != true) viewModel.commit() }
-    }
-    // The process may not come back to write what the list holds back.
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.flush() }
+    TodoWrites(viewModel, state, snackbar)
 
     Scaffold(
         modifier = modifier,
@@ -224,6 +211,28 @@ fun TodoScreen(
             )
         }
     }
+}
+
+/**
+ * Offers the undo of a deletion on [snackbar], and writes what [viewModel] holds back on leaving
+ * the screen or the app (TD-5, TD-6).
+ */
+@Composable
+fun TodoWrites(viewModel: TodoViewModel, state: TodoState, snackbar: SnackbarHostState) {
+    val deleted = stringResource(R.string.todo_deleted)
+    val undo = stringResource(R.string.undo)
+    LaunchedEffect(state.deleting?.id) {
+        if (state.deleting == null) return@LaunchedEffect
+        val result = snackbar.showSnackbar(deleted, undo, duration = SnackbarDuration.Long)
+        if (result == SnackbarResult.ActionPerformed) viewModel.undo() else viewModel.commit()
+    }
+    // Leaving the screen takes the undo with it.
+    val activity = LocalActivity.current
+    DisposableEffect(viewModel) {
+        onDispose { if (activity?.isChangingConfigurations != true) viewModel.commit() }
+    }
+    // The process may not come back to write what the list holds back.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.flush() }
 }
 
 @Composable
@@ -312,39 +321,28 @@ private fun Todos(
                     }
                 } else Modifier.animateItem()
             ) {
-                SwipeToReveal(
-                    SWIPE_ACTION * 2,
-                    actions = { close ->
-                        DoneAction(todo.done) { viewModel.done(todo.id, it) }
-                        DeleteAction {
-                            close()
-                            viewModel.delete(todo.id)
-                        }
-                    },
-                ) {
-                    TodoRow(
-                        todo,
-                        state.names,
-                        locale,
-                        Modifier.background(MaterialTheme.colorScheme.surface).clickable {
-                            onEdit(todo)
-                        },
-                        handle =
-                            if (!state.reorderable) null
-                            else
-                                Modifier.pointerInput(todo.id) {
-                                    detectDragGestures(
-                                        onDragStart = { reorder.start(todo.id, current) },
-                                        onDragEnd = { drop() },
-                                        onDragCancel = { drop() },
-                                        onDrag = { change, amount ->
-                                            change.consume()
-                                            reorder.drag(amount.y)
-                                        },
-                                    )
-                                },
-                    )
-                }
+                SwipeableTodoRow(
+                    todo,
+                    state.names,
+                    locale,
+                    onDone = { viewModel.done(todo.id, it) },
+                    onDelete = { viewModel.delete(todo.id) },
+                    onClick = { onEdit(todo) },
+                    handle =
+                        if (!state.reorderable) null
+                        else
+                            Modifier.pointerInput(todo.id) {
+                                detectDragGestures(
+                                    onDragStart = { reorder.start(todo.id, current) },
+                                    onDragEnd = { drop() },
+                                    onDragCancel = { drop() },
+                                    onDrag = { change, amount ->
+                                        change.consume()
+                                        reorder.drag(amount.y)
+                                    },
+                                )
+                            },
+                )
             }
         }
     }
@@ -424,6 +422,37 @@ private class Reorder(private val list: LazyListState) {
         dragged = null
         delta = 0f
         return id to (order ?: return null).indexOfFirst { it.id == id }
+    }
+}
+
+/** [TodoRow], swiped left for done and delete (TD-5, TD-6). */
+@Composable
+fun SwipeableTodoRow(
+    todo: Todo,
+    names: Map<MemberId, String>,
+    locale: Locale,
+    onDone: (Boolean) -> Unit,
+    onDelete: () -> Unit,
+    onClick: () -> Unit,
+    handle: Modifier? = null,
+) {
+    SwipeToReveal(
+        SWIPE_ACTION * 2,
+        actions = { close ->
+            DoneAction(todo.done, onDone)
+            DeleteAction {
+                close()
+                onDelete()
+            }
+        },
+    ) {
+        TodoRow(
+            todo,
+            names,
+            locale,
+            Modifier.background(MaterialTheme.colorScheme.surface).clickable(onClick = onClick),
+            handle = handle,
+        )
     }
 }
 

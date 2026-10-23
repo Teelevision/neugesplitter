@@ -256,7 +256,9 @@ stacked in collapsible sections below it:
 
 Between the suggestions and the history, **To-dos due** lists the to-dos not
 done whose due date has come, earliest first, as rows of the to-do list; one
-tapped opens it (TD-7). The section is shown only while there are some.
+tapped opens it (TD-7). Swiped left, a row ticks done and deletes as in the
+list, and one ticked here stays, struck through, until Activity is left (TD-5,
+TD-6). The section is shown only while there are some.
 
 The navigation bar's Activity icon carries a badge while anything above is
 pending.

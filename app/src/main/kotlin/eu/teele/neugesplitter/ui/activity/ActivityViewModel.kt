@@ -37,7 +37,6 @@ import kotlinx.coroutines.launch
  * @property deleted the entries deleted now, which open in their history rather than their detail.
  * @property suggestions the suggested occurrences waiting to be confirmed or declined, oldest first
  *   (RE-4, RE-10), as the overview would list them once confirmed.
- * @property todos the todos not done that are due, earliest first (TD-7).
  * @property scale the group's decimal places, which amounts are shown with.
  * @property sync how the group's sync stands; null for a group kept only on this device.
  * @property now when this state was read, which relative times count back from.
@@ -50,7 +49,6 @@ data class ActivityState(
     val unseen: Set<Int> = emptySet(),
     val deleted: Set<EntryId> = emptySet(),
     val suggestions: List<Suggestion> = emptyList(),
-    val todos: List<Todo> = emptyList(),
     val scale: Scale = Scale.of(2),
     val sync: SyncState? = null,
     val now: Instant = Instant.EPOCH,
@@ -122,7 +120,6 @@ class ActivityViewModel(
                                     )
                                 Suggestion(occurrence.series, occurrence.due, listed)
                             },
-                    todos = dueTodos(replayed, today()),
                     scale = replayed.scale,
                     sync = sync,
                     now = now(),
