@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -24,6 +25,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -226,94 +228,105 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
             }
         },
     ) { padding ->
-        if (!state.loaded) return@Scaffold
-        Column(
-            modifier =
-                Modifier.fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+        Box(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentAlignment = Alignment.Center,
         ) {
-            Kinds(state.kind, viewModel::kind)
-            // Read-only: tapping it opens the calculator instead of the keyboard (AM-2).
-            OutlinedTextField(
-                value = state.amount?.let { formatted(it, state.scale, locale) }.orEmpty(),
-                onValueChange = {},
-                readOnly = true,
-                label = { Text(stringResource(R.string.entry_amount)) },
-                singleLine = true,
-                textStyle =
-                    MaterialTheme.typography.headlineSmall.merge(
-                        TextStyle(fontFeatureSettings = "tnum")
-                    ),
-                interactionSource = amountTaps,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = state.description,
-                onValueChange = viewModel::description,
-                label = { Text(stringResource(R.string.entry_description)) },
-                singleLine = true,
-                keyboardOptions =
-                    KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Done,
-                    ),
-                keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
-                modifier = Modifier.fillMaxWidth().focusRequester(description),
-            )
-            Section(
-                stringResource(if (state.changing) R.string.series_from else R.string.entry_date)
-            ) {
-                OutlinedButton(onClick = { picking = true }) { Text(longDate(state.date, locale)) }
-                // With a changed rule, the occurrence is due on its own date.
-                (if (state.amending) state.date else state.due)
-                    ?.let { offDueText(state.date, it, !state.offSchedule, locale) }
-                    ?.let {
-                        Text(
-                            it,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-            }
-            for (party in Party.entries) {
-                Section(stringResource(label(party))) {
-                    Chooser(
-                        state.members,
-                        state.selected(party),
-                        if (party == Party.PAYERS) viewModel::payer else viewModel::beneficiary,
+            if (!state.loaded) {
+                CircularProgressIndicator()
+            } else {
+                Column(
+                    modifier =
+                        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Kinds(state.kind, viewModel::kind)
+                    // Read-only: tapping it opens the calculator instead of the keyboard (AM-2).
+                    OutlinedTextField(
+                        value = state.amount?.let { formatted(it, state.scale, locale) }.orEmpty(),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.entry_amount)) },
+                        singleLine = true,
+                        textStyle =
+                            MaterialTheme.typography.headlineSmall.merge(
+                                TextStyle(fontFeatureSettings = "tnum")
+                            ),
+                        interactionSource = amountTaps,
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                    val open = { scheme: Scheme ->
-                        splitScheme = scheme
-                        splitting = party
+                    OutlinedTextField(
+                        value = state.description,
+                        onValueChange = viewModel::description,
+                        label = { Text(stringResource(R.string.entry_description)) },
+                        singleLine = true,
+                        keyboardOptions =
+                            KeyboardOptions(
+                                capitalization = KeyboardCapitalization.Sentences,
+                                imeAction = ImeAction.Done,
+                            ),
+                        keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
+                        modifier = Modifier.fillMaxWidth().focusRequester(description),
+                    )
+                    Section(
+                        stringResource(
+                            if (state.changing) R.string.series_from else R.string.entry_date
+                        )
+                    ) {
+                        OutlinedButton(onClick = { picking = true }) {
+                            Text(longDate(state.date, locale))
+                        }
+                        // With a changed rule, the occurrence is due on its own date.
+                        (if (state.amending) state.date else state.due)
+                            ?.let { offDueText(state.date, it, !state.offSchedule, locale) }
+                            ?.let {
+                                Text(
+                                    it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                     }
-                    SplitSummary(
+                    for (party in Party.entries) {
+                        Section(stringResource(label(party))) {
+                            Chooser(
+                                state.members,
+                                state.selected(party),
+                                if (party == Party.PAYERS) viewModel::payer
+                                else viewModel::beneficiary,
+                            )
+                            val open = { scheme: Scheme ->
+                                splitScheme = scheme
+                                splitting = party
+                            }
+                            SplitSummary(
+                                state,
+                                party,
+                                locale,
+                                onScheme = {
+                                    if (it == Scheme.EQUAL) viewModel.scheme(party, it)
+                                    else open(it)
+                                },
+                                onOpen = { open(state.split(party).scheme) },
+                            )
+                        }
+                    }
+                    Repeats(
                         state,
-                        party,
+                        preview,
                         locale,
-                        onScheme = {
-                            if (it == Scheme.EQUAL) viewModel.scheme(party, it) else open(it)
+                        onSwitch = { on ->
+                            when {
+                                !on -> viewModel.recurrence(null)
+                                // It can only go back to repeating as it did.
+                                state.fixed -> viewModel.recurrence(state.was)
+                                else -> recurring = true
+                            }
                         },
-                        onOpen = { open(state.split(party).scheme) },
+                        onOpen = { recurring = true },
                     )
                 }
             }
-            Repeats(
-                state,
-                preview,
-                locale,
-                onSwitch = { on ->
-                    when {
-                        !on -> viewModel.recurrence(null)
-                        // It can only go back to repeating as it did.
-                        state.fixed -> viewModel.recurrence(state.was)
-                        else -> recurring = true
-                    }
-                },
-                onOpen = { recurring = true },
-            )
         }
     }
 
