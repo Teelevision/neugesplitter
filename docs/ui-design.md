@@ -183,8 +183,9 @@ Interactions:
   not for an occurrence, which has no versions of its own).
 - **Swipe left** moves the row aside and shows a delete button, and only tapping
   that deletes, so that a sloppy scroll cannot. Deleting offers an undo
-  snackbar. The deletion event is not written until the snackbar goes, so undo
-  leaves no trace in the history (HI-1).
+  snackbar. Swipe the snackbar away or let it time out to commit the deletion;
+  tap Undo to restore the entry. The deletion event is not written until the
+  snackbar goes, so undo leaves no trace in the history (HI-1).
 - Swipe right is unassigned on purpose. One swipe means one thing.
 - Empty state: "No entries yet" and an arrow toward the centre FAB.
 
@@ -258,7 +259,9 @@ Between the suggestions and the history, **To-dos due** lists the to-dos not
 done whose due date has come, earliest first, as rows of the to-do list; one
 tapped opens it (TD-7). Swiped left, a row ticks done and deletes as in the
 list, and one ticked here stays, struck through, until Activity is left (TD-5,
-TD-6). The section is shown only while there are some.
+TD-6). Deleting offers the same undo snackbar as the to-do list; swiping it away
+commits the deletion, and the to-do stays hidden while that write finishes. The
+section is shown only while there are some.
 
 The navigation bar's Activity icon carries a badge while anything above is
 pending.
@@ -293,7 +296,9 @@ among those not done goes just before the one it landed on.
   members are offered only where they are already assigned.
 - **Swipe left** shows a checkbox, which ticks the to-do done or open again and
   leaves the row open, and delete, which removes it with an undo snackbar,
-  written only once the snackbar goes, as for an entry (TD-6).
+  written only once the snackbar goes, as for an entry (TD-6). Swipe the
+  snackbar away or let it time out to commit the deletion; tap Undo to restore
+  the to-do.
 - A new to-do goes to the end, and the list scrolls to it (TD-1).
 
 Moves and ticks show at once but are written only on leaving the list, when the

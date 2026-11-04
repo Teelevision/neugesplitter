@@ -21,12 +21,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -66,40 +68,63 @@ class OverviewViewModel(
 ) : ViewModel() {
 
     private val deleting = MutableStateFlow<EntryId?>(null)
+    private val committing = MutableStateFlow<Set<EntryId>>(emptySet())
     private val filter = MutableStateFlow(EntryFilter())
+    private val overviewAndCommitting =
+        combine(repository.overview(group, today), committing) { overview, committing ->
+            overview to committing
+        }
 
     /** The settled balance (BA-7) as it would be without the entry offered for undo. */
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val ownWithout: Flow<Pair<EntryId, Amount?>?> =
-        deleting.flatMapLatest { entry ->
-            if (entry == null) flowOf(null)
-            else
-                repository
-                    .group(group)
-                    .map { log ->
-                        val me = repository.actingAs(group)
-                        entry to
-                            me?.let { log?.without(entry, today())?.settlement(today())?.get(it) }
-                    }
-                    .flowOn(Dispatchers.IO)
-        }
+    private val ownWithout: Flow<Pair<Set<EntryId>, Amount?>?> =
+        combine(deleting, committing) { deleting, committing ->
+                committing + listOfNotNull(deleting)
+            }
+            .distinctUntilChanged()
+            .flatMapLatest { entries ->
+                if (entries.isEmpty()) flowOf(null)
+                else
+                    repository
+                        .group(group)
+                        .map { log ->
+                            val me = repository.actingAs(group)
+                            entries to
+                                me?.let { member ->
+                                    log?.let { group ->
+                                        entries
+                                            .fold(group) { state, entry ->
+                                                state.without(entry, today())
+                                            }
+                                            .settlement(today())[member]
+                                    }
+                                }
+                        }
+                        .flowOn(Dispatchers.IO)
+            }
 
     val state: StateFlow<OverviewState> =
         combine(
-                repository.overview(group, today),
+                overviewAndCommitting,
                 deleting,
                 ownWithout,
                 repository.backends.state(group),
                 repository.pending(group, today),
-            ) { overview, deleting, without, sync, suggestions ->
+            ) { overviewAndCommitting, deleting, without, sync, suggestions ->
+                val (overview, committing) = overviewAndCommitting
+                val persisted =
+                    committing.filterTo(mutableSetOf()) { id ->
+                        overview == null || overview.entries.none { it.id == id }
+                    }
+                if (persisted.isNotEmpty())
+                    this@OverviewViewModel.committing.update { it - persisted }
+                val hidden = committing + listOfNotNull(deleting)
                 OverviewState(
                     loaded = true,
                     overview =
                         overview?.copy(
-                            own =
-                                if (deleting != null && without?.first == deleting) without.second
-                                else overview.own,
-                            entries = overview.entries.filterNot { it.id == deleting },
+                            own = if (without?.first == hidden) without.second else overview.own,
+                            entries = overview.entries.filterNot { it.id in hidden },
                         ),
                     deleting = deleting,
                     sync = sync,
@@ -123,6 +148,7 @@ class OverviewViewModel(
 
     /** Hides [entry] and offers to undo; the one offered before is deleted for good (HI-1). */
     fun delete(entry: EntryId) {
+        deleting.value?.takeIf { it != entry }?.let { committing.update { ids -> ids + it } }
         deleting.getAndUpdate { entry }?.takeIf { it != entry }?.let(::write)
     }
 
@@ -132,7 +158,9 @@ class OverviewViewModel(
 
     /** The undo is no longer offered, so the deletion is written. */
     fun undoGone() {
-        deleting.getAndUpdate { null }?.let(::write)
+        val entry = deleting.value ?: return
+        committing.update { it + entry }
+        if (deleting.compareAndSet(entry, null)) write(entry) else committing.update { it - entry }
     }
 
     override fun onCleared() {
@@ -142,7 +170,12 @@ class OverviewViewModel(
     /** Deletes [entry]; an occurrence goes alone and its series runs on (RE-15). */
     private fun write(entry: EntryId) {
         scope.launch {
-            val by = repository.actingAs(group) ?: return@launch
+            val by =
+                repository.actingAs(group)
+                    ?: run {
+                        committing.update { it - entry }
+                        return@launch
+                    }
             val occurrence = repository.load(group)?.occurrence(entry, today())
             val deleted =
                 if (occurrence == null) {

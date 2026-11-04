@@ -1,6 +1,7 @@
 package eu.teele.neugesplitter.ui.overview
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.longClick
@@ -8,10 +9,12 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeLeft
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.entry.Entry
@@ -169,6 +172,17 @@ class OverviewScreenTest {
         compose.onNodeWithText(description).performTouchInput { longClick() }
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("Duplicate").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun swipeSnackbarAway(message: String) {
+        val bounds = compose.onNodeWithText(message).fetchSemanticsNode().boundsInRoot
+        val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        compose.onRoot().performTouchInput {
+            swipe(
+                start = Offset(root.width * 0.9f, bounds.center.y),
+                end = Offset(root.width * 0.1f, bounds.center.y),
+            )
         }
     }
 
@@ -429,6 +443,23 @@ class OverviewScreenTest {
         compose.mainClock.advanceTimeBy(11_000)
         compose.waitUntil(5_000) { dinner !in stored() }
         assertEquals(setOf(taxi), stored())
+        assertTrue(dinner in groups.load(trip)!!.deleted)
+    }
+
+    @Test
+    fun `swiping the undo snackbar away writes the deletion (EN-9, HI-1)`() {
+        show()
+        openMenu("Dinner")
+        compose.onNodeWithText("Delete").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Entry deleted").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        swipeSnackbarAway("Entry deleted")
+        compose.onNodeWithText("Dinner").assertDoesNotExist()
+        compose.onNodeWithText("You owe 6.00").assertExists()
+        compose.onAllNodesWithText("12.00").assertCountEquals(2)
+        compose.waitUntil(5_000) { dinner !in stored() }
         assertTrue(dinner in groups.load(trip)!!.deleted)
     }
 

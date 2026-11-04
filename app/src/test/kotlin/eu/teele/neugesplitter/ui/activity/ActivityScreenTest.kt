@@ -1,13 +1,16 @@
 package eu.teele.neugesplitter.ui.activity
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeLeft
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.entry.Entry
@@ -179,6 +182,17 @@ class ActivityScreenTest {
     private fun top(text: String) =
         compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
 
+    private fun swipeSnackbarAway(message: String) {
+        val bounds = compose.onNodeWithText(message).fetchSemanticsNode().boundsInRoot
+        val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        compose.onRoot().performTouchInput {
+            swipe(
+                start = Offset(root.width * 0.9f, bounds.center.y),
+                end = Offset(root.width * 0.1f, bounds.center.y),
+            )
+        }
+    }
+
     @Test
     fun `every change is listed newest first under its day, with who made it and when (HI-2)`() {
         show()
@@ -303,8 +317,10 @@ class ActivityScreenTest {
         compose.waitUntil(5_000) { groups.load(trip)!!.todos.first().done }
         compose.waitUntil(5_000) { count("To-do deleted") > 0 }
         assertEquals(0, count("Return the keys"))
-        compose.mainClock.advanceTimeBy(11_000)
+        swipeSnackbarAway("To-do deleted")
+        assertEquals(0, count("Return the keys"))
         compose.waitUntil(5_000) { groups.load(trip)!!.todos.size == 1 }
+        assertEquals(0, count("Return the keys"))
     }
 
     @Test

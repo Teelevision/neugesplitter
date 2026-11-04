@@ -28,7 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
@@ -64,6 +63,7 @@ import eu.teele.neugesplitter.ui.DayHeading
 import eu.teele.neugesplitter.ui.DeleteAction
 import eu.teele.neugesplitter.ui.EntryRow
 import eu.teele.neugesplitter.ui.SWIPE_ACTION
+import eu.teele.neugesplitter.ui.SwipeToDismissSnackbarHost
 import eu.teele.neugesplitter.ui.SwipeToReveal
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.position
@@ -171,7 +171,7 @@ fun OverviewScreen(
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { SwipeToDismissSnackbarHost(snackbar) },
     ) { padding ->
         if (overview != null) {
             Entries(

@@ -10,9 +10,11 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeLeft
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.event.Change
@@ -124,6 +126,17 @@ class TodoScreenTest {
     private fun top(text: String) =
         compose.onNodeWithText(text, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.top
 
+    private fun swipeSnackbarAway(message: String) {
+        val bounds = compose.onNodeWithText(message).fetchSemanticsNode().boundsInRoot
+        val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        compose.onRoot().performTouchInput {
+            swipe(
+                start = Offset(root.width * 0.9f, bounds.center.y),
+                end = Offset(root.width * 0.1f, bounds.center.y),
+            )
+        }
+    }
+
     private fun waitFor(text: String) = compose.waitUntil(5_000) { count(text) > 0 }
 
     @Test
@@ -232,6 +245,19 @@ class TodoScreenTest {
         compose.mainClock.advanceTimeBy(11_000)
         compose.waitUntil(5_000) { stored().size == 1 }
         assertTrue(groups.events(trip).last() is Event.TodoDeleted)
+    }
+
+    @Test
+    fun `swiping the undo snackbar away commits todo deletion (TD-6)`() {
+        show(todo(1), todo(2))
+        compose.onNodeWithText("Todo 2").performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Delete").performClick()
+        waitFor("To-do deleted")
+
+        swipeSnackbarAway("To-do deleted")
+        compose.waitUntil(5_000) { stored().none { it.id == todo(2).id } }
+        assertEquals(1, stored().size)
     }
 
     @Test

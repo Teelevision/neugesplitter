@@ -31,7 +31,6 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -63,6 +62,7 @@ import eu.teele.neugesplitter.domain.value.TodoId
 import eu.teele.neugesplitter.storage.settings.SyncState
 import eu.teele.neugesplitter.ui.DayHeading
 import eu.teele.neugesplitter.ui.EntryRow
+import eu.teele.neugesplitter.ui.SwipeToDismissSnackbarHost
 import eu.teele.neugesplitter.ui.history.HistoryRow
 import eu.teele.neugesplitter.ui.history.day
 import eu.teele.neugesplitter.ui.history.told
@@ -130,7 +130,7 @@ fun ActivityScreen(
 
     Scaffold(
         modifier = modifier,
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { SwipeToDismissSnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { GroupTitle(state.title.orEmpty(), state.sync) },
