@@ -1,9 +1,12 @@
 package eu.teele.neugesplitter.format.json
 
 import eu.teele.neugesplitter.domain.Malformed
+import eu.teele.neugesplitter.domain.category.BuiltInCategory
+import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
+import eu.teele.neugesplitter.domain.event.CategoryChanges
 import eu.teele.neugesplitter.domain.event.Change
 import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
@@ -19,6 +22,7 @@ import eu.teele.neugesplitter.domain.todo.Todo
 import eu.teele.neugesplitter.domain.todo.TodoMove
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.AttachmentName
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
@@ -89,6 +93,25 @@ internal object Events {
                     json.required("entry", entryChanges),
                 )
             "entry.deleted" -> Event.EntryDeleted(id, by, at, json.required("target", entryId))
+            "category.created" -> {
+                val category = json.required("category", category)
+                if (category.builtin != null) {
+                    throw Malformed("'category.created' cannot create a built-in category")
+                }
+                Event.CategoryCreated(id, by, at, category)
+            }
+            "category.updated" ->
+                Event.CategoryUpdated(
+                    id,
+                    by,
+                    at,
+                    json.required("target", categoryId),
+                    json.required("category", categoryChanges),
+                )
+            "category.deleted" ->
+                Event.CategoryDeleted(id, by, at, json.required("target", categoryId))
+            "category.restored" ->
+                Event.CategoryRestored(id, by, at, json.required("target", categoryId))
             "series.created" -> {
                 val series = json.required("series", ::obj)
                 Event.SeriesCreated(
@@ -201,6 +224,18 @@ internal object Events {
                 put("entry", changesJson(event.entry))
             }
             is Event.EntryDeleted -> put("target", event.target.hex)
+            is Event.CategoryCreated -> {
+                if (event.category.builtin != null) {
+                    throw Malformed("'category.created' cannot create a built-in category")
+                }
+                put("category", categoryJson(event.category))
+            }
+            is Event.CategoryUpdated -> {
+                put("target", event.target.hex)
+                put("category", categoryChangesJson(event.category))
+            }
+            is Event.CategoryDeleted -> put("target", event.target.hex)
+            is Event.CategoryRestored -> put("target", event.target.hex)
             is Event.SeriesCreated ->
                 put(
                     "series",
@@ -268,6 +303,7 @@ internal object Events {
 // --- Primitives (format-spec 3) ------------------------------------------------------------------
 
 private val eventId: Decoder<EventId> = parsed(EventId::parse)
+private val categoryId: Decoder<CategoryId> = parsed(CategoryId::parse)
 private val memberId: Decoder<MemberId> = parsed(MemberId::parse)
 private val entryId: Decoder<EntryId> = parsed(EntryId::parse)
 private val seriesId: Decoder<SeriesId> = parsed(SeriesId::parse)
@@ -314,6 +350,9 @@ private val KINDS =
     listOf("expense" to Kind.EXPENSE, "income" to Kind.INCOME, "transfer" to Kind.TRANSFER)
 private val kind: Decoder<Kind> = enumeration(*KINDS.toTypedArray())
 
+private val builtInCategory: Decoder<BuiltInCategory> =
+    enumeration(*BuiltInCategory.entries.map { it.key to it }.toTypedArray())
+
 private val MODES = listOf("automatic" to Mode.AUTOMATIC, "suggested" to Mode.SUGGESTED)
 private val mode: Decoder<Mode> = enumeration(*MODES.toTypedArray())
 
@@ -328,6 +367,7 @@ private fun <T> wire(pairs: List<Pair<String, T>>, value: T): String =
 private val groupDetails: Decoder<GroupDetails> = { value, name ->
     val json = obj(value, name)
     json.forbid("defaultParticipants", "group.created")
+    json.forbid("categories", "group.created")
     GroupDetails(
         json.required("id", groupId),
         json.required("scale", scale),
@@ -336,6 +376,27 @@ private val groupDetails: Decoder<GroupDetails> = { value, name ->
         json.optional("emoji", ::text),
         json.optional("colour", colour),
     )
+}
+
+private val category: Decoder<Category> = { value, name ->
+    val json = obj(value, name)
+    val builtin = json.optional("builtin", builtInCategory)
+    val categoryName = json.optional("name", ::text)
+    val emoji = json.required("emoji", ::text)
+    if (builtin == null && categoryName.isNullOrBlank()) {
+        throw Malformed("a custom category must have a nonblank name")
+    }
+    if (categoryName != null && categoryName.isBlank()) {
+        throw Malformed("a category name is blank")
+    }
+    if (emoji.isBlank()) throw Malformed("a category emoji is blank")
+    Category(json.required("id", categoryId), builtin, categoryName, emoji)
+}
+
+private val categoryChanges: Decoder<CategoryChanges> = { value, name ->
+    val json = obj(value, name)
+    json.forbid("id", "an update")
+    CategoryChanges(name = json.clearable("name", ::text), emoji = json.change("emoji", ::text))
 }
 
 private val groupChanges: Decoder<GroupChanges> = { value, name ->
@@ -363,6 +424,18 @@ private fun detailsJson(group: GroupDetails) = buildJsonObject {
     group.description?.let { put("description", it) }
     group.emoji?.let { put("emoji", it) }
     group.colour?.let { put("colour", it.text) }
+}
+
+private fun categoryJson(category: Category) = buildJsonObject {
+    put("id", category.id.hex)
+    category.builtin?.let { put("builtin", it.key) }
+    category.name?.let { put("name", it) }
+    put("emoji", category.emoji)
+}
+
+private fun categoryChangesJson(category: CategoryChanges) = buildJsonObject {
+    put("name", category.name) { JsonPrimitive(it) }
+    put("emoji", category.emoji) { JsonPrimitive(it) }
 }
 
 private fun changesJson(group: GroupChanges) = buildJsonObject {
@@ -422,6 +495,7 @@ private val entryChanges: Decoder<EntryChanges> = { value, name ->
         json.change("beneficiaries", side),
         json.clearable("note", ::text),
         json.clearable("attachments", attachments),
+        json.clearable("categoryId", categoryId),
     )
 }
 
@@ -435,6 +509,7 @@ private fun template(json: JsonObject) =
         json.required("beneficiaries", side),
         json.optional("note", ::text),
         json.optional("attachments", attachments),
+        json.optional("categoryId", categoryId),
     )
 
 private fun entryJson(entry: Entry) =
@@ -447,6 +522,7 @@ private fun entryJson(entry: Entry) =
             entry.beneficiaries,
             entry.note,
             entry.attachments,
+            entry.categoryId,
         ),
         id = entry.id,
         date = entry.date,
@@ -462,6 +538,7 @@ private fun templateJson(template: Template, id: EntryId? = null, date: EntryDat
         put("payers", sideJson(template.payers))
         put("beneficiaries", sideJson(template.beneficiaries))
         template.note?.let { put("note", it) }
+        template.categoryId?.let { put("categoryId", it.hex) }
         template.attachments?.let { names ->
             put("attachments", buildJsonArray { names.forEach { add(it.hex) } })
         }
@@ -478,6 +555,7 @@ private fun changesJson(entry: EntryChanges) = buildJsonObject {
     put("attachments", entry.attachments) { names ->
         buildJsonArray { names.forEach { add(it.hex) } }
     }
+    put("categoryId", entry.categoryId) { JsonPrimitive(it.hex) }
 }
 
 private fun sideJson(side: Side) = buildJsonObject {

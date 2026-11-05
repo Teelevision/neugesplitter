@@ -9,6 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import eu.teele.neugesplitter.domain.category.BuiltInCategory
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
@@ -160,7 +161,8 @@ class ExportImportTest {
 
         val copy = done!!.single()
         assertNotEquals(trip, copy)
-        assertEquals(groups.load(trip)!!.copy(id = copy), groups.load(copy))
+        val source = groups.load(trip)!!
+        assertEquals(source.copy(id = copy), groups.load(copy))
         assertEquals(ben.id, groups.actingAs(copy))
         assertNull(groups.backends.settings(copy))
     }
@@ -206,9 +208,13 @@ class ExportImportTest {
     }
 
     /** A made-up Splitwise export: Anna's groceries for both, and Ben paying part of it back. */
-    private fun splitwise(total: String = "10.00", currency: String = "EUR") =
+    private fun splitwise(
+        total: String = "10.00",
+        currency: String = "EUR",
+        category: String = "Groceries",
+    ) =
         ("\uFEFFDate,Description,Category,Cost,Currency,Anna,Ben\r\n" +
-                "2024-01-05,\"Rice, beans\",Groceries,30.00,EUR,15.00,-15.00\r\n" +
+                "2024-01-05,\"Rice, beans\",$category,30.00,EUR,15.00,-15.00\r\n" +
                 "2024-01-07,Ben B. paid Anna A.,Payment,5.00,$currency,-5.00,5.00\r\n" +
                 "\r\n" +
                 "2024-01-08,Total balance, , ,EUR,$total,-$total\r\n")
@@ -237,11 +243,55 @@ class ExportImportTest {
         assertEquals("Ben", group.members.getValue(me).name)
         assertEquals(listOf("Ben", "Anna"), group.members.values.map { it.name })
         assertEquals(listOf(Kind.EXPENSE, Kind.TRANSFER), group.entries.values.map { it.kind })
+        val groceries = group.categories.values.single { it.builtin == BuiltInCategory.GROCERIES }
+        val transfer = group.categories.values.single { it.builtin == BuiltInCategory.TRANSFER }
+        assertEquals(groceries.id, group.entries.values.first().categoryId)
+        assertEquals(transfer.id, group.entries.values.last().categoryId)
         assertEquals(
             mapOf(me to Amount.ofUnits(-1_000_000_000L)),
             group.settlement(today).filterKeys { it == me },
         )
         assertNull(groups.backends.settings(group.id))
+    }
+
+    @Test
+    fun `an unfamiliar Splitwise category must be mapped before import`() {
+        show(splitwise(category = "Shared studio"))
+        awaitText("Map Splitwise categories")
+        compose.onAllNodesWithText("Name")[0].performTextInput("Flat")
+        compose.onNodeWithText("Next").assertIsNotEnabled()
+
+        compose.onNodeWithText("Choose a category").performClick()
+        click("🏠 Housing")
+        click("Next")
+        awaitText("Who are you?")
+        click("Ben")
+        click("Import")
+        await { done != null }
+
+        val group = groups.load(done!!.single())!!
+        val housing = group.categories.values.single { it.builtin == BuiltInCategory.HOUSING }
+        assertEquals(housing.id, group.entries.values.first().categoryId)
+    }
+
+    @Test
+    fun `an unfamiliar Splitwise category can become a custom category`() {
+        show(splitwise(category = "Shared studio"))
+        awaitText("Map Splitwise categories")
+        compose.onAllNodesWithText("Name")[0].performTextInput("Flat")
+        compose.onNodeWithText("Choose a category").performClick()
+        click("Create “Shared studio” as a new category")
+        compose.onNodeWithText("New category: Shared studio").assertExists()
+        click("Next")
+        awaitText("Who are you?")
+        click("Ben")
+        click("Import")
+        await { done != null }
+
+        val group = groups.load(done!!.single())!!
+        val custom = group.categories.values.single { it.name == "Shared studio" }
+        assertEquals(custom.id, group.entries.values.first().categoryId)
+        assertEquals("📦", custom.emoji)
     }
 
     @Test

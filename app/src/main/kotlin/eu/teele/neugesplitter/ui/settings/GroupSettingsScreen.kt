@@ -88,6 +88,7 @@ fun GroupSettingsScreen(
     onBackend: () -> Unit = {},
     /** Exports the group to a file (DA-3). */
     onExport: () -> Unit = {},
+    onCategories: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var dialog by rememberSaveable { mutableStateOf<Dialog?>(null) }
@@ -166,6 +167,13 @@ fun GroupSettingsScreen(
             }
             item(key = "colour") {
                 Looks(R.string.group_colour) { ColourPicker(state.colour, viewModel::colour) }
+            }
+            item(key = "categories") {
+                SettingRow(
+                    stringResource(R.string.category_settings),
+                    supporting = stringResource(R.string.category_settings_summary),
+                    onClick = onCategories,
+                )
             }
             item(key = "participants") {
                 SettingRow(

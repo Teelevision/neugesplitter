@@ -46,6 +46,8 @@ import eu.teele.neugesplitter.ui.appsettings.AppSettingsViewModel
 import eu.teele.neugesplitter.ui.backend.BackendSetupScreen
 import eu.teele.neugesplitter.ui.backend.BackendSetupViewModel
 import eu.teele.neugesplitter.ui.backend.Location
+import eu.teele.neugesplitter.ui.category.CategorySettingsScreen
+import eu.teele.neugesplitter.ui.category.CategorySettingsViewModel
 import eu.teele.neugesplitter.ui.detail.EntryDetailScreen
 import eu.teele.neugesplitter.ui.detail.EntryDetailViewModel
 import eu.teele.neugesplitter.ui.editor.EntryEditorScreen
@@ -123,6 +125,8 @@ data class EntryEditor(
 }
 
 @Serializable data class EntryDetail(val group: String, val entry: String) : NavKey
+
+@Serializable data class CategorySettings(val group: String) : NavKey
 
 @Serializable data class EntryHistory(val group: String, val entry: String) : NavKey
 
@@ -541,11 +545,27 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                     onBack = back,
                                     onBackend = { stack.add(BackendSetup(key.group)) },
                                     onExport = { stack.add(Export(listOf(key.group))) },
+                                    onCategories = { stack.add(CategorySettings(key.group)) },
                                     onDeleted = { while (stack.size > 1) pop() },
                                     modifier = modifier,
                                 )
                         }
                     }
+                }
+                entry<CategorySettings> { key ->
+                    CategorySettingsScreen(
+                        viewModel {
+                            CategorySettingsViewModel(
+                                graph.groups,
+                                GroupId.parse(key.group),
+                                graph::identifier,
+                                graph::today,
+                                graph::now,
+                                graph.scope,
+                            )
+                        },
+                        onBack = pop,
+                    )
                 }
                 entry<EntryEditor> { key ->
                     val separator =

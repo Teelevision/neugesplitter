@@ -54,4 +54,18 @@ object EventJson {
             JsonObject(json + ("group" to JsonObject(group + ("id" to JsonPrimitive(id.hex)))))
         return Json.encodeToString(JsonElement.serializer(), changed)
     }
+
+    /** Imports [text] into a new group while preserving unknown fields. */
+    fun imported(text: String, id: GroupId): String {
+        val event = read(text)
+        var json = Json.parseToJsonElement(text).jsonObject
+        if (event is Event.GroupCreated) {
+            val group = json.getValue("group").jsonObject.toMutableMap()
+            group["id"] = JsonPrimitive(id.hex)
+            json = JsonObject(json + ("group" to JsonObject(group)))
+        }
+        val result = Json.encodeToString(JsonElement.serializer(), json)
+        restricted(result.encodeToByteArray())
+        return result
+    }
 }

@@ -194,6 +194,7 @@ fun OverviewScreen(
         FilterSheet(
             state.filter,
             overview.members,
+            overview.categories,
             overview.scale,
             viewModel.today(),
             onChange = viewModel::filter,

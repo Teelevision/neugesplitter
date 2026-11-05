@@ -1,5 +1,6 @@
 package eu.teele.neugesplitter.domain.event
 
+import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
@@ -10,6 +11,7 @@ import eu.teele.neugesplitter.domain.todo.Todo
 import eu.teele.neugesplitter.domain.todo.TodoMove
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.AttachmentName
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
@@ -55,6 +57,7 @@ data class EntryChanges(
     val beneficiaries: Change<Side> = Change.Unchanged,
     val note: Change<String?> = Change.Unchanged,
     val attachments: Change<List<AttachmentName>?> = Change.Unchanged,
+    val categoryId: Change<CategoryId?> = Change.Unchanged,
 ) {
     /** True if this names no field, and so would change nothing. */
     val isEmpty: Boolean
@@ -75,6 +78,31 @@ data class EntryChanges(
                 beneficiaries = change(before.beneficiaries, after.beneficiaries),
                 note = change(before.note, after.note),
                 attachments = change(before.attachments, after.attachments),
+                categoryId = change(before.categoryId, after.categoryId),
+            )
+        }
+    }
+}
+
+/** The `category` payload of `category.updated`: the fields it may change. */
+data class CategoryChanges(
+    val name: Change<String?> = Change.Unchanged,
+    val emoji: Change<String> = Change.Unchanged,
+) {
+    val isEmpty: Boolean
+        get() = this == CategoryChanges()
+
+    companion object {
+        fun between(before: Category, after: Category): CategoryChanges {
+            require(before.id == after.id) {
+                "${before.id} and ${after.id} are different categories"
+            }
+            require(before.builtin == after.builtin) { "a category's built-in key cannot change" }
+            fun <T> change(old: T, new: T): Change<T> =
+                if (old == new) Change.Unchanged else Change.To(new)
+            return CategoryChanges(
+                name = change(before.name, after.name),
+                emoji = change(before.emoji, after.emoji),
             )
         }
     }
@@ -193,6 +221,43 @@ sealed interface Event {
         val target: EntryId,
     ) : Event {
         override val type = "entry.deleted"
+    }
+
+    data class CategoryCreated(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val category: Category,
+    ) : Event {
+        override val type = "category.created"
+    }
+
+    data class CategoryUpdated(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val target: CategoryId,
+        val category: CategoryChanges,
+    ) : Event {
+        override val type = "category.updated"
+    }
+
+    data class CategoryDeleted(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val target: CategoryId,
+    ) : Event {
+        override val type = "category.deleted"
+    }
+
+    data class CategoryRestored(
+        override val id: EventId,
+        override val by: MemberId,
+        override val at: Instant,
+        val target: CategoryId,
+    ) : Event {
+        override val type = "category.restored"
     }
 
     data class SeriesCreated(

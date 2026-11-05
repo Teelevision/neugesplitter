@@ -350,6 +350,7 @@ class OverviewScreenTest {
         show()
         compose.onNodeWithText("Wednesday, October 7, 2026").assertExists()
         compose.onNodeWithText("Tuesday, October 6, 2026").assertExists()
+        compose.onAllNodesWithText("🏷️").assertCountEquals(2)
         compose.onNodeWithText("Paid by Anna").assertExists()
         compose.onNodeWithText("Paid by Ben").assertExists()
         compose.onNodeWithText("30.00").assertExists()

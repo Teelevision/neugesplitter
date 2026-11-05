@@ -46,11 +46,11 @@ import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
+import eu.teele.neugesplitter.ui.UNCATEGORIZED_ENTRY_EMOJI
+import eu.teele.neugesplitter.ui.category.categoryName
 import eu.teele.neugesplitter.ui.editor.offDueText
 import eu.teele.neugesplitter.ui.editor.recurrenceText
 import eu.teele.neugesplitter.ui.formatted
-import eu.teele.neugesplitter.ui.kindIcon
-import eu.teele.neugesplitter.ui.kindLabel
 import eu.teele.neugesplitter.ui.longDate
 import eu.teele.neugesplitter.ui.sideLabels
 import java.util.Locale
@@ -151,14 +151,20 @@ private fun Content(detail: Detail, onSeries: (SeriesId) -> Unit, modifier: Modi
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    painterResource(kindIcon(entry.kind)),
-                    stringResource(kindLabel(entry.kind)),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text(
+                    detail.category?.emoji ?: UNCATEGORIZED_ENTRY_EMOJI,
+                    style = MaterialTheme.typography.titleLarge,
                 )
             }
             Column(Modifier.padding(start = 16.dp)) {
                 Text(entry.description, style = MaterialTheme.typography.headlineSmall)
+                detail.category?.let {
+                    Text(
+                        categoryName(it),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Text(
                     longDate(entry.date, locale),
                     style = MaterialTheme.typography.bodyMedium,

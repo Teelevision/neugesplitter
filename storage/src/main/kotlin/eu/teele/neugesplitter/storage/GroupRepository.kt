@@ -33,6 +33,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
@@ -245,43 +246,72 @@ class GroupRepository(private val driver: SqlDriver) {
                 )
             }
         // Either query may be told of a write first; both are read again, together, either way.
-        return changes(heading, entries)
-            .map {
-                database.transactionWithResult {
-                    heading.executeAsOneOrNull()?.let {
-                        val beneficiaries =
-                            queries
-                                .beneficiaries(id.hex)
-                                .executeAsList()
-                                .groupBy({ EntryId.parse(it.entry) }, { MemberId.parse(it.member) })
-                        Overview(
-                            name = it.name,
-                            emoji = it.emoji,
-                            colour = it.colour?.let(Colour::parse),
-                            scale = Scale.of(it.scale.toInt()),
-                            own = it.own?.let(Amount::ofUnits),
-                            entries =
-                                entries
+        val projected =
+            changes(heading, entries)
+                .map {
+                    database.transactionWithResult {
+                        heading.executeAsOneOrNull()?.let {
+                            val beneficiaries =
+                                queries
+                                    .beneficiaries(id.hex)
                                     .executeAsList()
-                                    .groupBy { it.id }
-                                    .values
-                                    .map { rows ->
-                                        rows
-                                            .first()
-                                            .copy(
-                                                payers = rows.map { it.payers.single() },
-                                                payerIds =
-                                                    rows.flatMapTo(mutableSetOf()) { it.payerIds },
-                                                beneficiaryIds =
-                                                    beneficiaries[rows.first().id].orEmpty().toSet(),
-                                            )
+                                    .groupBy(
+                                        { EntryId.parse(it.entry) },
+                                        { MemberId.parse(it.member) },
+                                    )
+                            Overview(
+                                name = it.name,
+                                emoji = it.emoji,
+                                colour = it.colour?.let(Colour::parse),
+                                scale = Scale.of(it.scale.toInt()),
+                                own = it.own?.let(Amount::ofUnits),
+                                entries =
+                                    entries
+                                        .executeAsList()
+                                        .groupBy { it.id }
+                                        .values
+                                        .map { rows ->
+                                            rows
+                                                .first()
+                                                .copy(
+                                                    payers = rows.map { it.payers.single() },
+                                                    payerIds =
+                                                        rows.flatMapTo(mutableSetOf()) {
+                                                            it.payerIds
+                                                        },
+                                                    beneficiaryIds =
+                                                        beneficiaries[rows.first().id]
+                                                            .orEmpty()
+                                                            .toSet(),
+                                                )
+                                        },
+                                members =
+                                    queries.members(id.hex).executeAsList().associate {
+                                        MemberId.parse(it.id) to it.name
                                     },
-                            members =
-                                queries.members(id.hex).executeAsList().associate {
-                                    MemberId.parse(it.id) to it.name
-                                },
-                        )
+                            )
+                        }
                     }
+                }
+                .distinctUntilChanged()
+        return combine(projected, group(id, context)) { overview, state ->
+                if (overview == null || state == null) null
+                else {
+                    val categories = state.categories
+                    val entries =
+                        (state.entries.values + state.occurrences(today()).map { it.entry })
+                            .associateBy { it.id }
+                    overview.copy(
+                        categories = categories.values.toList(),
+                        entries =
+                            overview.entries.map { listed ->
+                                val category = entries[listed.id]?.categoryId?.let(categories::get)
+                                listed.copy(
+                                    categoryEmoji = category?.emoji,
+                                    categoryId = category?.id,
+                                )
+                            },
+                    )
                 }
             }
             .distinctUntilChanged()
@@ -374,7 +404,7 @@ class GroupRepository(private val driver: SqlDriver) {
         database.transactionWithResult {
             require(texts.isNotEmpty()) { "a group has at least its group.created" }
             require(replayed(id) == null) { "group $id exists already" }
-            val log = listOf(EventJson.regrouped(texts.first(), id)) + texts.drop(1)
+            val log = texts.map { EventJson.imported(it, id) }
             val group = Group.replay(log.map(EventJson::read) + added)
             log.forEach { database.eventRowQueries.append(id.hex, it) }
             added.forEach { database.eventRowQueries.append(id.hex, EventJson.write(it)) }

@@ -26,6 +26,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.balance.Transfer
+import eu.teele.neugesplitter.domain.category.defaultCategories
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
@@ -287,6 +288,18 @@ class EntryEditorScreenTest {
         assertEquals(Side.Equal(listOf(ben.id)), entry.payers)
         assertEquals(Side.Equal(listOf(anna.id, ben.id)), entry.beneficiaries)
         assertEquals(1, closed)
+    }
+
+    @Test
+    fun `editing an expense persists its selected category`() {
+        show(existing = true, entry = dinner)
+        val category = defaultCategories().first()
+
+        compose.onNodeWithText("No category").performClick()
+        compose.onNodeWithText("${category.emoji} Housing").performClick()
+        save()
+
+        assertEquals(category.id, stored().getValue(dinner).categoryId)
     }
 
     @Test

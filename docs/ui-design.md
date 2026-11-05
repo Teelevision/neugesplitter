@@ -133,11 +133,13 @@ group imported opens; several return to the list.
 
 A file that is no zip is read as a Splitwise export (DA-5). In place of the
 groups, the flow asks for the group's name, since the export has none, and shows
-its members, entries and transfers, any rows left out, and a card saying whether
-the balances match the export's totals or by how much they differ; a difference
-does not stop the import, and an entry is added that corrects it, which the card
-says. Who the user is follows, with a new member offered as always. A file in
-several currencies is refused.
+the category mappings, its members, entries and transfers, any rows left out,
+and a card saying whether the balances match the export's totals or by how much
+they differ. Recognized categories are mapped automatically; each unfamiliar
+nonblank category must be mapped to an existing category or created as a custom
+category before continuing. A difference does not stop the import, and an entry
+is added that corrects it, which the card says. Who the user is follows, with a
+new member offered as always. A file in several currencies is refused.
 
 ## 4. Inside a group
 
@@ -173,8 +175,8 @@ Below that, entries newest first, grouped under date headers. Each row carries:
 - "edited" when it was changed after creation (HI-4)
 - a dot while the change has not been seen (HI-5)
 
-Income and transfer rows are visually distinct from expenses — a leading icon
-and a sign, not colour alone (UX-6).
+The leading glyph is the category emoji, or a tag when no category is assigned.
+Income and transfer amounts carry a sign, not colour alone (UX-6).
 
 Interactions:
 
@@ -312,6 +314,9 @@ Plain list, grouped:
   shows at once and is written when the user leaves the screen or the app, so
   trying several writes one change.
 - **Entries**: default participants for new entries (SP-8)
+- **Categories**: categories are listed alphabetically by their displayed name.
+  Deleted categories are hidden by default and can be shown or hidden with the
+  visibility action in the top bar.
 - **Backend**: current backend summary, sync interval (SY-13), edit or configure
   (BE-2, BE-15), and the encryption state (PR-11). A local group shows one row
   saying that it is lost with the device, which starts backend setup.

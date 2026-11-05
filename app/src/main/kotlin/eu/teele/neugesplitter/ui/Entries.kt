@@ -57,6 +57,8 @@ fun kindLabel(kind: Kind): Int =
         Kind.TRANSFER -> R.string.kind_transfer
     }
 
+const val UNCATEGORIZED_ENTRY_EMOJI = "🏷️"
+
 /** What the payer and beneficiary sides are called; a transfer goes from and to (EN-7). */
 fun sideLabels(kind: Kind): Pair<Int, Int> =
     when (kind) {
@@ -128,11 +130,9 @@ fun EntryRow(entry: ListedEntry, scale: Scale, locale: Locale, modifier: Modifie
                 Modifier.size(40.dp).clip(CircleShape).background(colours.surfaceContainerHigh),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                painterResource(kindIcon(entry.kind)),
-                stringResource(kindLabel(entry.kind)),
-                tint = colours.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
+            Text(
+                entry.categoryEmoji ?: UNCATEGORIZED_ENTRY_EMOJI,
+                style = MaterialTheme.typography.titleLarge,
             )
         }
         Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {

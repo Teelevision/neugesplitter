@@ -425,17 +425,19 @@ are described in [sync-design.md](sync-design.md).
   a row with one member up is that member paying the cost, split equally if
   every share is the same to within the file's last decimal place and in
   absolute amounts otherwise; any other row is paid and owed in absolute amounts
-  as the nets say. A row that moves no money is left out. Categories, recurrence
-  and edit history are not in the export or have no place here, so every entry
-  is a plain one added by the importing user on the row's date. Several
-  currencies are refused, as a group has none (AM-1). The totals row is only a
-  check, shown before importing; a row whose nets do not add up leaves a
-  difference. One more entry, dated the day of the import, then brings every
-  balance to its total whenever the totals add up to zero; the preview says so,
-  and as an ordinary entry it can be changed or deleted like any other. The file
-  is told from an export by the zip signature at its start. Naming Splitwise to
-  describe what is read is descriptive use of a trademark; the app shows no logo
-  and claims no endorsement, and the tests use made-up files.
+  as the nets say. A row that moves no money is left out. Recognized category
+  labels map to built-in categories; an unfamiliar nonblank label must be mapped
+  to an existing category or made into a custom category before the import can
+  continue. Recurrence and edit history have no place here, so every entry is a
+  plain one added by the importing user on the row's date. Several currencies
+  are refused, as a group has none (AM-1). The totals row is only a check, shown
+  before importing; a row whose nets do not add up leaves a difference. One more
+  entry, dated the day of the import, then brings every balance to its total
+  whenever the totals add up to zero; the preview says so, and as an ordinary
+  entry it can be changed or deleted like any other. The file is told from an
+  export by the zip signature at its start. Naming Splitwise to describe what is
+  read is descriptive use of a trademark; the app shows no logo and claims no
+  endorsement, and the tests use made-up files.
 - **Why does swiping an entry only reveal a delete button?** A swipe that
   deletes on its own fires on a sloppy vertical scroll, and the undo snackbar
   does not help when the user did not see which entry went. Revealing the button

@@ -249,6 +249,10 @@ document does not define is ignored (section 8).
 | `entry.created`        | `entry`                     |                             |
 | `entry.updated`        | `target`, `entry`           | Only what changed.          |
 | `entry.deleted`        | `target`                    |                             |
+| `category.created`     | `category`                  |                             |
+| `category.updated`     | `target`, `category`        | Only what changed.          |
+| `category.deleted`     | `target`                    | Soft-delete.                |
+| `category.restored`    | `target`                    | Undoes `category.deleted`.  |
 | `series.created`       | `series`                    |                             |
 | `series.amended`       | `target`, `from`, `segment` |                             |
 | `series.stopped`       | `target`, `from`, `until`?  | Pauses or stops it.         |
@@ -357,6 +361,46 @@ its own; the choice is made per field, as each one is added.
 | `colour`              | string, optional, `#rrggbb`                                        |
 | `defaultParticipants` | array of member identifiers, optional, `group.updated` only (SP-8) |
 
+Built-in categories are derived from the application catalog. Each built-in has
+a globally stable, hard-coded 128-bit identifier, listed below.
+`category.created` events create custom categories only. Each serialized
+category has an `id`, an `emoji`, and either a built-in `builtin` key or a
+custom `name`. A built-in may also have a shared `name` override. Without one,
+its name is localized by the installation. Custom names are stored as entered
+and are not localized.
+
+| Built-in key              | Category identifier                |
+| ------------------------- | ---------------------------------- |
+| `housing`                 | `e27c346bf48a5e7fc3312e086ae54a1a` |
+| `utilities`               | `9d1c8c53bbe11a0f34507d1f2c775398` |
+| `groceries`               | `a5c6e4e231756a27c3170a2e6da6059e` |
+| `dining_and_cafes`        | `7de2f5f349dac2125cd903cb850d79c4` |
+| `transportation`          | `adc2a031cf5f9237d2051b32f3d95ee7` |
+| `health`                  | `95e897ffb0ba843759a50ce0342830dd` |
+| `insurance`               | `5025cc4ee7ab924c659c199c53c5f4e1` |
+| `shopping`                | `9a4dc6409cf4fae466a71c6687add748` |
+| `entertainment`           | `2d494e77b363c800d71ac3cd3cf8be15` |
+| `personal_care`           | `62b5983e7ac63874ae75d53e5dfe9fb9` |
+| `family`                  | `32d04080c42a3ae1b0187286ceea72f7` |
+| `education`               | `bd94347b49ab4fa29e52c756536ba25f` |
+| `travel`                  | `f11d9201b625485754074620b1e706e2` |
+| `pets`                    | `54a51b98ed699999033f8a066deb2062` |
+| `gifts_and_donations`     | `39bcaa0f20466c9b20356f5045db0261` |
+| `fees_and_taxes`          | `5b8151f0394ded76ba68fb8bdde37aca` |
+| `savings_and_investments` | `365b2e04c25cd8a1a3af4585a0c1f586` |
+| `transfer`                | `2756a3df43883aaf1c05fd26d12ee5a9` |
+
+An entry or recurring template that refers to an unknown category identifier is
+treated as having no category. Category update, delete, or restore events for
+unknown identifiers have no effect.
+
+`category.updated` may change `name` and `emoji`. For a built-in, `name: null`
+clears the override and restores its localized label. A custom category must
+always have a nonblank name and every category must have a nonblank emoji.
+`category.deleted` is a soft-delete: the category remains in the group and
+entries may continue to refer to it. `category.restored` makes it selectable
+again.
+
 `defaultParticipants` is the set of members a new entry starts out with; the
 scheme it starts out with is always equal and is not configurable (SP-8). It
 MUST NOT appear in `group.created`, which is the first event of the log and so
@@ -396,6 +440,7 @@ creating a group, and MUST reject a group whose `scale` they cannot honour.
 | `beneficiaries` | side                                        |
 | `note`          | string, optional (EN-11)                    |
 | `attachments`   | array of attachment names, optional (EN-11) |
+| `categoryId`    | category identifier, optional               |
 
 A **side**:
 

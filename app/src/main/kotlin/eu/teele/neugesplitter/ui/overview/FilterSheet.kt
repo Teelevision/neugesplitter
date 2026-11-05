@@ -34,13 +34,16 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.calculator.amountIn
+import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.ui.category.categoryName
 import eu.teele.neugesplitter.ui.editor.DatePick
 import eu.teele.neugesplitter.ui.kindIcon
 import eu.teele.neugesplitter.ui.kindLabel
@@ -57,6 +60,7 @@ import java.time.format.FormatStyle
 internal fun FilterSheet(
     filter: EntryFilter,
     members: Map<MemberId, String>,
+    categories: List<Category>,
     scale: Scale,
     today: EntryDate,
     onChange: (EntryFilter) -> Unit,
@@ -115,6 +119,38 @@ internal fun FilterSheet(
                             Icon(painterResource(kindIcon(kind)), null, Modifier.size(18.dp))
                         },
                     )
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    stringResource(R.string.filter_category),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = filter.uncategorized,
+                        onClick = { onChange(filter.copy(uncategorized = !filter.uncategorized)) },
+                        label = { Text(stringResource(R.string.category_none)) },
+                    )
+                    categories.forEach { category ->
+                        FilterChip(
+                            selected = category.id in filter.categories,
+                            onClick = {
+                                val selected =
+                                    if (category.id in filter.categories)
+                                        filter.categories - category.id
+                                    else filter.categories + category.id
+                                onChange(filter.copy(categories = selected))
+                            },
+                            label = {
+                                Text(
+                                    "${category.emoji} ${categoryName(category)}",
+                                    textDecoration =
+                                        if (category.deleted) TextDecoration.LineThrough else null,
+                                )
+                            },
+                        )
+                    }
                 }
             }
             Members(stringResource(payersLabel), members, filter.payers) {

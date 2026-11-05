@@ -480,7 +480,10 @@ there is no backup, the group is gone.
 - **DA-5** (Optional): The user MUST be able to import a group from a Splitwise
   CSV export. It becomes a new group, shared with no one, and the app MUST show
   before importing whether the balances come out as the export's totals say.
-  Splitwise is a trademark of its owner, named only to say what the app reads.
+  Recognized row categories MUST be mapped to built-in categories, and
+  unfamiliar nonblank categories MUST be mapped by the user or created as custom
+  categories before import. Splitwise is a trademark of its owner, named only to
+  say what the app reads.
 
 ### 4.13 Platform and Usability
 

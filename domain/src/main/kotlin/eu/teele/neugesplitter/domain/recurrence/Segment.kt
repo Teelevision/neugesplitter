@@ -5,6 +5,7 @@ import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.AttachmentName
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 
@@ -23,15 +24,36 @@ data class Template(
     val beneficiaries: Side,
     val note: String? = null,
     val attachments: List<AttachmentName>? = null,
+    val categoryId: CategoryId? = null,
 ) {
     fun on(id: EntryId, date: EntryDate): Entry =
-        Entry(id, kind, description, date, amount, payers, beneficiaries, note, attachments)
+        Entry(
+            id,
+            kind,
+            description,
+            date,
+            amount,
+            payers,
+            beneficiaries,
+            note,
+            attachments,
+            categoryId,
+        )
 
     companion object {
         /** [entry] without its id and date. */
         fun of(entry: Entry): Template =
             with(entry) {
-                Template(kind, description, amount, payers, beneficiaries, note, attachments)
+                Template(
+                    kind,
+                    description,
+                    amount,
+                    payers,
+                    beneficiaries,
+                    note,
+                    attachments,
+                    categoryId,
+                )
             }
     }
 }

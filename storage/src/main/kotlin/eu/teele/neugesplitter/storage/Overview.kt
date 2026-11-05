@@ -1,7 +1,9 @@
 package eu.teele.neugesplitter.storage
 
+import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
@@ -24,6 +26,7 @@ data class Overview(
     val own: Amount?,
     val entries: List<ListedEntry>,
     val members: Map<MemberId, String> = emptyMap(),
+    val categories: List<Category> = emptyList(),
 ) {
     /** What the group has spent: its expenses, and neither income nor transfers (EN-7). */
     val total: Amount
@@ -58,4 +61,6 @@ data class ListedEntry(
     val unseen: Boolean,
     val payerIds: Set<MemberId> = emptySet(),
     val beneficiaryIds: Set<MemberId> = emptySet(),
+    val categoryEmoji: String? = null,
+    val categoryId: CategoryId? = null,
 )

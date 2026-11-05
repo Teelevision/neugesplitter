@@ -2,6 +2,8 @@ package eu.teele.neugesplitter.domain.group
 
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.balance.Settlement
+import eu.teele.neugesplitter.domain.category.Category
+import eu.teele.neugesplitter.domain.category.defaultCategories
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.event.EntryChanges
@@ -17,6 +19,7 @@ import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.todo.Todo
 import eu.teele.neugesplitter.domain.todo.moved
 import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
@@ -59,6 +62,7 @@ data class Group(
     val todos: List<Todo> = emptyList(),
     /** Every todo deleted, which a later event may still name and then leaves alone. */
     val binned: Map<TodoId, Todo> = emptyMap(),
+    val categories: Map<CategoryId, Category> = defaultCategories().associateBy { it.id },
 ) {
 
     /**
@@ -115,18 +119,60 @@ data class Group(
                 copy(entries = entries.without(entry.id), deleted = deleted.with(entry.id, entry))
             }
 
+            is Event.CategoryCreated -> {
+                if (event.category.id in categories) {
+                    throw Malformed("category ${event.category.id} is created twice")
+                }
+                if (event.category.builtin != null) {
+                    throw Malformed("a built-in category cannot be created by an event")
+                }
+                copy(categories = categories.with(event.category.id, event.category))
+            }
+
+            is Event.CategoryUpdated -> {
+                val category = categories[event.target]
+                if (category == null) {
+                    this
+                } else {
+                    val changes = event.category
+                    val name = changes.name.or(category.name)
+                    val emoji = changes.emoji.or(category.emoji)
+                    if (category.builtin == null && name.isNullOrBlank()) {
+                        throw Malformed("custom category ${category.id} must have a name")
+                    }
+                    if (emoji.isBlank())
+                        throw Malformed("category ${category.id} must have an emoji")
+                    val updated = category.copy(name = name, emoji = emoji)
+                    copy(categories = categories.with(updated.id, updated))
+                }
+            }
+
+            is Event.CategoryDeleted -> {
+                categories[event.target]?.let { category ->
+                    copy(categories = categories.with(category.id, category.copy(deleted = true)))
+                } ?: this
+            }
+
+            is Event.CategoryRestored -> {
+                categories[event.target]?.let { category ->
+                    copy(categories = categories.with(category.id, category.copy(deleted = false)))
+                } ?: this
+            }
+
             is Event.SeriesCreated -> {
                 if (event.series in series) {
                     throw Malformed("series ${event.series} is created twice")
                 }
-                checked(event.segment.template, "series ${event.series}")
-                val created = Series(event.series, listOf(event.from to event.segment))
+                val template = checked(event.segment.template, "series ${event.series}")
+                val segment = event.segment.copy(template = template)
+                val created = Series(event.series, listOf(event.from to segment))
                 copy(series = series.with(event.series, created))
             }
 
             is Event.SeriesAmended -> {
-                checked(event.segment.template, "series ${event.target}")
-                revised(event.target) { it.from(event.from, event.segment).restored() }
+                val template = checked(event.segment.template, "series ${event.target}")
+                val segment = event.segment.copy(template = template)
+                revised(event.target) { it.from(event.from, segment).restored() }
             }
 
             is Event.SeriesStopped ->
@@ -144,10 +190,9 @@ data class Group(
                 revised(event.series) { it.decided(event.due, Decision.Deleted) }
 
             is Event.OccurrenceAmended -> {
-                checked(event.entry, "occurrence ${event.due} of series ${event.series}")
-                revised(event.series) {
-                    it.decided(event.due, Decision.Amended(event.date, event.entry))
-                }
+                val entry =
+                    checked(event.entry, "occurrence ${event.due} of series ${event.series}")
+                revised(event.series) { it.decided(event.due, Decision.Amended(event.date, entry)) }
             }
 
             is Event.TodoCreated -> {
@@ -256,6 +301,7 @@ data class Group(
             beneficiaries = changes.beneficiaries.or(beneficiaries),
             note = changes.note.or(note),
             attachments = changes.attachments.or(attachments),
+            categoryId = changes.categoryId.or(categoryId),
         )
 
     private fun known(target: MemberId): Member =
@@ -294,11 +340,13 @@ data class Group(
     /** An entry is checked when it enters the state, so that a stored one can always be split. */
     private fun checked(entry: Entry): Entry {
         requireSplittable("entry ${entry.id}", entry.amount, entry.payers, entry.beneficiaries)
-        return entry
+        return entry.copy(categoryId = entry.categoryId?.takeIf(categories::containsKey))
     }
 
-    private fun checked(template: Template, what: String) =
+    private fun checked(template: Template, what: String): Template {
         requireSplittable(what, template.amount, template.payers, template.beneficiaries)
+        return template.copy(categoryId = template.categoryId?.takeIf(categories::containsKey))
+    }
 
     private fun requireSplittable(what: String, amount: Amount, payers: Side, beneficiaries: Side) {
         for (member in payers.members + beneficiaries.members) {
@@ -331,6 +379,7 @@ data class Group(
                         description = description,
                         emoji = emoji,
                         colour = colour,
+                        categories = defaultCategories().associateBy { it.id },
                     )
                 }
             return events.drop(1).fold(group) { state, event -> state + event }

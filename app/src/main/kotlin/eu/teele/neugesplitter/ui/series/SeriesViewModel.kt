@@ -47,6 +47,7 @@ data class SeriesDetail(
     val entries: List<ListedEntry>,
     val history: List<Happening> = emptyList(),
     val names: Map<MemberId, String> = emptyMap(),
+    val categoryEmoji: String? = null,
 ) {
     /** Its first day, while that is still ahead. */
     val starts: EntryDate?
@@ -200,6 +201,7 @@ class SeriesViewModel(
                     .filter { it.happened.series == found.id }
                     .asReversed(),
             names = members.mapValues { it.value.name },
+            categoryEmoji = segment.template.categoryId?.let(categories::get)?.emoji,
         )
     }
 }

@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.balance.Transfer
+import eu.teele.neugesplitter.domain.category.BuiltInCategory
+import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Scheme
@@ -21,6 +23,7 @@ import eu.teele.neugesplitter.domain.recurrence.Series
 import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
@@ -87,6 +90,8 @@ data class EntryEditorState(
     val blank: Boolean = false,
     val scale: Scale = Scale.DEFAULT,
     val members: List<Member> = emptyList(),
+    val categories: List<Category> = emptyList(),
+    val categoryId: CategoryId? = null,
     val source: Entry? = null,
     val kind: Kind = Kind.EXPENSE,
     val description: String = "",
@@ -256,6 +261,7 @@ class EntryEditorViewModel(
                         loaded = true,
                         blank = entry == null && settling == null && changing == null,
                         scale = loaded.scale,
+                        categories = loaded.categories.values.toList(),
                         members =
                             loaded.members.values.filter {
                                 it.id !in loaded.removed || it.id in involved
@@ -273,6 +279,7 @@ class EntryEditorViewModel(
                             kind = Kind.TRANSFER,
                             description = settlement,
                             amount = settling.amount,
+                            categoryId = transferCategory(loaded.categories.values),
                             payers = setOf(settling.from),
                             beneficiaries = setOf(settling.to),
                         )
@@ -281,6 +288,11 @@ class EntryEditorViewModel(
                         editing = !duplicate && changed == null,
                         source = source,
                         kind = source.kind,
+                        categoryId =
+                            source.categoryId
+                                ?: if (source.kind == Kind.TRANSFER)
+                                    transferCategory(loaded.categories.values)
+                                else null,
                         description = source.description,
                         amount = source.amount,
                         date = if (duplicate) state.date else source.date,
@@ -344,8 +356,17 @@ class EntryEditorViewModel(
                     kind != Kind.TRANSFER && it.description == transfer -> ""
                     else -> it.description
                 }
-            it.copy(kind = kind, beneficiaries = beneficiaries, description = description)
+            it.copy(
+                kind = kind,
+                beneficiaries = beneficiaries,
+                description = description,
+                categoryId =
+                    it.categoryId
+                        ?: if (kind == Kind.TRANSFER) transferCategory(it.categories) else null,
+            )
         }
+
+    fun category(categoryId: CategoryId?) = mutable.update { it.copy(categoryId = categoryId) }
 
     fun description(text: String) = mutable.update { it.copy(description = text) }
 
@@ -467,6 +488,7 @@ class EntryEditorViewModel(
             beneficiaries = state.beneficiarySide ?: return null,
             note = state.source?.note,
             attachments = state.source?.attachments,
+            categoryId = state.categoryId,
         )
 
     /** What saving [written] as [state] has it writes, by [by] at [at]. */
@@ -673,3 +695,6 @@ class EntryEditorViewModel(
 data class Preview(val impact: Impact, val next: EntryDate?, val skipped: List<EntryDate>)
 
 private fun EntryDate.plusDays(days: Long) = EntryDate.of(value.plusDays(days))
+
+private fun transferCategory(categories: Collection<Category>): CategoryId? =
+    categories.firstOrNull { it.builtin == BuiltInCategory.TRANSFER && !it.deleted }?.id

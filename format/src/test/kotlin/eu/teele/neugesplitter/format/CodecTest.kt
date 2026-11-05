@@ -1,16 +1,24 @@
 package eu.teele.neugesplitter.format
 
+import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.RENT
 import eu.teele.neugesplitter.domain.arbSegment
+import eu.teele.neugesplitter.domain.category.Category
+import eu.teele.neugesplitter.domain.category.defaultCategories
+import eu.teele.neugesplitter.domain.event.CategoryChanges
 import eu.teele.neugesplitter.domain.event.Change
 import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
+import eu.teele.neugesplitter.domain.event.GroupDetails
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.recurrence.Interval
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
+import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.format.chain.Link
 import eu.teele.neugesplitter.format.json.BatchId
 import eu.teele.neugesplitter.format.json.EventJson
@@ -24,6 +32,7 @@ import java.io.File
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
@@ -161,6 +170,105 @@ class CodecTest {
                 EntryChanges(note = Change.To(null)),
             )
         assertEquals(JsonObject(mapOf("note" to JsonNull)), written(event).getValue("entry"))
+    }
+
+    @Test
+    fun `category definitions and assignments survive the wire format`() {
+        val group = GroupId.parse("ab".repeat(16))
+        val category = defaultCategories().first()
+        val created =
+            Event.GroupCreated(
+                EventId.parse("%032x".format(0x101)),
+                anna,
+                Instant.EPOCH,
+                GroupDetails(group, Scale.DEFAULT, "Home"),
+            )
+        val customCategory =
+            Category(CategoryId.parse("ac".repeat(16)), name = "Books", emoji = "📚")
+        val categoryCreated =
+            Event.CategoryCreated(
+                EventId.parse("%032x".format(0x106)),
+                anna,
+                Instant.EPOCH,
+                customCategory,
+            )
+        val entry =
+            arbSegment
+                .next()
+                .template
+                .on(EntryId.parse("%032x".format(0x102)), EntryDate.parse("2026-10-01"))
+                .copy(categoryId = category.id)
+        val entryCreated =
+            Event.EntryCreated(EventId.parse("%032x".format(0x103)), anna, Instant.EPOCH, entry)
+        val categoryUpdated =
+            Event.CategoryUpdated(
+                EventId.parse("%032x".format(0x104)),
+                anna,
+                Instant.EPOCH,
+                category.id,
+                CategoryChanges(name = Change.To("Home"), emoji = Change.To("🏡")),
+            )
+
+        listOf(created, categoryCreated, entryCreated, categoryUpdated).forEach { event ->
+            assertEquals(event, EventJson.read(EventJson.write(event)))
+        }
+
+        val clearing =
+            Event.EntryUpdated(
+                EventId.parse("%032x".format(0x105)),
+                anna,
+                Instant.EPOCH,
+                entry.id,
+                EntryChanges(categoryId = Change.To(null)),
+            )
+        assertEquals(
+            JsonNull,
+            written(clearing).getValue("entry").jsonObject.getValue("categoryId"),
+        )
+        assertEquals(clearing, EventJson.read(EventJson.write(clearing)))
+    }
+
+    @Test
+    fun `a group created event without category snapshots remains valid`() {
+        val old =
+            """{"id":"${"%032x".format(0x201)}","type":"group.created","by":"${anna.hex}",""" +
+                """"at":"2026-01-02T00:00:00Z","group":{"id":"${"ab".repeat(16)}",""" +
+                """"scale":2,"name":"Old"}}"""
+
+        val event = EventJson.read(old) as Event.GroupCreated
+
+        assertEquals(event, EventJson.read(EventJson.write(event)))
+    }
+
+    @Test
+    fun `a group created event with a legacy category snapshot is refused`() {
+        val old =
+            """{"id":"${"%032x".format(0x201)}","type":"group.created","by":"${anna.hex}",""" +
+                """"at":"2026-01-02T00:00:00Z","group":{"id":"${"ab".repeat(16)}",""" +
+                """"scale":2,"name":"Old","categories":[]}}"""
+
+        assertFailsWith<Malformed> { EventJson.read(old) }
+    }
+
+    @Test
+    fun `category created events cannot create built in categories`() {
+        val legacy =
+            """{"id":"${"%032x".format(0x301)}","type":"category.created","by":"${anna.hex}",""" +
+                """"at":"2026-01-02T00:00:00Z","category":{"id":"${"ac".repeat(16)}",""" +
+                """"builtin":"housing","emoji":"🏠"}}"""
+
+        assertFailsWith<Malformed> { EventJson.read(legacy) }
+        val category = defaultCategories().first()
+        assertFailsWith<Malformed> {
+            EventJson.write(
+                Event.CategoryCreated(
+                    EventId.parse("%032x".format(0x302)),
+                    anna,
+                    Instant.EPOCH,
+                    category,
+                )
+            )
+        }
     }
 
     @Test

@@ -3,12 +3,14 @@ package eu.teele.neugesplitter.ui.export
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.teele.neugesplitter.domain.Malformed
+import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
@@ -21,6 +23,7 @@ import eu.teele.neugesplitter.format.export.ExportedGroup
 import eu.teele.neugesplitter.format.export.Locked
 import eu.teele.neugesplitter.format.json.EventJson
 import eu.teele.neugesplitter.format.splitwise.MixedCurrencies
+import eu.teele.neugesplitter.format.splitwise.SplitwiseCategoryMapper
 import eu.teele.neugesplitter.format.splitwise.SplitwiseExport
 import eu.teele.neugesplitter.storage.GroupRepository
 import java.io.BufferedInputStream
@@ -72,6 +75,14 @@ data class SplitwisePreview(
     val skipped: Int,
     val difference: Amount?,
     val correction: Entry?,
+    val categoryMappings: List<SplitwiseCategoryMapping> = emptyList(),
+)
+
+/** How one source category in a Splitwise file will be represented in the imported group. */
+data class SplitwiseCategoryMapping(
+    val source: String,
+    val categoryId: CategoryId?,
+    val createNew: Boolean = false,
 )
 
 /**
@@ -130,7 +141,9 @@ data class ImportState(
                     ImportStep.FAILED -> false
                     ImportStep.PASSPHRASE -> passphrase.isNotEmpty()
                     ImportStep.GROUPS -> chosen.isNotEmpty()
-                    ImportStep.SPLITWISE -> title.isNotBlank()
+                    ImportStep.SPLITWISE ->
+                        title.isNotBlank() &&
+                            splitwise?.categoryMappings?.all { it.categoryId != null } == true
                     ImportStep.WHO -> if (adding) name.isNotBlank() else member != null
                 }
 
@@ -163,7 +176,7 @@ class ImportViewModel(
 
     /** The members of a Splitwise export, in its order, and the entries its rows become. */
     private var columns: List<Member> = emptyList()
-    private var entries: List<Entry> = emptyList()
+    private var splitwiseExport: SplitwiseExport? = null
 
     init {
         read(null)
@@ -185,6 +198,21 @@ class ImportViewModel(
     fun name(text: String) = mutable.update { it.copy(name = text, rejected = false) }
 
     fun title(text: String) = mutable.update { it.copy(title = text) }
+
+    fun mapCategory(source: String, categoryId: CategoryId) {
+        val preview = mutable.value.splitwise ?: return
+        if (preview.group.categories.values.none { it.id == categoryId && !it.deleted }) return
+        updateCategoryMapping(preview, source) {
+            it.copy(categoryId = categoryId, createNew = false)
+        }
+    }
+
+    fun createCategory(source: String) {
+        val preview = mutable.value.splitwise ?: return
+        updateCategoryMapping(preview, source) {
+            it.copy(categoryId = CategoryId.parse(identifier()), createNew = true)
+        }
+    }
 
     fun next() {
         val state = mutable.value
@@ -236,7 +264,7 @@ class ImportViewModel(
                     }
                 if (read is Read.Splitwise) {
                     columns = read.columns
-                    entries = read.entries
+                    splitwiseExport = read.export
                     mutable.update {
                         it.copy(busy = false, step = ImportStep.SPLITWISE, splitwise = read.preview)
                     }
@@ -290,7 +318,7 @@ class ImportViewModel(
 
         class Splitwise(
             val columns: List<Member>,
-            val entries: List<Entry>,
+            val export: SplitwiseExport,
             val preview: SplitwisePreview,
         ) : Read
     }
@@ -299,8 +327,34 @@ class ImportViewModel(
     private fun preview(export: SplitwiseExport): Read.Splitwise {
         val columns = export.members.map { Member(MemberId.parse(identifier()), it) }
         val ids = columns.map { it.id }
-        val entries = export.entries(ids) { EntryId.parse(identifier()) }
-        val group = Group.replay(splitwiseEvents(PREVIEW, "Splitwise", columns, entries))
+        val at = now()
+        val eventId = { EventId.parse(identifier()) }
+        val base = Group.create(PREVIEW, "Splitwise", null, null, null, columns, at, eventId)
+        val initial = Group.replay(base)
+        val categoryMappings =
+            export.rows
+                .map { it.category.trim() }
+                .filter(String::isNotEmpty)
+                .distinctBy(SplitwiseCategoryMapper::key)
+                .map { source ->
+                    val builtin = SplitwiseCategoryMapper.builtIn(source)
+                    val categoryId =
+                        builtin?.let { key ->
+                            initial.categories.values.firstOrNull { it.builtin == key }?.id
+                        }
+                    SplitwiseCategoryMapping(source, categoryId)
+                }
+        val categoryIds =
+            categoryMappings
+                .mapNotNull { mapping ->
+                    mapping.categoryId?.let { SplitwiseCategoryMapper.key(mapping.source) to it }
+                }
+                .toMap()
+        val entries = export.entries(ids, categoryIds) { EntryId.parse(identifier()) }
+        val group =
+            Group.replay(
+                base + entries.map { Event.EntryCreated(eventId(), columns.first().id, at, it) }
+            )
         val balances = group.settlement(today())
         val correction =
             export.correction(balances, ids, EntryId.parse(identifier()), correction, today())
@@ -312,8 +366,22 @@ class ImportViewModel(
                 skipped = export.rows.size - entries.size,
                 difference = export.difference(balances, ids),
                 correction = correction,
+                categoryMappings = categoryMappings,
             )
-        return Read.Splitwise(columns, entries, preview)
+        return Read.Splitwise(columns, export, preview)
+    }
+
+    private fun updateCategoryMapping(
+        preview: SplitwisePreview,
+        source: String,
+        update: (SplitwiseCategoryMapping) -> SplitwiseCategoryMapping,
+    ) {
+        val key = SplitwiseCategoryMapper.key(source)
+        val mappings =
+            preview.categoryMappings.map {
+                if (SplitwiseCategoryMapper.key(it.source) == key) update(it) else it
+            }
+        mutable.update { it.copy(splitwise = preview.copy(categoryMappings = mappings)) }
     }
 
     /**
@@ -324,11 +392,13 @@ class ImportViewModel(
         name: String,
         members: List<Member>,
         entries: List<Entry>,
+        categories: List<Category>,
     ): List<Event> {
         val at = now()
         val eventId = { EventId.parse(identifier()) }
         val by = members.first().id
         return Group.create(id, name, null, null, null, members, at, eventId) +
+            categories.map { Event.CategoryCreated(eventId(), by, at, it) } +
             entries.map { Event.EntryCreated(eventId(), by, at, it) }
     }
 
@@ -343,9 +413,30 @@ class ImportViewModel(
             members = columns.sortedBy { it.id != me }
         }
         val id = GroupId.parse(identifier())
-        val correction = checkNotNull(state.splitwise).correction
+        val preview = checkNotNull(state.splitwise)
+        val categories =
+            preview.categoryMappings
+                .filter { it.createNew }
+                .map { mapping ->
+                    Category(checkNotNull(mapping.categoryId), name = mapping.source, emoji = "📦")
+                }
+        val categoryIds =
+            preview.categoryMappings.associate { mapping ->
+                SplitwiseCategoryMapper.key(mapping.source) to checkNotNull(mapping.categoryId)
+            }
+        val entries =
+            checkNotNull(splitwiseExport).entries(columns.map { it.id }, categoryIds) {
+                EntryId.parse(identifier())
+            }
+        val correction = preview.correction
         val events =
-            splitwiseEvents(id, state.title.trim(), members, entries + listOfNotNull(correction))
+            splitwiseEvents(
+                id,
+                state.title.trim(),
+                members,
+                entries + listOfNotNull(correction),
+                categories,
+            )
         mutable.update { it.copy(busy = true) }
         viewModelScope.launch {
             try {

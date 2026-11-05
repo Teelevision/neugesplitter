@@ -10,6 +10,7 @@ import eu.teele.neugesplitter.domain.Log
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.RENT
 import eu.teele.neugesplitter.domain.TODAY
+import eu.teele.neugesplitter.domain.category.defaultCategories
 import eu.teele.neugesplitter.domain.date
 import eu.teele.neugesplitter.domain.entry
 import eu.teele.neugesplitter.domain.entry.Kind
@@ -308,6 +309,39 @@ class GroupRepositoryTest {
     }
 
     @Test
+    fun `built in categories are implicit and not written to the event log`() {
+        val created = groups.create(weekend, TODAY)
+
+        assertEquals(18, created.categories.size)
+        assertTrue(groups.events(trip).none { it is Event.CategoryCreated })
+        assertEquals(created, groups.load(trip))
+    }
+
+    @Test
+    fun `the overview shows the emoji for an assigned category`() {
+        groups.create(weekend, TODAY)
+        val category = defaultCategories().first()
+        groups.append(
+            trip,
+            listOf(
+                Event.EntryUpdated(
+                    EventId.parse("%032x".format(0x900)),
+                    BEN,
+                    Instant.parse("2026-10-10T12:00:01Z"),
+                    groups.load(trip)!!.entries.keys.single(),
+                    EntryChanges(categoryId = Change.To(category.id)),
+                )
+            ),
+            TODAY,
+        )
+
+        val overview = assertNotNull(runBlocking { groups.overview(trip, { TODAY }).first() })
+        assertEquals(defaultCategories(), overview.categories)
+        assertEquals(category.emoji, overview.entries.single().categoryEmoji)
+        assertEquals(category.id, overview.entries.single().categoryId)
+    }
+
+    @Test
     fun `a group held without a member to act as is unclaimed, whatever part of it is held (BE-6)`() {
         val rooted = GroupId.parse("%032x".format(0xc0a3))
         val located = GroupId.parse("%032x".format(0xc0a4))
@@ -540,9 +574,10 @@ class GroupRepositoryTest {
         val copy = GroupId.parse("%032x".format(0xc0a3))
         val texts = groups.texts(GROUP)
 
+        val source = groups.load(GROUP)!!
         val imported = groups.importGroup(copy, texts, BEN, emptyList(), TODAY)
 
-        assertEquals(groups.load(GROUP)!!.copy(id = copy), imported)
+        assertEquals(source.copy(id = copy), imported)
         assertEquals(imported, groups.load(copy))
         assertEquals(texts.drop(1), groups.texts(copy).drop(1))
         assertEquals(texts.size.toLong(), database.eventRowQueries.waiting(copy.hex).executeAsOne())
@@ -551,6 +586,31 @@ class GroupRepositoryTest {
         val before = projection()
         groups.rebuild(TODAY)
         assertEquals(before, projection())
+    }
+
+    @Test
+    fun `importing a group preserves global built in category assignments`() {
+        groups.create(weekend, TODAY)
+        val sourceCategory = defaultCategories().first()
+        val entry = groups.load(trip)!!.entries.keys.first()
+        groups.append(
+            trip,
+            listOf(
+                Event.EntryUpdated(
+                    EventId.parse("%032x".format(0x901)),
+                    BEN,
+                    Instant.parse("2026-10-10T12:00:00Z"),
+                    entry,
+                    EntryChanges(categoryId = Change.To(sourceCategory.id)),
+                )
+            ),
+            TODAY,
+        )
+        val copy = GroupId.parse("%032x".format(0xc0a4))
+
+        val imported = groups.importGroup(copy, groups.texts(trip), BEN, emptyList(), TODAY)
+
+        assertEquals(sourceCategory.id, imported.entries.getValue(entry).categoryId)
     }
 
     @Test

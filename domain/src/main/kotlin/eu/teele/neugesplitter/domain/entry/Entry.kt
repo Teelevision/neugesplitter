@@ -2,6 +2,7 @@ package eu.teele.neugesplitter.domain.entry
 
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.AttachmentName
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.MemberId
@@ -29,6 +30,7 @@ data class Entry(
     val beneficiaries: Side,
     val note: String? = null,
     val attachments: List<AttachmentName>? = null,
+    val categoryId: CategoryId? = null,
 ) {
 
     /**

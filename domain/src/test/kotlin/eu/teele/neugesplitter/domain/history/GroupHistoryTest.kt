@@ -6,10 +6,12 @@ import eu.teele.neugesplitter.domain.BEN
 import eu.teele.neugesplitter.domain.CLARA
 import eu.teele.neugesplitter.domain.Log
 import eu.teele.neugesplitter.domain.RENT
+import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.date
 import eu.teele.neugesplitter.domain.entry
 import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.entryId
+import eu.teele.neugesplitter.domain.event.CategoryChanges
 import eu.teele.neugesplitter.domain.event.Change
 import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
@@ -20,6 +22,7 @@ import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.segment
 import eu.teele.neugesplitter.domain.template
 import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
@@ -30,6 +33,26 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class GroupHistoryTest {
+
+    @Test
+    fun `events for unknown categories are ignored in history`() {
+        val created = Log().create().add(ANNA, "Anna").events()
+        val unknown = CategoryId.parse("ff".repeat(16))
+        val staleEvents =
+            listOf(
+                Event.CategoryUpdated(
+                    EventId.parse("%032x".format(90)),
+                    ANNA,
+                    AT,
+                    unknown,
+                    CategoryChanges(emoji = Change.To("❔")),
+                ),
+                Event.CategoryDeleted(EventId.parse("%032x".format(91)), ANNA, AT, unknown),
+                Event.CategoryRestored(EventId.parse("%032x".format(92)), ANNA, AT, unknown),
+            )
+
+        assertTrue(history(created + staleEvents).none { it.happened is Happened.Category })
+    }
 
     private val thirty = Amount.parse("3000000000")
 
@@ -102,6 +125,47 @@ class GroupHistoryTest {
         val doubled = dinner().copy(amount = thirty + thirty)
         assertEquals(Happened.Entry(entryId(1), Revision.EDITED, dinner(), doubled), history[5])
         assertEquals(Happened.Entry(entryId(1), Revision.DELETED, doubled, doubled), history[6])
+    }
+
+    @Test
+    fun `category history retains the name and emoji before and after each change`() {
+        val category = Category(CategoryId.parse("04".repeat(16)), name = "Books", emoji = "📚")
+        val renamed = category.copy(name = "Reading", emoji = "📖")
+        val log =
+            Log().create().add(ANNA, "Anna").events() +
+                listOf(
+                    Event.CategoryCreated(EventId.parse("%032x".format(100)), ANNA, AT, category),
+                    Event.CategoryUpdated(
+                        EventId.parse("%032x".format(101)),
+                        ANNA,
+                        AT.plusSeconds(1),
+                        category.id,
+                        CategoryChanges.between(category, renamed),
+                    ),
+                    Event.CategoryDeleted(
+                        EventId.parse("%032x".format(102)),
+                        ANNA,
+                        AT.plusSeconds(2),
+                        category.id,
+                    ),
+                )
+
+        val changes =
+            history(log).mapNotNull { it.happened as? Happened.Category }.flatMap { it.changes }
+
+        assertEquals(
+            listOf(
+                CategoryChange(category.id, CategoryAction.CREATED, null, category),
+                CategoryChange(category.id, CategoryAction.EDITED, category, renamed),
+                CategoryChange(
+                    category.id,
+                    CategoryAction.DELETED,
+                    renamed,
+                    renamed.copy(deleted = true),
+                ),
+            ),
+            changes,
+        )
     }
 
     @Test

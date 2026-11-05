@@ -2,6 +2,7 @@ package eu.teele.neugesplitter.ui.overview
 
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.MemberId
@@ -17,6 +18,8 @@ class EntryFilterTest {
 
     private val anna = MemberId.parse(id(1))
     private val ben = MemberId.parse(id(2))
+    private val dining = CategoryId.parse(id(3))
+    private val housing = CategoryId.parse(id(4))
 
     private fun listed(
         n: Int,
@@ -26,6 +29,7 @@ class EntryFilterTest {
         kind: Kind = Kind.EXPENSE,
         payers: Set<MemberId> = setOf(anna),
         beneficiaries: Set<MemberId> = setOf(anna, ben),
+        categoryId: CategoryId? = null,
     ) =
         ListedEntry(
             EntryId.parse(id(10 + n)),
@@ -40,12 +44,21 @@ class EntryFilterTest {
             unseen = false,
             payerIds = payers,
             beneficiaryIds = beneficiaries,
+            categoryId = categoryId,
         )
 
-    private val dinner = listed(1, "Dinner", 30, "2026-10-07")
+    private val dinner = listed(1, "Dinner", 30, "2026-10-07", categoryId = dining)
     private val taxi = listed(2, "Taxi home", 12, "2026-10-06", payers = setOf(ben))
     private val refund =
-        listed(3, "Tax refund", 100, "2026-09-30", Kind.INCOME, beneficiaries = setOf(ben))
+        listed(
+            3,
+            "Tax refund",
+            100,
+            "2026-09-30",
+            Kind.INCOME,
+            beneficiaries = setOf(ben),
+            categoryId = housing,
+        )
     private val all = listOf(dinner, taxi, refund)
 
     private fun matching(filter: EntryFilter) =
@@ -85,6 +98,16 @@ class EntryFilterTest {
         assertEquals(
             listOf("Dinner", "Taxi home"),
             matching(EntryFilter(from = EntryDate.parse("2026-10-06"))),
+        )
+    }
+
+    @Test
+    fun `categories and uncategorized entries can be filtered together`() {
+        assertEquals(listOf("Dinner"), matching(EntryFilter(categories = setOf(dining))))
+        assertEquals(listOf("Taxi home"), matching(EntryFilter(uncategorized = true)))
+        assertEquals(
+            listOf("Dinner", "Taxi home"),
+            matching(EntryFilter(categories = setOf(dining), uncategorized = true)),
         )
     }
 }

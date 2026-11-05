@@ -5,6 +5,7 @@ import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.MemberId
@@ -56,7 +57,8 @@ class SplitwiseExport(
 
     /**
      * One entry for each row that moves money, dated as the row is, with [members] as the
-     * identifiers of [SplitwiseExport.members] in order. Categories are dropped.
+     * identifiers of [SplitwiseExport.members] in order. [categoryIds] maps normalized CSV labels
+     * to category identifiers; labels not present in it remain unassigned.
      * - A payment — a row in a payment category with one member up and another down by the same
      *   amount — is a transfer from the one up to the one down.
      * - A row with one member up, who then paid the whole cost, is an expense paid by that member.
@@ -68,7 +70,14 @@ class SplitwiseExport(
      * A row whose nets do not add up to zero is out by its difference whichever way it goes; the
      * check against [totals] shows it.
      */
-    fun entries(members: List<MemberId>, ids: () -> EntryId): List<Entry> {
+    fun entries(members: List<MemberId>, ids: () -> EntryId): List<Entry> =
+        entries(members, emptyMap(), ids)
+
+    fun entries(
+        members: List<MemberId>,
+        categoryIds: Map<String, CategoryId>,
+        ids: () -> EntryId,
+    ): List<Entry> {
         require(members.size == this.members.size) { "one identifier per member" }
         return rows.mapNotNull { row ->
             split(row, members)?.let { split ->
@@ -80,6 +89,11 @@ class SplitwiseExport(
                     amount = split.amount,
                     payers = split.payers,
                     beneficiaries = split.beneficiaries,
+                    categoryId =
+                        row.category
+                            .takeIf(String::isNotBlank)
+                            ?.let(SplitwiseCategoryMapper::key)
+                            ?.let(categoryIds::get),
                 )
             }
         }

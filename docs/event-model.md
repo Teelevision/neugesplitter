@@ -100,6 +100,11 @@ Each side carries the scheme and the input the user gave it, and nothing else:
 }
 ```
 
+An entry may also carry a `categoryId` identifier. It is optional on expenses,
+income and transfers; absence means no category. The same field belongs to a
+recurring template, so each generated occurrence keeps the category chosen for
+the series.
+
 **The resulting per-member amounts are not stored.** Every installation derives
 them from the scheme and the input, in integers, by dividing and truncating:
 `amount / n` for `equal`, `amount × share[i] / total` for `shares`, and so on.
@@ -195,6 +200,28 @@ everybody else, since nobody can be added to a group before it exists. Later
 changes to name, description, emoji, colour and the default participant set
 (GR-2, SP-8) are `group.updated`, which names only the fields it changes,
 exactly as an entry update does.
+
+Built-in categories are an application catalog, not group events: housing,
+utilities, groceries, dining and cafes, transportation, health, insurance,
+shopping, entertainment, personal care, family, education, travel, pets, gifts
+and donations, fees and taxes, savings and investments, and transfer. Each has a
+stable key, globally hard-coded identifier, and emoji; installations localize
+labels to English or German.
+
+An entry or recurring template whose category identifier is not present in the
+group is treated as uncategorized. This lets entries survive catalog changes
+without blocking replay. Category update, delete, and restore events naming an
+unknown category have no effect.
+
+A category's optional name override is shared text. Editing only its emoji
+leaves the localized label intact, while changing its name stores the edited
+name for everyone. Custom categories always store the entered name without
+localization. Custom categories use `category.created`; built-in changes use
+`category.updated`, `category.deleted`, and `category.restored`.
+`category.updated` changes a category's name override or emoji;
+`category.deleted` and `category.restored` soft-delete and restore it. A deleted
+category remains in the group because existing entries may still refer to it.
+The entry's category field is not rewritten when a category is deleted.
 
 The default participant set is the one thing `group.updated` can carry that
 `group.created` cannot. It names members, and `group.created` is written before

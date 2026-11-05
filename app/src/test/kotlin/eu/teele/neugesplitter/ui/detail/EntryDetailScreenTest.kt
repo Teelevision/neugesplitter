@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import eu.teele.neugesplitter.domain.category.defaultCategories
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
@@ -33,6 +34,7 @@ import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
@@ -123,11 +125,15 @@ class EntryDetailScreenTest {
         }
     }
 
+    private fun top(text: String) =
+        compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
+
     @Test
     fun `an expense shows who paid and who benefited with each part (EN-4, EN-5, HI-4)`() {
         seed(dinner())
         show()
         waitForText("Dinner")
+        compose.onNodeWithText("🏷️").assertExists()
         compose.onNodeWithText("Wednesday, October 7, 2026").assertExists()
         compose.onNodeWithText("Paid by").assertExists()
         compose.onNodeWithText("For").assertExists()
@@ -138,6 +144,33 @@ class EntryDetailScreenTest {
         assertEquals(3, compose.onAllNodesWithText("33.33").fetchSemanticsNodes().size)
         compose.onNodeWithText("Created by Anna").assertExists()
         compose.onNodeWithText("Open its series").assertDoesNotExist()
+    }
+
+    @Test
+    fun `an updated category appears in the open expense detail`() {
+        val category = defaultCategories().first()
+        seed(dinner())
+        show()
+        waitForText("Dinner")
+        groups.append(
+            trip,
+            listOf(
+                Event.EntryUpdated(
+                    eventId(),
+                    anna.id,
+                    at,
+                    entryId,
+                    EntryChanges(categoryId = Change.To(category.id)),
+                )
+            ),
+            today,
+        )
+
+        waitForText("Housing")
+        compose.onNodeWithText(category.emoji).assertExists()
+        compose.onNodeWithContentDescription("Expense").assertDoesNotExist()
+        assertTrue(top("Dinner") < top("Housing"))
+        assertTrue(top("Housing") < top("Wednesday, October 7, 2026"))
     }
 
     @Test

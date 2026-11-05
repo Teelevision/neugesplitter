@@ -2,6 +2,7 @@ package eu.teele.neugesplitter.ui.export
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +22,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -28,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -52,10 +56,13 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
+import eu.teele.neugesplitter.domain.category.Category
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.ui.GroupAvatar
 import eu.teele.neugesplitter.ui.backend.Found
 import eu.teele.neugesplitter.ui.backend.Secret
+import eu.teele.neugesplitter.ui.category.categoryName
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.join.GroupSummary
 import eu.teele.neugesplitter.ui.join.WhoFields
@@ -209,6 +216,25 @@ private fun Splitwise(state: ImportState, viewModel: ImportViewModel) {
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
         modifier = Modifier.fillMaxWidth(),
     )
+    if (preview.categoryMappings.isNotEmpty()) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                stringResource(R.string.import_category_heading),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(stringResource(R.string.import_category_help), color = colours.onSurfaceVariant)
+            preview.categoryMappings.forEach { mapping ->
+                SplitwiseCategoryChoice(
+                    mapping.source,
+                    mapping.categoryId,
+                    mapping.createNew,
+                    preview.group.categories.values.toList(),
+                    viewModel::mapCategory,
+                    viewModel::createCategory,
+                )
+            }
+        }
+    }
     val members = preview.group.members.size
     OutlinedCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -265,6 +291,54 @@ private fun Splitwise(state: ImportState, viewModel: ImportViewModel) {
                             ),
                         ),
                     style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SplitwiseCategoryChoice(
+    source: String,
+    selected: CategoryId?,
+    createNew: Boolean,
+    categories: List<Category>,
+    onSelect: (String, CategoryId) -> Unit,
+    onCreate: (String) -> Unit,
+) {
+    var expanded by rememberSaveable(source) { mutableStateOf(false) }
+    val selectedCategory = categories.firstOrNull { it.id == selected }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(source, style = MaterialTheme.typography.bodyLarge)
+        Box {
+            OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    when {
+                        createNew -> stringResource(R.string.import_category_new, source)
+                        selectedCategory != null ->
+                            "${selectedCategory.emoji} ${categoryName(selectedCategory)}"
+                        else -> stringResource(R.string.import_category_choose)
+                    }
+                )
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                categories
+                    .filterNot { it.deleted }
+                    .forEach { category ->
+                        DropdownMenuItem(
+                            text = { Text("${category.emoji} ${categoryName(category)}") },
+                            onClick = {
+                                onSelect(source, category.id)
+                                expanded = false
+                            },
+                        )
+                    }
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.import_category_create, source)) },
+                    onClick = {
+                        onCreate(source)
+                        expanded = false
+                    },
                 )
             }
         }

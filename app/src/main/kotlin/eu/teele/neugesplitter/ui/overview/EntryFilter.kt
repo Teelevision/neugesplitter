@@ -2,6 +2,7 @@ package eu.teele.neugesplitter.ui.overview
 
 import eu.teele.neugesplitter.domain.calculator.amountIn
 import eu.teele.neugesplitter.domain.entry.Kind
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
@@ -23,6 +24,8 @@ data class EntryFilter(
     val kind: Kind? = null,
     val payers: Set<MemberId> = emptySet(),
     val beneficiaries: Set<MemberId> = emptySet(),
+    val categories: Set<CategoryId> = emptySet(),
+    val uncategorized: Boolean = false,
     val from: EntryDate? = null,
     val until: EntryDate? = null,
 ) {
@@ -42,6 +45,9 @@ data class EntryFilter(
                 (kind == null || it.kind == kind) &&
                 it.payerIds.containsAll(payers) &&
                 it.beneficiaryIds.containsAll(beneficiaries) &&
+                (categories.isEmpty() && !uncategorized ||
+                    (it.categoryId != null && it.categoryId in categories) ||
+                    (uncategorized && it.categoryId == null)) &&
                 (from == null || it.date >= from) &&
                 (until == null || it.date <= until)
         }

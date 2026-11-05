@@ -1,14 +1,17 @@
 package eu.teele.neugesplitter.format
 
 import eu.teele.neugesplitter.domain.Malformed
+import eu.teele.neugesplitter.domain.category.BuiltInCategory
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.format.splitwise.MixedCurrencies
+import eu.teele.neugesplitter.format.splitwise.SplitwiseCategoryMapper
 import eu.teele.neugesplitter.format.splitwise.SplitwiseExport
 import java.math.BigDecimal
 import kotlin.test.Test
@@ -47,6 +50,96 @@ class SplitwiseExportTest {
             .flatMap { it.contributions().entries }
             .groupBy({ it.key }, { it.value })
             .mapValues { Amount.sum(it.value) }
+
+    @Test
+    fun `known Splitwise category aliases map to built in categories`() {
+        assertEquals(
+            listOf(
+                BuiltInCategory.GROCERIES,
+                BuiltInCategory.GIFTS_AND_DONATIONS,
+                BuiltInCategory.TRANSPORTATION,
+                BuiltInCategory.DINING_AND_CAFES,
+                BuiltInCategory.PERSONAL_CARE,
+                BuiltInCategory.ENTERTAINMENT,
+            ),
+            listOf(
+                    "Groceries",
+                    "Gifts",
+                    "Gas/fuel",
+                    "Liquor",
+                    "Life - Other",
+                    "Entertainment - Other",
+                )
+                .mapNotNull(SplitwiseCategoryMapper::builtIn),
+        )
+        assertEquals(BuiltInCategory.GROCERIES, SplitwiseCategoryMapper.builtIn("  GROCERIES "))
+        assertNull(SplitwiseCategoryMapper.builtIn("General"))
+    }
+
+    @Test
+    fun `Splitwise website categories map when the destination is clear`() {
+        mapOf(
+                "Games" to BuiltInCategory.ENTERTAINMENT,
+                "Entertainment - Movies" to BuiltInCategory.ENTERTAINMENT,
+                "Music" to BuiltInCategory.ENTERTAINMENT,
+                "Sports" to BuiltInCategory.ENTERTAINMENT,
+                "Food and drink - Other" to BuiltInCategory.DINING_AND_CAFES,
+                "Food and drink - Groceries" to BuiltInCategory.GROCERIES,
+                "Food and drink - Liquor" to BuiltInCategory.DINING_AND_CAFES,
+                "Home" to BuiltInCategory.HOUSING,
+                "Electronics" to BuiltInCategory.SHOPPING,
+                "Furniture" to BuiltInCategory.HOUSING,
+                "Household supplies" to BuiltInCategory.HOUSING,
+                "Maintenance" to BuiltInCategory.HOUSING,
+                "Mortgage" to BuiltInCategory.HOUSING,
+                "Home - Other" to BuiltInCategory.HOUSING,
+                "Home - Rent" to BuiltInCategory.HOUSING,
+                "Services" to BuiltInCategory.HOUSING,
+                "Clothing" to BuiltInCategory.SHOPPING,
+                "Medical expenses" to BuiltInCategory.HEALTH,
+                "Bicycle" to BuiltInCategory.TRANSPORTATION,
+                "Bus/train" to BuiltInCategory.TRANSPORTATION,
+                "Transportation - Gas/fuel" to BuiltInCategory.TRANSPORTATION,
+                "Car" to BuiltInCategory.TRANSPORTATION,
+                "Hotel" to BuiltInCategory.TRAVEL,
+                "Parking" to BuiltInCategory.TRANSPORTATION,
+                "Plane" to BuiltInCategory.TRAVEL,
+                "Taxi" to BuiltInCategory.TRANSPORTATION,
+                "Cleaning" to BuiltInCategory.UTILITIES,
+                "Electricity" to BuiltInCategory.UTILITIES,
+                "Heat/gas" to BuiltInCategory.UTILITIES,
+                "Utilities - Other" to BuiltInCategory.UTILITIES,
+                "Trash" to BuiltInCategory.UTILITIES,
+                "TV/Phone/Internet" to BuiltInCategory.UTILITIES,
+                "Water" to BuiltInCategory.UTILITIES,
+                "Life" to BuiltInCategory.FAMILY,
+                "Life - Childcare" to BuiltInCategory.FAMILY,
+                "Life - Insurance" to BuiltInCategory.INSURANCE,
+            )
+            .forEach { (label, expected) ->
+                assertEquals(expected, SplitwiseCategoryMapper.builtIn(label), label)
+            }
+
+        listOf("General", "Other").forEach { label ->
+            assertNull(SplitwiseCategoryMapper.builtIn(label), label)
+        }
+    }
+
+    @Test
+    fun `mapped CSV categories are assigned to imported entries`() {
+        val category = CategoryId.parse("dd".repeat(16))
+        val export = read("2024-01-05,Gas station,Gas/fuel,30.00,EUR,20.00,-10.00,-10.00")
+
+        val entry =
+            export
+                .entries(members, mapOf(SplitwiseCategoryMapper.key("Gas/fuel") to category)) {
+                    EntryId.parse("01".repeat(16))
+                }
+                .single()
+
+        assertEquals("Gas/fuel", export.rows.single().category)
+        assertEquals(category, entry.categoryId)
+    }
 
     @Test
     fun `a row paid by one and shared alike is split equally`() {

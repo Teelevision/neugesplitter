@@ -28,6 +28,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -73,15 +75,18 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
+import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Scheme
 import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.recurrence.Impact
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.ui.calculator.CalculatorSheet
+import eu.teele.neugesplitter.ui.category.categoryName
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.kindLabel
 import eu.teele.neugesplitter.ui.longDate
@@ -241,6 +246,7 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Kinds(state.kind, viewModel::kind)
+                    CategoryChoice(state.categories, state.categoryId, viewModel::category)
                     // Read-only: tapping it opens the calculator instead of the keyboard (AM-2).
                     OutlinedTextField(
                         value = state.amount?.let { formatted(it, state.scale, locale) }.orEmpty(),
@@ -400,6 +406,44 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
             },
             onDismiss = { splitting = null },
         )
+    }
+}
+
+@Composable
+private fun CategoryChoice(
+    categories: List<Category>,
+    selected: CategoryId?,
+    onSelect: (CategoryId?) -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val selectedCategory = categories.firstOrNull { it.id == selected }
+    Box {
+        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                selectedCategory?.let { "${it.emoji} ${categoryName(it)}" }
+                    ?: stringResource(R.string.category_none)
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.category_none)) },
+                onClick = {
+                    onSelect(null)
+                    expanded = false
+                },
+            )
+            categories
+                .filterNot { it.deleted }
+                .forEach { category ->
+                    DropdownMenuItem(
+                        text = { Text("${category.emoji} ${categoryName(category)}") },
+                        onClick = {
+                            onSelect(category.id)
+                            expanded = false
+                        },
+                    )
+                }
+        }
     }
 }
 

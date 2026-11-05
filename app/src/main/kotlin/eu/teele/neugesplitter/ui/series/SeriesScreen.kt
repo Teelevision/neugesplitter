@@ -57,14 +57,13 @@ import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.ui.DayHeading
 import eu.teele.neugesplitter.ui.EntryRow
+import eu.teele.neugesplitter.ui.UNCATEGORIZED_ENTRY_EMOJI
 import eu.teele.neugesplitter.ui.editor.DatePick
 import eu.teele.neugesplitter.ui.editor.recurrenceText
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.history.HistoryRow
 import eu.teele.neugesplitter.ui.history.day
 import eu.teele.neugesplitter.ui.history.told
-import eu.teele.neugesplitter.ui.kindIcon
-import eu.teele.neugesplitter.ui.kindLabel
 import eu.teele.neugesplitter.ui.longDate
 import java.util.Locale
 
@@ -340,10 +339,9 @@ private fun Header(detail: SeriesDetail, locale: Locale) {
                     Modifier.size(48.dp).clip(CircleShape).background(colours.surfaceContainerHigh),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    painterResource(kindIcon(template.kind)),
-                    stringResource(kindLabel(template.kind)),
-                    tint = colours.onSurfaceVariant,
+                Text(
+                    detail.categoryEmoji ?: UNCATEGORIZED_ENTRY_EMOJI,
+                    style = MaterialTheme.typography.titleLarge,
                 )
             }
             Column(Modifier.padding(start = 16.dp)) {

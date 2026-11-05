@@ -1,5 +1,6 @@
 package eu.teele.neugesplitter.domain.history
 
+import eu.teele.neugesplitter.domain.category.Category as CategoryContent
 import eu.teele.neugesplitter.domain.entry.Entry as Content
 import eu.teele.neugesplitter.domain.event.Change
 import eu.teele.neugesplitter.domain.event.Event
@@ -10,6 +11,7 @@ import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Series
 import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.todo.Todo
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
@@ -86,6 +88,20 @@ enum class TodosChange {
     REOPENED,
 }
 
+enum class CategoryAction {
+    CREATED,
+    EDITED,
+    DELETED,
+    RESTORED,
+}
+
+data class CategoryChange(
+    val id: CategoryId,
+    val action: CategoryAction,
+    val before: CategoryContent?,
+    val after: CategoryContent?,
+)
+
 /** What one event did to a group, as its history tells it (HI-2). */
 sealed interface Happened {
     data object Created : Happened
@@ -100,6 +116,8 @@ sealed interface Happened {
     data class MemberRenamed(val member: MemberId, val from: String, val to: String) : Happened
 
     data class MemberRemoved(val member: MemberId) : Happened
+
+    data class Category(val changes: List<CategoryChange>) : Happened
 
     /**
      * Entry [entry] was [change]d from [before], null when created, to [after]; for a deletion both
@@ -182,6 +200,10 @@ private fun merge(first: Happened, second: Happened): Happened? =
     when {
         first is Happened.Changed && second is Happened.Changed ->
             Happened.Changed(first.settings + second.settings, first.before, second.after)
+        first is Happened.Category &&
+            second is Happened.Category &&
+            first.changes.first().action == second.changes.first().action ->
+            Happened.Category(first.changes + second.changes)
         first is Happened.Entry &&
             first.change == Revision.DELETED &&
             second is Happened.Recurring &&
@@ -225,6 +247,62 @@ fun history(events: List<Event>): List<Happening> {
                         event.name,
                     )
                 is Event.MemberRemoved -> Happened.MemberRemoved(event.target)
+                is Event.CategoryCreated ->
+                    Happened.Category(
+                        listOf(
+                            CategoryChange(
+                                event.category.id,
+                                CategoryAction.CREATED,
+                                null,
+                                group.categories.getValue(event.category.id),
+                            )
+                        )
+                    )
+                is Event.CategoryUpdated ->
+                    if (event.target in before.categories) {
+                        Happened.Category(
+                            listOf(
+                                CategoryChange(
+                                    event.target,
+                                    CategoryAction.EDITED,
+                                    before.categories.getValue(event.target),
+                                    group.categories.getValue(event.target),
+                                )
+                            )
+                        )
+                    } else {
+                        null
+                    }
+                is Event.CategoryDeleted ->
+                    if (event.target in before.categories) {
+                        Happened.Category(
+                            listOf(
+                                CategoryChange(
+                                    event.target,
+                                    CategoryAction.DELETED,
+                                    before.categories.getValue(event.target),
+                                    group.categories.getValue(event.target),
+                                )
+                            )
+                        )
+                    } else {
+                        null
+                    }
+                is Event.CategoryRestored ->
+                    if (event.target in before.categories) {
+                        Happened.Category(
+                            listOf(
+                                CategoryChange(
+                                    event.target,
+                                    CategoryAction.RESTORED,
+                                    before.categories.getValue(event.target),
+                                    group.categories.getValue(event.target),
+                                )
+                            )
+                        )
+                    } else {
+                        null
+                    }
                 is Event.EntryCreated ->
                     Happened.Entry(event.entry.id, Revision.CREATED, null, event.entry)
                 is Event.EntryUpdated ->
@@ -305,7 +383,7 @@ fun history(events: List<Event>): List<Happening> {
                 is Event.TodoReopened -> before.todos(TodosChange.REOPENED, event.targets)
                 is Event.TodoDeleted -> before.happened(event.target, TodoChange.Deleted)
             }
-        history += Happening(happened, event.by, event.at)
+        if (happened != null) history += Happening(happened, event.by, event.at)
     }
     return history
 }

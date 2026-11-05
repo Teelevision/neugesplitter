@@ -23,10 +23,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.teele.neugesplitter.R
+import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.event.Change
 import eu.teele.neugesplitter.domain.event.EntryChanges
+import eu.teele.neugesplitter.domain.history.CategoryAction
+import eu.teele.neugesplitter.domain.history.CategoryChange
 import eu.teele.neugesplitter.domain.history.Happened
 import eu.teele.neugesplitter.domain.history.Happening
 import eu.teele.neugesplitter.domain.history.Revision
@@ -44,6 +47,7 @@ import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.ui.UnseenDot
+import eu.teele.neugesplitter.ui.category.categoryNameResource
 import eu.teele.neugesplitter.ui.editor.recurrenceText
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.kindLabel
@@ -181,6 +185,25 @@ fun Resources.told(
                 getString(R.string.happened_removed, by, name(happened.member)),
                 "",
             )
+        is Happened.Category -> {
+            val action = happened.changes.first().action
+            val (single, multiple) =
+                when (action) {
+                    CategoryAction.CREATED ->
+                        R.string.happened_category_created to R.plurals.happened_categories_created
+                    CategoryAction.EDITED ->
+                        R.string.happened_category_edited to R.plurals.happened_categories_edited
+                    CategoryAction.DELETED ->
+                        R.string.happened_category_deleted to R.plurals.happened_categories_deleted
+                    CategoryAction.RESTORED ->
+                        R.string.happened_category_restored to
+                            R.plurals.happened_categories_restored
+                }
+            val headline =
+                if (happened.changes.size == 1) getString(single, by)
+                else getQuantityString(multiple, happened.changes.size, by, happened.changes.size)
+            Told(R.drawable.ic_list, headline, categoryChanges(happened.changes))
+        }
         is Happened.Entry -> {
             val (icon, sentence) =
                 when (happened.change) {
@@ -206,6 +229,33 @@ fun Resources.told(
         is Happened.Todos -> todos(happened, by)
     }
 }
+
+private fun Resources.categoryChanges(changes: List<CategoryChange>): String =
+    changes.joinToString(" · ") { change ->
+        val before = change.before
+        val after = change.after
+        when (change.action) {
+            CategoryAction.CREATED,
+            CategoryAction.DELETED,
+            CategoryAction.RESTORED ->
+                after?.let { "${it.emoji} ${categoryLabel(it)}" }
+                    ?: before?.let { "${it.emoji} ${categoryLabel(it)}" }.orEmpty()
+            CategoryAction.EDITED -> {
+                val oldName = before?.let(::categoryLabel).orEmpty()
+                val newName = after?.let(::categoryLabel).orEmpty()
+                val names = if (oldName == newName) newName else "$oldName → $newName"
+                val oldEmoji = before?.emoji.orEmpty()
+                val newEmoji = after?.emoji.orEmpty()
+                val emojis = if (oldEmoji == newEmoji) newEmoji else "$oldEmoji → $newEmoji"
+                if (oldEmoji == newEmoji) names else "$names · $emojis"
+            }
+        }
+    }
+
+private fun Resources.categoryLabel(category: Category): String =
+    category.name
+        ?: category.builtin?.let { getString(categoryNameResource(it)) }
+        ?: category.id.hex
 
 /** One todo by its description, several by their number and descriptions below. */
 private fun Resources.todos(happened: Happened.Todos, by: String): Told {

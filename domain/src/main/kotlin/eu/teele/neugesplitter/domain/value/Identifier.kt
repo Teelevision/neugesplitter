@@ -32,6 +32,17 @@ value class GroupId private constructor(val hex: String) : Comparable<GroupId> {
 }
 
 @JvmInline
+value class CategoryId private constructor(val hex: String) : Comparable<CategoryId> {
+    override fun compareTo(other: CategoryId): Int = hex.compareTo(other.hex)
+
+    override fun toString(): String = hex
+
+    companion object {
+        fun parse(hex: String): CategoryId = CategoryId(requireIdentifier(hex, "category id"))
+    }
+}
+
+@JvmInline
 value class MemberId private constructor(val hex: String) : Comparable<MemberId> {
     override fun compareTo(other: MemberId): Int = hex.compareTo(other.hex)
 
@@ -96,9 +107,13 @@ value class TodoId private constructor(val hex: String) : Comparable<TodoId> {
 }
 
 private fun occurrenceId(series: SeriesId, due: EntryDate): String {
+    return derivedIdentifier("neugesplitter/occurrence/v1", listOf(series.hex, due.toString()))
+}
+
+private fun derivedIdentifier(namespace: String, fields: List<String>): String {
     val digest = MessageDigest.getInstance("SHA-256")
-    digest.update("neugesplitter/occurrence/v1".toByteArray(Charsets.US_ASCII))
-    for (field in listOf(series.hex, due.toString())) {
+    digest.update(namespace.toByteArray(Charsets.US_ASCII))
+    for (field in fields) {
         val bytes = field.toByteArray(Charsets.US_ASCII)
         digest.update(ByteBuffer.allocate(Int.SIZE_BYTES).putInt(bytes.size).array())
         digest.update(bytes)

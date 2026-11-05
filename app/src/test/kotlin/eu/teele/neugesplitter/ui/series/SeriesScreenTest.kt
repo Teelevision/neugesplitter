@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import eu.teele.neugesplitter.domain.category.BuiltInCategory
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.event.Event
@@ -118,6 +119,7 @@ class SeriesScreenTest {
     @Test
     fun `a series shows what it produces, how it repeats, and the entries it made under their days (RE-9)`() {
         show()
+        assertEquals(4, compose.onAllNodesWithText("🏷️").fetchSemanticsNodes().size)
         compose.onNodeWithText("Running").assertExists()
         compose.onNodeWithText("Entries and history").assertExists()
         compose.onNodeWithText("Thursday, October 1, 2026").assertExists()
@@ -128,6 +130,14 @@ class SeriesScreenTest {
         assertEquals(4, compose.onAllNodesWithText("900.00").fetchSemanticsNodes().size)
         compose.onAllNodesWithText("Rent")[1].performClick()
         assertEquals(listOf(EntryId.occurrence(rent, date("2026-10-01"))), opened)
+    }
+
+    @Test
+    fun `a series shows its category emoji`() {
+        val categorized =
+            monthly.copy(template = monthly.template.copy(categoryId = BuiltInCategory.HOUSING.id))
+        show(Event.SeriesAmended(eventId(), anna.id, at, rent, date("2026-10-01"), categorized))
+        assertEquals(2, compose.onAllNodesWithText("🏠").fetchSemanticsNodes().size)
     }
 
     private fun inDialog(text: String) =

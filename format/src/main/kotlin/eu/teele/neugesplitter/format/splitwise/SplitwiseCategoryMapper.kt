@@ -1,0 +1,136 @@
+package eu.teele.neugesplitter.format.splitwise
+
+import eu.teele.neugesplitter.domain.category.BuiltInCategory
+import java.text.Normalizer
+import java.util.Locale
+
+/** Splitwise labels that unambiguously correspond to a Neugesplitter built-in category. */
+object SplitwiseCategoryMapper {
+
+    private val categories =
+        mapOf(
+            "housing" to BuiltInCategory.HOUSING,
+            "home" to BuiltInCategory.HOUSING,
+            "rent" to BuiltInCategory.HOUSING,
+            "mortgage" to BuiltInCategory.HOUSING,
+            "home mortgage" to BuiltInCategory.HOUSING,
+            "home rent" to BuiltInCategory.HOUSING,
+            "furniture" to BuiltInCategory.HOUSING,
+            "home furniture" to BuiltInCategory.HOUSING,
+            "household supplies" to BuiltInCategory.HOUSING,
+            "home household supplies" to BuiltInCategory.HOUSING,
+            "maintenance" to BuiltInCategory.HOUSING,
+            "home maintenance" to BuiltInCategory.HOUSING,
+            "home other" to BuiltInCategory.HOUSING,
+            "services" to BuiltInCategory.HOUSING,
+            "home services" to BuiltInCategory.HOUSING,
+            "utilities" to BuiltInCategory.UTILITIES,
+            "utility bills" to BuiltInCategory.UTILITIES,
+            "cleaning" to BuiltInCategory.UTILITIES,
+            "utilities cleaning" to BuiltInCategory.UTILITIES,
+            "electricity" to BuiltInCategory.UTILITIES,
+            "utilities electricity" to BuiltInCategory.UTILITIES,
+            "heat gas" to BuiltInCategory.UTILITIES,
+            "utilities heat gas" to BuiltInCategory.UTILITIES,
+            "utilities other" to BuiltInCategory.UTILITIES,
+            "trash" to BuiltInCategory.UTILITIES,
+            "utilities trash" to BuiltInCategory.UTILITIES,
+            "tv phone internet" to BuiltInCategory.UTILITIES,
+            "utilities tv phone internet" to BuiltInCategory.UTILITIES,
+            "water" to BuiltInCategory.UTILITIES,
+            "utilities water" to BuiltInCategory.UTILITIES,
+            "groceries" to BuiltInCategory.GROCERIES,
+            "food and drink groceries" to BuiltInCategory.GROCERIES,
+            "dining cafes" to BuiltInCategory.DINING_AND_CAFES,
+            "dining out" to BuiltInCategory.DINING_AND_CAFES,
+            "food and drink dining out" to BuiltInCategory.DINING_AND_CAFES,
+            "food and drink" to BuiltInCategory.DINING_AND_CAFES,
+            "food drink" to BuiltInCategory.DINING_AND_CAFES,
+            "restaurants" to BuiltInCategory.DINING_AND_CAFES,
+            "restaurant" to BuiltInCategory.DINING_AND_CAFES,
+            "liquor" to BuiltInCategory.DINING_AND_CAFES,
+            "food and drink liquor" to BuiltInCategory.DINING_AND_CAFES,
+            "food and drink other" to BuiltInCategory.DINING_AND_CAFES,
+            "transportation" to BuiltInCategory.TRANSPORTATION,
+            "transport" to BuiltInCategory.TRANSPORTATION,
+            "gas fuel" to BuiltInCategory.TRANSPORTATION,
+            "transportation gas fuel" to BuiltInCategory.TRANSPORTATION,
+            "gasoline" to BuiltInCategory.TRANSPORTATION,
+            "fuel" to BuiltInCategory.TRANSPORTATION,
+            "bicycle" to BuiltInCategory.TRANSPORTATION,
+            "transportation bicycle" to BuiltInCategory.TRANSPORTATION,
+            "bus train" to BuiltInCategory.TRANSPORTATION,
+            "transportation bus train" to BuiltInCategory.TRANSPORTATION,
+            "car" to BuiltInCategory.TRANSPORTATION,
+            "transportation car" to BuiltInCategory.TRANSPORTATION,
+            "transportation other" to BuiltInCategory.TRANSPORTATION,
+            "parking" to BuiltInCategory.TRANSPORTATION,
+            "transportation parking" to BuiltInCategory.TRANSPORTATION,
+            "taxi" to BuiltInCategory.TRANSPORTATION,
+            "transportation taxi" to BuiltInCategory.TRANSPORTATION,
+            "health" to BuiltInCategory.HEALTH,
+            "medical" to BuiltInCategory.HEALTH,
+            "medical expenses" to BuiltInCategory.HEALTH,
+            "life medical expenses" to BuiltInCategory.HEALTH,
+            "insurance" to BuiltInCategory.INSURANCE,
+            "life insurance" to BuiltInCategory.INSURANCE,
+            "shopping" to BuiltInCategory.SHOPPING,
+            "electronics" to BuiltInCategory.SHOPPING,
+            "home electronics" to BuiltInCategory.SHOPPING,
+            "clothing" to BuiltInCategory.SHOPPING,
+            "life clothing" to BuiltInCategory.SHOPPING,
+            "entertainment" to BuiltInCategory.ENTERTAINMENT,
+            "entertainment other" to BuiltInCategory.ENTERTAINMENT,
+            "games" to BuiltInCategory.ENTERTAINMENT,
+            "entertainment games" to BuiltInCategory.ENTERTAINMENT,
+            "movies" to BuiltInCategory.ENTERTAINMENT,
+            "entertainment movies" to BuiltInCategory.ENTERTAINMENT,
+            "music" to BuiltInCategory.ENTERTAINMENT,
+            "entertainment music" to BuiltInCategory.ENTERTAINMENT,
+            "sports" to BuiltInCategory.ENTERTAINMENT,
+            "entertainment sports" to BuiltInCategory.ENTERTAINMENT,
+            "personal care" to BuiltInCategory.PERSONAL_CARE,
+            "life other" to BuiltInCategory.PERSONAL_CARE,
+            "life" to BuiltInCategory.FAMILY,
+            "childcare" to BuiltInCategory.FAMILY,
+            "life childcare" to BuiltInCategory.FAMILY,
+            "education" to BuiltInCategory.EDUCATION,
+            "life education" to BuiltInCategory.EDUCATION,
+            "travel" to BuiltInCategory.TRAVEL,
+            "hotel" to BuiltInCategory.TRAVEL,
+            "transportation hotel" to BuiltInCategory.TRAVEL,
+            "plane" to BuiltInCategory.TRAVEL,
+            "transportation plane" to BuiltInCategory.TRAVEL,
+            "pets" to BuiltInCategory.PETS,
+            "home pets" to BuiltInCategory.PETS,
+            "gifts" to BuiltInCategory.GIFTS_AND_DONATIONS,
+            "gift" to BuiltInCategory.GIFTS_AND_DONATIONS,
+            "gifts donations" to BuiltInCategory.GIFTS_AND_DONATIONS,
+            "life gifts" to BuiltInCategory.GIFTS_AND_DONATIONS,
+            "fees taxes" to BuiltInCategory.FEES_AND_TAXES,
+            "fees" to BuiltInCategory.FEES_AND_TAXES,
+            "taxes" to BuiltInCategory.FEES_AND_TAXES,
+            "life taxes" to BuiltInCategory.FEES_AND_TAXES,
+            "savings investments" to BuiltInCategory.SAVINGS_AND_INVESTMENTS,
+            "savings" to BuiltInCategory.SAVINGS_AND_INVESTMENTS,
+            "investments" to BuiltInCategory.SAVINGS_AND_INVESTMENTS,
+            "payment" to BuiltInCategory.TRANSFER,
+            "payments" to BuiltInCategory.TRANSFER,
+            "zahlung" to BuiltInCategory.TRANSFER,
+            "zahlungen" to BuiltInCategory.TRANSFER,
+            "transfer" to BuiltInCategory.TRANSFER,
+        )
+
+    /** A stable, case- and separator-insensitive key for matching imported category labels. */
+    fun key(label: String): String {
+        val normalized =
+            Normalizer.normalize(label, Normalizer.Form.NFD)
+                .replace(Regex("\\p{Mn}+"), "")
+                .lowercase(Locale.ROOT)
+                .replace(Regex("[^a-z0-9]+"), " ")
+                .trim()
+        return normalized.ifEmpty { label.trim().lowercase(Locale.ROOT) }
+    }
+
+    fun builtIn(label: String): BuiltInCategory? = categories[key(label)]
+}

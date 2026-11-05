@@ -2,6 +2,7 @@ package eu.teele.neugesplitter.ui.detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.group.Group
@@ -38,6 +39,7 @@ data class Detail(
     val beneficiaries: List<Part>,
     val author: String?,
     val edited: Boolean,
+    val category: Category? = null,
     val series: SeriesId? = null,
     val recurrence: Recurrence? = null,
     val due: EntryDate? = null,
@@ -81,6 +83,7 @@ class EntryDetailViewModel(
             beneficiaries = parts(entry.beneficiaries),
             author = authorship?.let { members[it.by]?.name },
             edited = authorship?.edited == true,
+            category = entry.categoryId?.let(categories::get),
             series = occurrence?.series,
             recurrence =
                 occurrence
