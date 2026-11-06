@@ -57,7 +57,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.history.Happened
 import eu.teele.neugesplitter.domain.history.Happening
+import eu.teele.neugesplitter.domain.history.series
 import eu.teele.neugesplitter.domain.value.EntryId
+import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.domain.value.TodoId
 import eu.teele.neugesplitter.storage.settings.SyncState
 import eu.teele.neugesplitter.ui.DayHeading
@@ -88,6 +90,7 @@ import java.util.Locale
  * @param onOpen opens an entry a change names.
  * @param onEdit opens a suggestion in the editor, which confirms it as saved (RE-4).
  * @param onHistory opens the history of a deleted entry a change names.
+ * @param onSeries opens the recurring series named by a history event.
  * @param onShare starts sharing a group kept only on this device.
  * @param onSyncProblem opens why the group stopped syncing.
  * @param onTodos opens the todo list.
@@ -101,6 +104,7 @@ fun ActivityScreen(
     onOpen: (EntryId) -> Unit,
     onEdit: (EntryId) -> Unit,
     onHistory: (EntryId) -> Unit,
+    onSeries: (SeriesId) -> Unit,
     onShare: () -> Unit,
     onSyncProblem: () -> Unit,
     onTodos: () -> Unit,
@@ -240,6 +244,7 @@ fun ActivityScreen(
                                 { viewModel.read(index) },
                                 onOpen,
                                 onHistory,
+                                onSeries,
                             )
                         }
                     }
@@ -318,8 +323,8 @@ private fun SuggestionRow(
 }
 
 /**
- * One change, the size of an entry row; tapping it reads it, and opens the entry it names if it
- * names one (HI-3, HI-5).
+ * One change, the size of an entry row; tapping it reads it, and opens the entry or series it names
+ * (HI-3, HI-5).
  */
 @Composable
 private fun HappeningRow(
@@ -330,19 +335,23 @@ private fun HappeningRow(
     onRead: () -> Unit,
     onOpen: (EntryId) -> Unit,
     onHistory: (EntryId) -> Unit,
+    onSeries: (SeriesId) -> Unit,
 ) {
     val entry = (happening.happened as? Happened.Entry)?.entry
+    val series = happening.happened.series
     HistoryRow(
         LocalResources.current.told(happening, state.names, state.scale, locale),
         happening.at,
         locale,
         unseen = unseen,
         modifier =
-            if (entry == null && !unseen) Modifier
+            if (entry == null && series == null && !unseen) Modifier
             else
                 Modifier.clickable {
                     if (unseen) onRead()
-                    if (entry != null) {
+                    if (series != null) {
+                        onSeries(series)
+                    } else if (entry != null) {
                         if (entry in state.deleted) onHistory(entry) else onOpen(entry)
                     }
                 },

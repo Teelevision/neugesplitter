@@ -72,6 +72,7 @@ class ActivityScreenTest {
     private val opened = mutableListOf<EntryId>()
     private val edited = mutableListOf<EntryId>()
     private val histories = mutableListOf<EntryId>()
+    private val openedSeries = mutableListOf<SeriesId>()
     private val synced = mutableListOf<GroupId>()
     private var shares = 0
     private var problems = 0
@@ -157,6 +158,7 @@ class ActivityScreenTest {
                     onOpen = { opened += it },
                     onEdit = { edited += it },
                     onHistory = { histories += it },
+                    onSeries = { openedSeries += it },
                     onShare = { shares++ },
                     onSyncProblem = { problems++ },
                     onTodos = { todoLists++ },
@@ -365,6 +367,15 @@ class ActivityScreenTest {
         assertEquals(listOf(taxiId, taxiId), histories)
         compose.onNodeWithText("Anna created the group").performClick()
         assertEquals(listOf(dinnerId), opened)
+    }
+
+    @Test
+    fun `a recurring series event opens its series (RE-1)`() {
+        show { suggesting() }
+
+        compose.onNodeWithText("Ben added 'Cleaning', repeating").performClick()
+
+        assertEquals(listOf(cleaning), openedSeries)
     }
 
     @Test

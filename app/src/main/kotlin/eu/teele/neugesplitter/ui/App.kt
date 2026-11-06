@@ -523,6 +523,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                     onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
                                     onEdit = { stack.add(EntryEditor(key.group, it.hex)) },
                                     onHistory = { stack.add(EntryHistory(key.group, it.hex)) },
+                                    onSeries = { stack.add(RecurringSeries(key.group, it.hex)) },
                                     onShare = { stack.add(BackendSetup(key.group)) },
                                     onSyncProblem = { stack.add(SyncProblem(key.group)) },
                                     onTodos = { go(Destination.TODOS) },
