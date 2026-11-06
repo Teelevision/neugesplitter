@@ -109,6 +109,8 @@
     <string name="category_insurance">Versicherung</string>
     <string name="category_shopping">Einkaufen</string>
     <string name="category_entertainment">Unterhaltung</string>
+    <string name="category_hobbies">Hobbys</string>
+    <string name="category_sport">Sport</string>
     <string name="category_personal_care">Körperpflege</string>
     <string name="category_family">Familie</string>
     <string name="category_education">Bildung</string>

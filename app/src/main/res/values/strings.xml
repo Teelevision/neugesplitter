@@ -111,6 +111,8 @@
     <string name="category_insurance">Insurance</string>
     <string name="category_shopping">Shopping</string>
     <string name="category_entertainment">Entertainment</string>
+    <string name="category_hobbies">Hobbies</string>
+    <string name="category_sport">Sport</string>
     <string name="category_personal_care">Personal care</string>
     <string name="category_family">Family</string>
     <string name="category_education">Education</string>

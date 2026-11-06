@@ -16,6 +16,8 @@ enum class BuiltInCategory(val key: String, val id: CategoryId, val emoji: Strin
     INSURANCE("insurance", CategoryId.parse("5025cc4ee7ab924c659c199c53c5f4e1"), "🛡️"),
     SHOPPING("shopping", CategoryId.parse("9a4dc6409cf4fae466a71c6687add748"), "🛍️"),
     ENTERTAINMENT("entertainment", CategoryId.parse("2d494e77b363c800d71ac3cd3cf8be15"), "🎬"),
+    HOBBIES("hobbies", CategoryId.parse("6a38eecc911740048bf38ead10f5da8e"), "🎨"),
+    SPORT("sport", CategoryId.parse("c6c4bb8043e34f779f796a7c96d8bbaa"), "⚽"),
     PERSONAL_CARE("personal_care", CategoryId.parse("62b5983e7ac63874ae75d53e5dfe9fb9"), "💇"),
     FAMILY("family", CategoryId.parse("32d04080c42a3ae1b0187286ceea72f7"), "👨‍👩‍👧‍👦"),
     EDUCATION("education", CategoryId.parse("bd94347b49ab4fa29e52c756536ba25f"), "🎓"),

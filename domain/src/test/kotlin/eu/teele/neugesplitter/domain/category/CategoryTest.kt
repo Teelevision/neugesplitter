@@ -70,7 +70,7 @@ class CategoryTest {
 
     @Test
     fun `built in categories have hard coded global identifiers`() {
-        assertEquals(18, categories.size)
+        assertEquals(20, categories.size)
         var next = 20
         val anotherGroup =
             Group.replay(
@@ -87,7 +87,7 @@ class CategoryTest {
                 }
             )
         assertEquals(categories.associateBy { it.id }, anotherGroup.categories)
-        assertEquals(18, categories.map { it.id }.distinct().size)
+        assertEquals(20, categories.map { it.id }.distinct().size)
         assertEquals(
             listOf(
                 "e27c346bf48a5e7fc3312e086ae54a1a",
@@ -99,6 +99,8 @@ class CategoryTest {
                 "5025cc4ee7ab924c659c199c53c5f4e1",
                 "9a4dc6409cf4fae466a71c6687add748",
                 "2d494e77b363c800d71ac3cd3cf8be15",
+                "6a38eecc911740048bf38ead10f5da8e",
+                "c6c4bb8043e34f779f796a7c96d8bbaa",
                 "62b5983e7ac63874ae75d53e5dfe9fb9",
                 "32d04080c42a3ae1b0187286ceea72f7",
                 "bd94347b49ab4fa29e52c756536ba25f",
@@ -114,6 +116,8 @@ class CategoryTest {
         assertEquals("gifts_and_donations", BuiltInCategory.GIFTS_AND_DONATIONS.key)
         assertEquals("family", BuiltInCategory.FAMILY.key)
         assertEquals("insurance", BuiltInCategory.INSURANCE.key)
+        assertEquals("hobbies", BuiltInCategory.HOBBIES.key)
+        assertEquals("sport", BuiltInCategory.SPORT.key)
     }
 
     @Test

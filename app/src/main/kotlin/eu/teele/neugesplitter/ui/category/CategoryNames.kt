@@ -19,6 +19,8 @@ fun categoryNameResource(category: BuiltInCategory): Int =
         BuiltInCategory.INSURANCE -> R.string.category_insurance
         BuiltInCategory.SHOPPING -> R.string.category_shopping
         BuiltInCategory.ENTERTAINMENT -> R.string.category_entertainment
+        BuiltInCategory.HOBBIES -> R.string.category_hobbies
+        BuiltInCategory.SPORT -> R.string.category_sport
         BuiltInCategory.PERSONAL_CARE -> R.string.category_personal_care
         BuiltInCategory.FAMILY -> R.string.category_family
         BuiltInCategory.EDUCATION -> R.string.category_education

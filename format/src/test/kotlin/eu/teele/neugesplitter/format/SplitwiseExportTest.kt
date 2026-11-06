@@ -61,6 +61,8 @@ class SplitwiseExportTest {
                 BuiltInCategory.DINING_AND_CAFES,
                 BuiltInCategory.PERSONAL_CARE,
                 BuiltInCategory.ENTERTAINMENT,
+                BuiltInCategory.HOBBIES,
+                BuiltInCategory.SPORT,
             ),
             listOf(
                     "Groceries",
@@ -69,6 +71,8 @@ class SplitwiseExportTest {
                     "Liquor",
                     "Life - Other",
                     "Entertainment - Other",
+                    "Hobbies",
+                    "Sports",
                 )
                 .mapNotNull(SplitwiseCategoryMapper::builtIn),
         )
@@ -82,7 +86,9 @@ class SplitwiseExportTest {
                 "Games" to BuiltInCategory.ENTERTAINMENT,
                 "Entertainment - Movies" to BuiltInCategory.ENTERTAINMENT,
                 "Music" to BuiltInCategory.ENTERTAINMENT,
-                "Sports" to BuiltInCategory.ENTERTAINMENT,
+                "Sports" to BuiltInCategory.SPORT,
+                "Entertainment - Sports" to BuiltInCategory.SPORT,
+                "Hobbies" to BuiltInCategory.HOBBIES,
                 "Food and drink - Other" to BuiltInCategory.DINING_AND_CAFES,
                 "Food and drink - Groceries" to BuiltInCategory.GROCERIES,
                 "Food and drink - Liquor" to BuiltInCategory.DINING_AND_CAFES,
