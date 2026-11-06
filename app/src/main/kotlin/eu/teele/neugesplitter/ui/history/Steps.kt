@@ -281,7 +281,7 @@ private fun Resources.todos(happened: Happened.Todos, by: String): Told {
                 )
         }
     val descriptions = happened.descriptions
-    return descriptions.singleOrNull()?.let { Told(icon, getString(one, by, it), "") }
+    return descriptions.singleOrNull()?.let { Told(icon, getString(one, by), it) }
         ?: Told(
             icon,
             getQuantityString(several, descriptions.size, by, descriptions.size),
@@ -306,7 +306,11 @@ private fun Resources.todo(
                 )
             TodoChange.Deleted -> Triple(R.drawable.ic_delete, R.string.happened_todo_deleted, "")
         }
-    return Told(icon, getString(sentence, by, happened.description), detail)
+    return Told(
+        icon,
+        getString(sentence, by),
+        listOf(happened.description, detail).filter { it.isNotEmpty() }.joinToString(" · "),
+    )
 }
 
 /** One part for each field in which [after] differs from [before], the same todo. */

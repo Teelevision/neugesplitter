@@ -2,6 +2,8 @@ package eu.teele.neugesplitter.ui.activity
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -179,11 +181,17 @@ class ActivityScreenTest {
 
     private fun count(text: String) = compose.onAllNodesWithText(text).fetchSemanticsNodes().size
 
+    private fun todoRows(text: String) =
+        compose
+            .onAllNodes(hasText(text, substring = true).and(hasClickAction()))
+            .fetchSemanticsNodes()
+            .size
+
     private fun unseen() =
         compose.onAllNodesWithContentDescription("New").fetchSemanticsNodes().size
 
     private fun top(text: String) =
-        compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
+        compose.onAllNodesWithText(text).fetchSemanticsNodes().first().boundsInRoot.top
 
     private fun swipeSnackbarAway(message: String) {
         val bounds = compose.onNodeWithText(message).fetchSemanticsNode().boundsInRoot
@@ -286,11 +294,11 @@ class ActivityScreenTest {
         assertTrue(top("Pay the deposit") < top("Book the ferry"))
         assertTrue(top("Book the ferry") < top("History"))
         compose.onAllNodesWithText("Ben").assertCountEquals(2)
-        assertEquals(0, count("Buy sunscreen"))
-        assertEquals(0, count("Pack"))
-        assertEquals(0, count("Return the keys"))
+        assertEquals(0, todoRows("Buy sunscreen"))
+        assertEquals(0, todoRows("Pack"))
+        assertEquals(0, todoRows("Return the keys"))
 
-        compose.onNodeWithText("Book the ferry").performClick()
+        compose.onAllNodesWithText("Book the ferry")[0].performClick()
         assertEquals(1, todoLists)
     }
 
@@ -307,23 +315,23 @@ class ActivityScreenTest {
             )
         }
         compose.waitUntil(5_000) { count("Book the ferry") > 0 }
-        compose.onNodeWithText("Book the ferry").performTouchInput { swipeLeft() }
+        compose.onAllNodesWithText("Book the ferry")[0].performTouchInput { swipeLeft() }
         compose.waitForIdle()
         compose.onNodeWithText("Done").performClick()
         // Ticked here, it stays to be ticked open again, and is written with the deletion.
         compose.waitForIdle()
-        compose.onNodeWithText("Book the ferry").assertExists()
+        compose.onAllNodesWithText("Book the ferry")[0].assertExists()
 
-        compose.onNodeWithText("Return the keys").performTouchInput { swipeLeft() }
+        compose.onAllNodesWithText("Return the keys")[0].performTouchInput { swipeLeft() }
         compose.waitForIdle()
         compose.onAllNodesWithContentDescription("Delete")[1].performClick()
         compose.waitUntil(5_000) { groups.load(trip)!!.todos.first().done }
         compose.waitUntil(5_000) { count("To-do deleted") > 0 }
-        assertEquals(0, count("Return the keys"))
+        assertEquals(0, todoRows("Return the keys"))
         swipeSnackbarAway("To-do deleted")
-        assertEquals(0, count("Return the keys"))
+        assertEquals(0, todoRows("Return the keys"))
         compose.waitUntil(5_000) { groups.load(trip)!!.todos.size == 1 }
-        assertEquals(0, count("Return the keys"))
+        assertEquals(0, todoRows("Return the keys"))
     }
 
     @Test
@@ -376,6 +384,22 @@ class ActivityScreenTest {
         compose.onNodeWithText("Ben added 'Cleaning', repeating").performClick()
 
         assertEquals(listOf(cleaning), openedSeries)
+    }
+
+    @Test
+    fun `a todo event uses both existing history lines`() {
+        val description = "Review every receipt from the summer trip"
+        val todo = Todo(TodoId.parse(id(0x50)), description, null, emptyList())
+        show {
+            groups.append(
+                trip,
+                listOf(Event.TodoCreated(eventId(), anna.id, hours(1), todo)),
+                today,
+            )
+        }
+
+        compose.onNodeWithText("Anna added a to-do").assertExists()
+        compose.onNodeWithText(description).assertExists()
     }
 
     @Test
