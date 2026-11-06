@@ -312,7 +312,7 @@ class GroupRepositoryTest {
     fun `built in categories are implicit and not written to the event log`() {
         val created = groups.create(weekend, TODAY)
 
-        assertEquals(18, created.categories.size)
+        assertEquals(20, created.categories.size)
         assertTrue(groups.events(trip).none { it is Event.CategoryCreated })
         assertEquals(created, groups.load(trip))
     }
