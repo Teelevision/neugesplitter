@@ -141,6 +141,7 @@ class OverviewScreenTest {
                 { today },
                 { at },
                 CoroutineScope(Dispatchers.Unconfined),
+                {},
             )
         compose.setContent {
             NeugesplitterTheme {

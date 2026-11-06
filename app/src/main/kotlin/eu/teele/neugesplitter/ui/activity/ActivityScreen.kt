@@ -68,6 +68,7 @@ import eu.teele.neugesplitter.ui.history.day
 import eu.teele.neugesplitter.ui.history.told
 import eu.teele.neugesplitter.ui.longDate
 import eu.teele.neugesplitter.ui.sync.GroupTitle
+import eu.teele.neugesplitter.ui.sync.SyncPullToRefresh
 import eu.teele.neugesplitter.ui.sync.ago
 import eu.teele.neugesplitter.ui.sync.failed
 import eu.teele.neugesplitter.ui.sync.troubled
@@ -167,73 +168,80 @@ fun ActivityScreen(
         },
     ) { padding ->
         if (state.title == null) return@Scaffold
-        LazyColumn(
+        SyncPullToRefresh(
+            shared = state.sync != null,
+            onRefresh = viewModel::refresh,
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(bottom = 16.dp),
         ) {
-            item(key = "sync") {
-                SyncCard(state.sync, state.now, locale, viewModel::sync, onShare, onSyncProblem)
-            }
-            if (state.suggestions.isNotEmpty()) {
-                section("suggestions", R.string.suggestions, suggestions) {
-                    suggestions = !suggestions
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 16.dp),
+            ) {
+                item(key = "sync") {
+                    SyncCard(state.sync, state.now, locale, viewModel::sync, onShare, onSyncProblem)
                 }
-            }
-            if (state.suggestions.isNotEmpty() && suggestions) {
-                item(key = "suggestions-note") {
-                    Text(
-                        stringResource(R.string.suggestions_note),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
-                items(state.suggestions, key = { "suggestion-${it.entry.id.hex}" }) { suggestion ->
-                    SuggestionRow(
-                        suggestion,
-                        state,
-                        locale,
-                        onConfirm = { viewModel.confirm(suggestion) },
-                        onEdit = { onEdit(suggestion.entry.id) },
-                        onDecline = { viewModel.decline(suggestion) },
-                    )
-                }
-            }
-            if (due.isNotEmpty()) {
-                section("todos", R.string.todos_due, todos) { todos = !todos }
-            }
-            if (due.isNotEmpty() && todos) {
-                items(due, key = { "todo-${it.id.hex}" }) { todo ->
-                    SwipeableTodoRow(
-                        todo,
-                        todoState.names,
-                        locale,
-                        onDone = {
-                            ticked += todo.id
-                            todoViewModel.done(todo.id, it)
-                        },
-                        onDelete = { todoViewModel.delete(todo.id) },
-                        onClick = onTodos,
-                    )
-                }
-            }
-            section("history", R.string.history, history) { history = !history }
-            if (history) {
-                state.history.forEachIndexed { index, step ->
-                    val at = step.happening.at
-                    if (index == 0 || day(state.history[index - 1].happening.at) != day(at)) {
-                        item(key = "day-$index") { DayHeading(day(at), locale) }
+                if (state.suggestions.isNotEmpty()) {
+                    section("suggestions", R.string.suggestions, suggestions) {
+                        suggestions = !suggestions
                     }
-                    item(key = "happened-$index") {
-                        HappeningRow(
-                            step.happening,
-                            index in state.unseen,
+                }
+                if (state.suggestions.isNotEmpty() && suggestions) {
+                    item(key = "suggestions-note") {
+                        Text(
+                            stringResource(R.string.suggestions_note),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                    items(state.suggestions, key = { "suggestion-${it.entry.id.hex}" }) { suggestion
+                        ->
+                        SuggestionRow(
+                            suggestion,
                             state,
                             locale,
-                            { viewModel.read(index) },
-                            onOpen,
-                            onHistory,
+                            onConfirm = { viewModel.confirm(suggestion) },
+                            onEdit = { onEdit(suggestion.entry.id) },
+                            onDecline = { viewModel.decline(suggestion) },
                         )
+                    }
+                }
+                if (due.isNotEmpty()) {
+                    section("todos", R.string.todos_due, todos) { todos = !todos }
+                }
+                if (due.isNotEmpty() && todos) {
+                    items(due, key = { "todo-${it.id.hex}" }) { todo ->
+                        SwipeableTodoRow(
+                            todo,
+                            todoState.names,
+                            locale,
+                            onDone = {
+                                ticked += todo.id
+                                todoViewModel.done(todo.id, it)
+                            },
+                            onDelete = { todoViewModel.delete(todo.id) },
+                            onClick = onTodos,
+                        )
+                    }
+                }
+                section("history", R.string.history, history) { history = !history }
+                if (history) {
+                    state.history.forEachIndexed { index, step ->
+                        val at = step.happening.at
+                        if (index == 0 || day(state.history[index - 1].happening.at) != day(at)) {
+                            item(key = "day-$index") { DayHeading(day(at), locale) }
+                        }
+                        item(key = "happened-$index") {
+                            HappeningRow(
+                                step.happening,
+                                index in state.unseen,
+                                state,
+                                locale,
+                                { viewModel.read(index) },
+                                onOpen,
+                                onHistory,
+                            )
+                        }
                     }
                 }
             }

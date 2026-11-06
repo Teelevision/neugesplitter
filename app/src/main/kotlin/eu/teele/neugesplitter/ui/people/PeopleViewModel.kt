@@ -60,6 +60,7 @@ class PeopleViewModel(
     private val identifier: () -> String,
     private val today: () -> EntryDate,
     private val now: () -> Instant,
+    private val syncNow: suspend (GroupId) -> Unit,
 ) : ViewModel() {
 
     val state: StateFlow<PeopleState> =
@@ -69,6 +70,8 @@ class PeopleViewModel(
             }
             .flowOn(Dispatchers.IO)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PeopleState())
+
+    suspend fun sync() = syncNow(group)
 
     /** Adds a member (GR-5). A name that is blank is not one (the new-group rules). */
     fun add(name: String) {

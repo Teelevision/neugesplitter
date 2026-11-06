@@ -65,6 +65,7 @@ class OverviewViewModel(
     val today: () -> EntryDate,
     private val now: () -> Instant,
     private val scope: CoroutineScope,
+    private val syncNow: suspend (GroupId) -> Unit,
 ) : ViewModel() {
 
     private val deleting = MutableStateFlow<EntryId?>(null)
@@ -145,6 +146,8 @@ class OverviewViewModel(
     fun filter(filter: EntryFilter) {
         this.filter.value = filter
     }
+
+    suspend fun sync() = syncNow(group)
 
     /** Hides [entry] and offers to undo; the one offered before is deleted for good (HI-1). */
     fun delete(entry: EntryId) {

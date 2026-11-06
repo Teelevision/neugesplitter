@@ -61,6 +61,7 @@ import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.ui.InlineEditor
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.sync.GroupTitle
+import eu.teele.neugesplitter.ui.sync.SyncPullToRefresh
 import eu.teele.neugesplitter.ui.theme.largeText
 import java.util.Locale
 
@@ -106,88 +107,94 @@ fun PeopleScreen(
         },
     ) { padding ->
         if (state.title == null) return@Scaffold
-        LazyColumn(
+        SyncPullToRefresh(
+            shared = state.sync != null,
+            onRefresh = viewModel::sync,
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(bottom = 16.dp),
         ) {
-            item(key = "balances") { Heading(R.string.balances_header) }
-            items(state.people, key = { it.id.hex }) { person ->
-                if (renaming == person.id) {
-                    InlineEditor(
-                        person.name,
-                        stringResource(R.string.member_name),
-                        onSave = {
-                            viewModel.rename(person.id, it)
-                            renaming = null
-                        },
-                        onCancel = { renaming = null },
-                    )
-                } else {
-                    PersonRow(
-                        person,
-                        state.scale,
-                        locale,
-                        Modifier.combinedClickable(
-                            onClick = { sheet = person.id },
-                            onLongClick = {
-                                adding = false
-                                renaming = person.id
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 16.dp),
+            ) {
+                item(key = "balances") { Heading(R.string.balances_header) }
+                items(state.people, key = { it.id.hex }) { person ->
+                    if (renaming == person.id) {
+                        InlineEditor(
+                            person.name,
+                            stringResource(R.string.member_name),
+                            onSave = {
+                                viewModel.rename(person.id, it)
+                                renaming = null
                             },
-                        ),
-                    )
-                }
-            }
-            item(key = "add") {
-                if (adding) {
-                    InlineEditor(
-                        "",
-                        stringResource(R.string.member_name),
-                        onSave = {
-                            viewModel.add(it)
-                            adding = false
-                        },
-                        onCancel = { adding = false },
-                    )
-                } else {
-                    Row(
-                        modifier =
-                            Modifier.fillMaxWidth()
-                                .clickable {
-                                    renaming = null
-                                    adding = true
-                                }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Icon(painterResource(R.drawable.ic_add), contentDescription = null)
-                        Text(
-                            stringResource(R.string.member_add),
-                            style = MaterialTheme.typography.titleMedium,
+                            onCancel = { renaming = null },
+                        )
+                    } else {
+                        PersonRow(
+                            person,
+                            state.scale,
+                            locale,
+                            Modifier.combinedClickable(
+                                onClick = { sheet = person.id },
+                                onLongClick = {
+                                    adding = false
+                                    renaming = person.id
+                                },
+                            ),
                         )
                     }
                 }
-            }
-            item(key = "settling") { Heading(R.string.settling_header) }
-            if (state.transfers.isEmpty()) {
-                item(key = "settled") {
-                    Text(
-                        stringResource(R.string.group_settled),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                item(key = "add") {
+                    if (adding) {
+                        InlineEditor(
+                            "",
+                            stringResource(R.string.member_name),
+                            onSave = {
+                                viewModel.add(it)
+                                adding = false
+                            },
+                            onCancel = { adding = false },
+                        )
+                    } else {
+                        Row(
+                            modifier =
+                                Modifier.fillMaxWidth()
+                                    .clickable {
+                                        renaming = null
+                                        adding = true
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            Icon(painterResource(R.drawable.ic_add), contentDescription = null)
+                            Text(
+                                stringResource(R.string.member_add),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
+                    }
+                }
+                item(key = "settling") { Heading(R.string.settling_header) }
+                if (state.transfers.isEmpty()) {
+                    item(key = "settled") {
+                        Text(
+                            stringResource(R.string.group_settled),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        )
+                    }
+                }
+                items(state.transfers, key = { "${it.from.hex}-${it.to.hex}" }) { transfer ->
+                    TransferRow(
+                        transfer,
+                        state.name(transfer.from),
+                        state.name(transfer.to),
+                        state.scale,
+                        locale,
+                        onRecord = { onRecord(transfer) },
                     )
                 }
-            }
-            items(state.transfers, key = { "${it.from.hex}-${it.to.hex}" }) { transfer ->
-                TransferRow(
-                    transfer,
-                    state.name(transfer.from),
-                    state.name(transfer.to),
-                    state.scale,
-                    locale,
-                    onRecord = { onRecord(transfer) },
-                )
             }
         }
     }

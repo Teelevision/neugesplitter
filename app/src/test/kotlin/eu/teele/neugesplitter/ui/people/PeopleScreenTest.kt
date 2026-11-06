@@ -92,7 +92,8 @@ class PeopleScreenTest {
                 BackendSettings("https://s3.example", "splits", "", "auto", false, "AK"),
             )
         }
-        val viewModel = PeopleViewModel(groups, trip, { id(0x100 + events++) }, { today }, { at })
+        val viewModel =
+            PeopleViewModel(groups, trip, { id(0x100 + events++) }, { today }, { at }, {})
         compose.setContent { NeugesplitterTheme { PeopleScreen(viewModel, {}, onRecord) } }
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("⛺ Trip").fetchSemanticsNodes().isNotEmpty()

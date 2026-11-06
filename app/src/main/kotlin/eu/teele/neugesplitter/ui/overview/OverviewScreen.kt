@@ -69,6 +69,7 @@ import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.position
 import eu.teele.neugesplitter.ui.sync.GroupTitle
 import eu.teele.neugesplitter.ui.sync.SyncHaltedCard
+import eu.teele.neugesplitter.ui.sync.SyncPullToRefresh
 import eu.teele.neugesplitter.ui.sync.ago
 import eu.teele.neugesplitter.ui.sync.failed
 import eu.teele.neugesplitter.ui.theme.groupColour
@@ -174,19 +175,25 @@ fun OverviewScreen(
         snackbarHost = { SwipeToDismissSnackbarHost(snackbar) },
     ) { padding ->
         if (overview != null) {
-            Entries(
-                overview,
-                state,
-                onOpen = onOpen,
-                onMenu = { menu = it },
-                onDelete = viewModel::delete,
-                onSyncProblem = onSyncProblem,
-                onActivity = onActivity,
-                onBalances = onBalances,
-                onFilter = { filtering = true },
-                onClearFilter = { viewModel.filter(EntryFilter()) },
+            SyncPullToRefresh(
+                shared = state.sync != null,
+                onRefresh = viewModel::sync,
                 modifier = Modifier.fillMaxSize().padding(padding),
-            )
+            ) {
+                Entries(
+                    overview,
+                    state,
+                    onOpen = onOpen,
+                    onMenu = { menu = it },
+                    onDelete = viewModel::delete,
+                    onSyncProblem = onSyncProblem,
+                    onActivity = onActivity,
+                    onBalances = onBalances,
+                    onFilter = { filtering = true },
+                    onClearFilter = { viewModel.filter(EntryFilter()) },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 

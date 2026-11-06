@@ -137,7 +137,8 @@ class ActivityScreenTest {
             today,
         )
         before()
-        val viewModel = ActivityViewModel(groups, trip, { today }, { hours(2) }, { synced += it })
+        val viewModel =
+            ActivityViewModel(groups, trip, { today }, { hours(2) }, { synced += it }, {})
         val todos =
             TodoViewModel(
                 groups,

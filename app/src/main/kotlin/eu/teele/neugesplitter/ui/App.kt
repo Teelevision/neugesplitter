@@ -435,6 +435,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                             graph::today,
                                             graph::now,
                                             graph.scope,
+                                            graph.syncing::poll,
                                         )
                                     },
                                     deleteRequested = deleting?.let(EntryId::parse),
@@ -478,6 +479,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                             graph::identifier,
                                             graph::today,
                                             graph::now,
+                                            graph.syncing::poll,
                                         )
                                     },
                                     onBack = back,
@@ -502,6 +504,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                             graph::today,
                                             graph::now,
                                             graph.syncing::now,
+                                            graph.syncing::poll,
                                         )
                                     },
                                     // The same one as the todo list's, which shares the group's

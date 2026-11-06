@@ -74,6 +74,7 @@ class ActivityViewModel(
     private val now: () -> Instant,
     /** Runs a pass over a group at once (SY-9, TR-13). */
     private val syncNow: (GroupId) -> Unit,
+    private val syncAndWait: suspend (GroupId) -> Unit,
 ) : ViewModel() {
 
     val state: StateFlow<ActivityState> =
@@ -129,6 +130,8 @@ class ActivityViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActivityState())
 
     fun sync() = syncNow(group)
+
+    suspend fun refresh() = syncAndWait(group)
 
     /** Counts [suggestion] from now on (RE-4). */
     fun confirm(suggestion: Suggestion) =
