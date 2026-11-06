@@ -335,6 +335,7 @@ One screen for all three kinds (EN-1), pushed full-screen with a close button
 and a save action. Top to bottom:
 
 - **Kind** as a three-way segmented control: expense, income, transfer.
+- **Category** (EN-10), a menu of the group's categories, or none.
 - **Description** (EN-2), focused on open so the keyboard is already up.
 - **Amount**, displayed large. Tapping it opens the calculator sheet rather than
   the system keyboard (AM-2).
@@ -356,6 +357,14 @@ A transfer relabels the two sides as "from" and "to" and hides the split schemes
 unless more than one member is selected (EN-7). Chosen with the description
 empty, it fills in "Transfer", which goes again if the kind changes back before
 anyone edits it.
+
+A new expense or income suggests its category once the user pauses typing the
+description for 600 ms (EN-13): the category button fills in and reads "·
+suggested" after the name. A suggestion follows the description, and goes again
+when nothing fits any more; it is saved like any other category. Once the user
+chooses a category, none included, nothing is suggested any more. A transfer
+takes the transfer category instead, and the suggestion comes back if the kind
+changes back. An entry being edited or duplicated keeps its category.
 
 With Repeats on, the entry is the first occurrence of a new series starting on
 its date; a suggested one is confirmed at once, since someone just entered it

@@ -99,6 +99,7 @@
     <string name="category_label">Category</string>
     <string name="category_emoji">Emoji</string>
     <string name="category_none">No category</string>
+    <string name="category_suggested">suggested</string>
     <string name="category_show_deleted">Show deleted categories</string>
     <string name="category_hide_deleted">Hide deleted categories</string>
     <string name="filter_category">Category</string>
@@ -548,6 +549,7 @@
     <string name="third_party">Third-party licences</string>
     <string name="words_german">German word list</string>
     <string name="words_english">English word list</string>
+    <string name="category_model">Category suggestions</string>
     <string name="adapted">adapted</string>
 
     <!-- Notifications -->

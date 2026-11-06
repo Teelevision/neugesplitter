@@ -26,6 +26,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.balance.Transfer
+import eu.teele.neugesplitter.domain.category.BuiltInCategory
 import eu.teele.neugesplitter.domain.category.defaultCategories
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
@@ -108,6 +109,7 @@ class EntryEditorScreenTest {
         tenth: Boolean = false,
         changing: SeriesId? = null,
         prefilled: Amount? = null,
+        guess: (String) -> BuiltInCategory? = ::guess,
     ) {
         groups.create(
             Group.create(trip, "Trip", null, "⛺", null, listOf(anna, ben, clara), at, ::eventId),
@@ -175,6 +177,7 @@ class EntryEditorScreenTest {
                 { at },
                 changing,
                 prefilled,
+                guess,
             )
         compose.setContent { NeugesplitterTheme { EntryEditorScreen(viewModel) { closed++ } } }
         compose.waitUntil(5_000) {
@@ -183,6 +186,20 @@ class EntryEditorScreenTest {
     }
 
     private fun stored() = groups.load(trip)!!.entries
+
+    /** Taxis are transportation; nothing else is guessed. */
+    private fun guess(description: String) =
+        BuiltInCategory.TRANSPORTATION.takeIf { "taxi" in description.lowercase() }
+
+    private fun category(builtin: BuiltInCategory) =
+        defaultCategories().single { it.builtin == builtin }
+
+    private fun awaitText(text: String) =
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
+
+    private val transportation = "${category(BuiltInCategory.TRANSPORTATION).emoji} Transportation"
 
     /** Types [keys] into the calculator, which a blank new entry has open already. */
     private fun enterAmount(keys: String) {
@@ -288,6 +305,66 @@ class EntryEditorScreenTest {
         assertEquals(Side.Equal(listOf(ben.id)), entry.payers)
         assertEquals(Side.Equal(listOf(anna.id, ben.id)), entry.beneficiaries)
         assertEquals(1, closed)
+    }
+
+    @Test
+    fun `a new entry's category is guessed from its description once typing pauses (EN-13)`() {
+        show()
+        enterAmount("12")
+        compose.onNodeWithText("Description").performTextInput("Taxi home")
+        awaitText("suggested")
+        compose
+            .onNode(hasText(transportation) and hasText("· suggested", substring = true))
+            .assertExists()
+        save()
+        assertEquals(
+            category(BuiltInCategory.TRANSPORTATION).id,
+            stored().values.single().categoryId,
+        )
+    }
+
+    @Test
+    fun `a guess goes again with the description that suggested it (EN-13)`() {
+        show()
+        compose.onNodeWithText("Description").performTextInput("Taxi")
+        awaitText("suggested")
+        compose.onNodeWithText("Description").performTextReplacement("Cake")
+        awaitText("No category")
+    }
+
+    @Test
+    fun `a category the user chose is never replaced by a guess (EN-13)`() {
+        show()
+        enterAmount("12")
+        compose.onNodeWithText("No category").performClick()
+        compose.onNodeWithText("${category(BuiltInCategory.HEALTH).emoji} Health").performClick()
+        compose.onNodeWithText("Description").performTextInput("Taxi")
+        Thread.sleep(1_000)
+        shadowOf(Looper.getMainLooper()).idle()
+        compose.onAllNodesWithText("suggested", substring = true).assertCountEquals(0)
+        save()
+        assertEquals(category(BuiltInCategory.HEALTH).id, stored().values.single().categoryId)
+    }
+
+    @Test
+    fun `editing an entry guesses no category (EN-13)`() {
+        show(existing = true, entry = dinner)
+        compose.onNodeWithText("Description").performTextReplacement("Taxi")
+        Thread.sleep(1_000)
+        shadowOf(Looper.getMainLooper()).idle()
+        compose.onNodeWithText("No category").assertExists()
+    }
+
+    @Test
+    fun `a transfer keeps its own category, and a guess comes back without it (EN-13)`() {
+        show()
+        compose.onNodeWithText("Description").performTextInput("Taxi")
+        awaitText("suggested")
+        compose.onNodeWithText("Transfer").performClick()
+        awaitText("${category(BuiltInCategory.TRANSFER).emoji} Transfer")
+        compose.onAllNodesWithText("suggested", substring = true).assertCountEquals(0)
+        compose.onNodeWithText("Expense").performClick()
+        awaitText("suggested")
     }
 
     @Test

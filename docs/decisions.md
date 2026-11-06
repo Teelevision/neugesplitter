@@ -296,6 +296,29 @@ are described in [sync-design.md](sync-design.md).
   with the group's name and members as what an attacker tries first; below 10¹⁴
   guesses it is weak, because at 10⁴ scrypt guesses a second that is about three
   centuries, and nothing can raise the work factor afterwards.
+- **How is a category suggested (EN-13)?** By a fastText-style classifier on the
+  device, trained once at build time on `docs/categories/training`, about 1 700
+  terms per language. A term list alone knows only its own words, so the model
+  starts from Facebook's aligned German and English Wikipedia vectors, which put
+  "Zahnarzt" next to "dentist" and both next to "doctor": the 40 000 most
+  frequent words of each language plus every training word, merged into one
+  vocabulary, cut to 100 principal components and to bytes. The word vectors
+  stay fixed while training, which stock fastText would not do — it would forget
+  every pretrained word the terms never use, the very words the vectors are for.
+  Hashed character n-grams of three to five, which are trained, add what no word
+  vector carries: shop names, compounds, typos. On a tenth of the terms held out
+  it is right three times in four, and two in three where no word of the term
+  was trained on; it only suggests at 70 % confidence or more, where nine in ten
+  suggestions are right, and leaves the rest to the user. A transfer is told by
+  its kind and never suggested. The trainer is Kotlin in `:category-model`,
+  sharing tokenisation and hashing with the app's reader in `:domain`, so the
+  two cannot drift apart; nothing about it runs in the app build, which keeps it
+  reproducible offline (TR-51). `make categories` downloads the vectors and
+  writes `app/src/main/assets/categories.bin`, about 9 MiB, which the app maps
+  from the apk on first use. The vectors are CC BY-SA 3.0, so the model is too,
+  credited in NOTICE and the app's settings; the app's code stays MIT.
+  Suggestions come from the shipped model only; learning from a group's own
+  entries may follow.
 - **What does an installation keep to reopen an encrypted group?** Its unlocked
   key and its passphrase, sealed with an AES key the Android keystore holds and
   never lets out, in a database file of its own that no backup takes, together

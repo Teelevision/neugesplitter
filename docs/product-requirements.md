@@ -216,6 +216,11 @@ of everyone entering the same backend settings.
   of the description, an amount range, the type, payers, beneficiaries and a
   date range, each optional and each range open at either end. It matches single
   occurrences, not whole series. Filtering by category comes with EN-10.
+- **EN-13** (Later): When a user pauses typing a new expense's or income's
+  description, the app SHOULD suggest a built-in category for it, offline, from
+  German and English descriptions alike. A suggestion MUST NOT replace a
+  category the user chose, and is only made when it is likely to be right. A
+  transfer is always in the transfer category.
 
 ### 4.5 History
 

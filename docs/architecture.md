@@ -38,6 +38,11 @@ graph TD
 | `:storage`    | Android library     | SQLite: local event log, retained object bytes, projections, settings, sealed credentials           |
 | `:app`        | Android application | Compose UI, ViewModels, WorkManager scheduling, the composition root                                |
 
+`:category-model` stands apart: a Kotlin JVM program on `:domain` that trains
+the category suggestion's model into `app/src/main/assets` (EN-13,
+decisions.md). Nothing depends on it, and `make categories` is the only thing
+that runs it.
+
 Dependencies point inward. `:sync` declares what it needs as interfaces and
 never learns which implementation it got; only `:app` knows that `LogStore` is
 S3 today (TR-29, BE-14). `:format` is a JVM module because TR-23 settled on
@@ -64,6 +69,7 @@ neugesplitter/
 │   ├── entry/        Entry, Kind, Side, Scheme, the split arithmetic
 │   ├── recurrence/   Series, Segment, Interval, occurrence expansion
 │   ├── balance/      balances and the settlement rounding of format-spec 7.1
+│   ├── category/     categories, and the model that suggests one (EN-13)
 │   ├── event/        the sealed event hierarchy of format-spec 4.2
 │   ├── history/      an entry's versions and a group's changes, as the log tells them
 │   └── replay/       applying events in order to produce group state
@@ -90,6 +96,7 @@ neugesplitter/
 │   ├── objects/      the retained bytes table
 │   ├── projection/   the derived tables and their DAOs
 │   └── settings/     backend settings, sync state, keystore-sealed secrets
+├── category-model/   trains app/src/main/assets/categories.bin, make categories
 └── app/src/main/kotlin/eu/teele/neugesplitter/
     ├── MainActivity.kt
     ├── AppGraph.kt   the composition root: everything is constructed here, once

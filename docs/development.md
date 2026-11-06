@@ -98,6 +98,7 @@ milliseconds, with no emulator anywhere near it.
 | kotest-property                | the property tests TR-46 asks for                          |
 | OkHttp                         | the HTTP client under `:backend-s3` (TR-27), decisions.md  |
 | OkHttp MockWebServer           | a fake S3 without conditional writes (TR-49)               |
+| fastText aligned vectors       | the category suggestion, `make categories`, decisions.md   |
 | Testcontainers + SeaweedFS     | the integration suite TR-48 asks for, `make integration`   |
 | GitHub Actions                 | `check` and `integrationTest`, and the reproducible build  |
 | FOSSA                          | the release apk's dependency licences, in CI, decisions.md |
@@ -120,7 +121,7 @@ and is not part of what has to match.
 
 | Level               | Where                   | Covers                                                                                                      |
 | ------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Domain unit         | `:domain` JVM tests     | splits, balances, rounding, recurrence, replay                                                              |
+| Domain unit         | `:domain` JVM tests     | splits, balances, rounding, recurrence, replay, the category model's reading                                |
 | Property            | `:domain` JVM tests     | split truncation bounds of format-spec 7 (SP-7), balances sum to zero after residue handling (BA-2)         |
 | Format conformance  | `:format` JVM tests     | the specification's test vectors (TR-45), update merge semantics (TR-47)                                    |
 | Storage             | `:storage` JVM tests    | event text kept as written (TR-17c), the projection rebuilt from the log (TR-18), group deletion            |

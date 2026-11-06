@@ -98,6 +98,7 @@ private fun AddFromText(graph: AppGraph, text: String, onDone: () -> Unit) {
                 graph::today,
                 graph::now,
                 prefilled = amountIn(text, group.scale),
+                guess = graph::guess,
             )
         },
         onClose = onDone,

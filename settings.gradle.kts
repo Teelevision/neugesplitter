@@ -36,3 +36,5 @@ include(":storage")
 include(":sync")
 
 include(":backend-s3")
+
+include(":category-model")

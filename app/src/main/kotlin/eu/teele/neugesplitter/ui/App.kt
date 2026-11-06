@@ -588,6 +588,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                 graph::today,
                                 graph::now,
                                 key.series?.let(SeriesId::parse),
+                                guess = graph::guess,
                             )
                         },
                         onClose = { pop() },

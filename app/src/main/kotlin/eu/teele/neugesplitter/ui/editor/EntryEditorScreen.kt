@@ -246,7 +246,12 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Kinds(state.kind, viewModel::kind)
-                    CategoryChoice(state.categories, state.categoryId, viewModel::category)
+                    CategoryChoice(
+                        state.categories,
+                        state.categoryId,
+                        state.categoryGuessed,
+                        viewModel::category,
+                    )
                     // Read-only: tapping it opens the calculator instead of the keyboard (AM-2).
                     OutlinedTextField(
                         value = state.amount?.let { formatted(it, state.scale, locale) }.orEmpty(),
@@ -409,10 +414,12 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
     }
 }
 
+/** The entry's category, marked as suggested where the description chose it (EN-13). */
 @Composable
 private fun CategoryChoice(
     categories: List<Category>,
     selected: CategoryId?,
+    guessed: Boolean,
     onSelect: (CategoryId?) -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -423,6 +430,12 @@ private fun CategoryChoice(
                 selectedCategory?.let { "${it.emoji} ${categoryName(it)}" }
                     ?: stringResource(R.string.category_none)
             )
+            if (guessed && selectedCategory != null) {
+                Text(
+                    " · " + stringResource(R.string.category_suggested),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(

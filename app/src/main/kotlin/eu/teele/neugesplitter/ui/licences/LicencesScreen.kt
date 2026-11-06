@@ -45,7 +45,7 @@ internal data class Notice(
     @StringRes val adaptedAs: Int? = null,
 )
 
-/** What the release build ships, by its runtime classpath (LicencesTest), and the word lists. */
+/** What the release build ships, by its runtime classpath (LicencesTest), and the data. */
 internal val NOTICES =
     listOf(
         Notice(
@@ -121,6 +121,12 @@ internal val NOTICES =
             "CC BY 3.0 US",
             listOf("cc-by-3.0-us.txt"),
             adaptedAs = R.string.words_english,
+        ),
+        Notice(
+            "fastText aligned word vectors · Facebook",
+            "CC BY-SA 3.0",
+            listOf("cc-by-sa-3.0.txt"),
+            adaptedAs = R.string.category_model,
         ),
     )
 

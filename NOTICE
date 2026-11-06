@@ -16,3 +16,15 @@ format/src/main/resources/eu/teele/neugesplitter/format/crypto/words_en.txt
   Changed: the large list without hyphenated words and without words that
   sound like another (by CMUdict pronunciations, and frays, phrase, freebee,
   freebie), joined by the short lists' words that pass the same test.
+
+app/src/main/assets/categories.bin
+  Adapted from the aligned fastText word vectors wiki.en.align.vec and
+  wiki.de.align.vec, https://fasttext.cc/docs/en/aligned-vectors.html
+  Copyright Facebook, Inc.
+  Licensed under CC BY-SA 3.0, https://creativecommons.org/licenses/by-sa/3.0/
+  Changed: of each language's 200,000 most frequent words, the 40,000 most
+  frequent and those of docs/categories/training kept; both languages merged,
+  cut down to 100 principal components and to bytes, and joined by n-gram
+  vectors and a classifier trained on docs/categories/training
+  (category-model/, make categories). This file is licensed under
+  CC BY-SA 3.0 as well.

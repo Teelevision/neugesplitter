@@ -35,10 +35,16 @@ import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.ui.split.Mismatch
 import eu.teele.neugesplitter.ui.split.Split
 import java.time.Instant
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -68,6 +74,8 @@ enum class Party {
  * @property source the entry being edited or duplicated. A side that comes out the same as there
  *   stays as it was saved.
  * @property blank a new entry with nothing prefilled but an amount, which the calculator opens on.
+ * @property categoryGuessed whether [categoryId] is what the description suggests, rather than the
+ *   user's choice (EN-13).
  * @property recurrence how the entry repeats, if it does (RE-1).
  * @property occurrence whether the entry being edited came from a series (RE-15).
  * @property was how that series repeated on the occurrence's due date.
@@ -92,6 +100,7 @@ data class EntryEditorState(
     val members: List<Member> = emptyList(),
     val categories: List<Category> = emptyList(),
     val categoryId: CategoryId? = null,
+    val categoryGuessed: Boolean = false,
     val source: Entry? = null,
     val kind: Kind = Kind.EXPENSE,
     val description: String = "",
@@ -199,6 +208,9 @@ data class EntryEditorState(
  * came from a series is changed as that occurrence, and the series with it from there on if the
  * user says so (RE-6, RE-15). With [changing], it is that series itself, changed from a date on
  * without any occurrence (RE-6).
+ *
+ * A new entry's category is what its description suggests by [guess], until the user chooses one
+ * (EN-13).
  */
 class EntryEditorViewModel(
     private val repository: GroupRepository,
@@ -214,6 +226,7 @@ class EntryEditorViewModel(
     private val now: () -> Instant,
     private val changing: SeriesId? = null,
     private val prefilled: Amount? = null,
+    private val guess: (String) -> BuiltInCategory? = { null },
 ) : ViewModel() {
 
     private val mutable = MutableStateFlow(EntryEditorState(date = today()))
@@ -222,6 +235,7 @@ class EntryEditorViewModel(
     private val id: EntryId = entry?.takeUnless { duplicate } ?: EntryId.parse(identifier())
     private var defaults: Set<MemberId> = emptySet()
     private var beneficiariesChosen = entry != null || settling != null || changing != null
+    @Volatile private var categoryChosen = entry != null || changing != null
     private var occurrence: Occurrence? = null
     private var series: Series? = null
     private var loaded: Group? = null
@@ -311,8 +325,37 @@ class EntryEditorViewModel(
                         fixed = occurrence != null && series?.decidedAfter(occurrence.due) == true,
                     )
             }
+            if (!categoryChosen) launch(Dispatchers.Default) { guessing() }
         }
     }
+
+    /**
+     * Fills in the category the description suggests once the user pauses typing it, until they
+     * choose one themselves (EN-13). A transfer has a category of its own.
+     */
+    @OptIn(FlowPreview::class)
+    private suspend fun guessing() =
+        mutable
+            .map { it.description.trim() to it.kind }
+            .distinctUntilChanged()
+            .debounce(PAUSE)
+            .collectLatest { (description, kind) ->
+                if (categoryChosen || kind == Kind.TRANSFER) return@collectLatest
+                val guessed = if (description.length < GUESSED_FROM) null else guess(description)
+                mutable.update { state ->
+                    if (
+                        categoryChosen ||
+                            state.kind != kind ||
+                            state.description.trim() != description
+                    )
+                        return@update state
+                    val category =
+                        guessed?.let { builtin ->
+                            state.categories.firstOrNull { it.builtin == builtin && !it.deleted }
+                        }
+                    state.copy(categoryId = category?.id, categoryGuessed = category != null)
+                }
+            }
 
     /**
      * The first date [series] can change its rule from, in front of an occurrence due on [before]
@@ -340,7 +383,8 @@ class EntryEditorViewModel(
     /**
      * Chooses [kind]. A transfer goes to somebody in particular, so until the user has chosen the
      * beneficiaries, a transfer starts with none and the other kinds with the defaults (EN-7). A
-     * transfer without a description gets a generic one, which goes again with the transfer.
+     * transfer without a description gets a generic one, which goes again with the transfer. So
+     * does a transfer's category, unless the user chose it.
      */
     fun kind(kind: Kind) =
         mutable.update {
@@ -356,17 +400,26 @@ class EntryEditorViewModel(
                     kind != Kind.TRANSFER && it.description == transfer -> ""
                     else -> it.description
                 }
+            val categoryId =
+                when {
+                    kind == Kind.TRANSFER ->
+                        it.categoryId.takeIf { categoryChosen } ?: transferCategory(it.categories)
+                    !categoryChosen && it.kind == Kind.TRANSFER -> null
+                    else -> it.categoryId
+                }
             it.copy(
                 kind = kind,
                 beneficiaries = beneficiaries,
                 description = description,
-                categoryId =
-                    it.categoryId
-                        ?: if (kind == Kind.TRANSFER) transferCategory(it.categories) else null,
+                categoryId = categoryId,
+                categoryGuessed = it.categoryGuessed && kind != Kind.TRANSFER,
             )
         }
 
-    fun category(categoryId: CategoryId?) = mutable.update { it.copy(categoryId = categoryId) }
+    fun category(categoryId: CategoryId?) {
+        categoryChosen = true
+        mutable.update { it.copy(categoryId = categoryId, categoryGuessed = false) }
+    }
 
     fun description(text: String) = mutable.update { it.copy(description = text) }
 
@@ -695,6 +748,12 @@ class EntryEditorViewModel(
 data class Preview(val impact: Impact, val next: EntryDate?, val skipped: List<EntryDate>)
 
 private fun EntryDate.plusDays(days: Long) = EntryDate.of(value.plusDays(days))
+
+/** How long the user pauses typing the description before its category is guessed (EN-13). */
+private val PAUSE = 600.milliseconds
+
+/** How many characters a description needs before its category is guessed. */
+private const val GUESSED_FROM = 3
 
 private fun transferCategory(categories: Collection<Category>): CategoryId? =
     categories.firstOrNull { it.builtin == BuiltInCategory.TRANSFER && !it.deleted }?.id

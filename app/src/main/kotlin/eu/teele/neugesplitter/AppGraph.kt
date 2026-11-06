@@ -6,6 +6,8 @@ import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.backend.s3.Credentials
 import eu.teele.neugesplitter.backend.s3.S3Location
 import eu.teele.neugesplitter.backend.s3.S3LogStore
+import eu.teele.neugesplitter.domain.category.BuiltInCategory
+import eu.teele.neugesplitter.domain.category.CategoryModel
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.format.crypto.KageCodec
 import eu.teele.neugesplitter.storage.Database
@@ -19,6 +21,8 @@ import eu.teele.neugesplitter.sync.LogStore
 import eu.teele.neugesplitter.work.Notifications
 import eu.teele.neugesplitter.work.Syncing
 import eu.teele.neugesplitter.work.WorkPolls
+import java.io.FileInputStream
+import java.nio.channels.FileChannel
 import java.security.SecureRandom
 import java.time.Instant
 import java.time.LocalDate
@@ -80,6 +84,18 @@ class AppGraph(context: Context) {
         )
 
     private val random = SecureRandom()
+
+    /** Mapped from the apk when first asked, so that it costs no startup time. */
+    private val categories by lazy {
+        context.assets.openFd("categories.bin").use { fd ->
+            FileInputStream(fd.fileDescriptor).channel.use {
+                CategoryModel(it.map(FileChannel.MapMode.READ_ONLY, fd.startOffset, fd.length))
+            }
+        }
+    }
+
+    /** The category a new entry's description suggests, if any (EN-13). */
+    fun guess(description: String): BuiltInCategory? = categories.guess(description)
 
     /** A fresh random identifier, as 32 hex characters (TR-24). */
     fun identifier(): String {

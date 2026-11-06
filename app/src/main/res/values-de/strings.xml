@@ -97,6 +97,7 @@
     <string name="category_label">Kategorie</string>
     <string name="category_emoji">Emoji</string>
     <string name="category_none">Keine Kategorie</string>
+    <string name="category_suggested">vorgeschlagen</string>
     <string name="category_show_deleted">Gelöschte Kategorien anzeigen</string>
     <string name="category_hide_deleted">Gelöschte Kategorien ausblenden</string>
     <string name="filter_category">Kategorie</string>
@@ -543,6 +544,7 @@
     <string name="third_party">Lizenzen Dritter</string>
     <string name="words_german">Deutsche Wortliste</string>
     <string name="words_english">Englische Wortliste</string>
+    <string name="category_model">Kategorievorschläge</string>
     <string name="adapted">angepasst</string>
 
     <!-- Notifications -->

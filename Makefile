@@ -91,6 +91,17 @@ reproducible: ## Build the release apk from two clean clones of HEAD and compare
 report: ## Open the last test report
 	open domain/build/reports/tests/test/index.html
 
+VECTORS := build/vectors
+VECTORS_URL := https://dl.fbaipublicfiles.com/fasttext/vectors-aligned
+
+# The files list the most frequent words first, so their first 200,000 lines are all it needs.
+.PHONY: categories
+categories: ## Train the category guess into app/src/main/assets/categories.bin (EN-13)
+	mkdir -p $(VECTORS)
+	for l in en de; do [ -s $(VECTORS)/wiki.$$l.vec ] || \
+		curl -sf -r 0-480000000 $(VECTORS_URL)/wiki.$$l.align.vec | head -n 200001 > $(VECTORS)/wiki.$$l.vec; done
+	$(GRADLE) -q :category-model:run --args="$(VECTORS) docs/categories/training app/src/main/assets/categories.bin"
+
 .PHONY: clean
 clean: ## Delete the build outputs
 	$(GRADLE) clean
