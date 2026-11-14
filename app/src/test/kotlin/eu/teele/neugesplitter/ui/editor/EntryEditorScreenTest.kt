@@ -324,6 +324,16 @@ class EntryEditorScreenTest {
     }
 
     @Test
+    fun `a new entry's category is guessed from its first description letter (EN-13)`() {
+        show(guess = { if (it == "T") BuiltInCategory.TRANSPORTATION else null })
+        compose.onNodeWithText("Description").performTextInput("T")
+        awaitText("suggested")
+        compose
+            .onNode(hasText(transportation) and hasText("· suggested", substring = true))
+            .assertExists()
+    }
+
+    @Test
     fun `a guess goes again with the description that suggested it (EN-13)`() {
         show()
         compose.onNodeWithText("Description").performTextInput("Taxi")

@@ -753,7 +753,7 @@ private fun EntryDate.plusDays(days: Long) = EntryDate.of(value.plusDays(days))
 private val PAUSE = 600.milliseconds
 
 /** How many characters a description needs before its category is guessed. */
-private const val GUESSED_FROM = 3
+private const val GUESSED_FROM = 1
 
 private fun transferCategory(categories: Collection<Category>): CategoryId? =
     categories.firstOrNull { it.builtin == BuiltInCategory.TRANSFER && !it.deleted }?.id
