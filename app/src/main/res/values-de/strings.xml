@@ -134,6 +134,7 @@
     <string name="category_gifts_and_donations">Geschenke &amp; Spenden</string>
     <string name="category_fees_and_taxes">Gebühren &amp; Steuern</string>
     <string name="category_savings_and_investments">Sparen &amp; Investieren</string>
+    <string name="category_work_and_income">Arbeit &amp; Einkommen</string>
     <string name="category_transfer">Überweisung</string>
     <string name="category_restore">Kategorie wiederherstellen</string>
     <string name="happened_category_created">%1$s hat eine Kategorie hinzugefügt</string>

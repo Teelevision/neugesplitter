@@ -34,6 +34,7 @@ enum class BuiltInCategory(val key: String, val id: CategoryId, val emoji: Strin
         CategoryId.parse("365b2e04c25cd8a1a3af4585a0c1f586"),
         "📈",
     ),
+    WORK_AND_INCOME("work_and_income", CategoryId.parse("eeb92d4cec188dbf18efb291d4411511"), "💼"),
     TRANSFER("transfer", CategoryId.parse("2756a3df43883aaf1c05fd26d12ee5a9"), "↔️"),
 }
 

@@ -70,7 +70,7 @@ class CategoryTest {
 
     @Test
     fun `built in categories have hard coded global identifiers`() {
-        assertEquals(20, categories.size)
+        assertEquals(21, categories.size)
         var next = 20
         val anotherGroup =
             Group.replay(
@@ -87,7 +87,7 @@ class CategoryTest {
                 }
             )
         assertEquals(categories.associateBy { it.id }, anotherGroup.categories)
-        assertEquals(20, categories.map { it.id }.distinct().size)
+        assertEquals(21, categories.map { it.id }.distinct().size)
         assertEquals(
             listOf(
                 "e27c346bf48a5e7fc3312e086ae54a1a",
@@ -109,6 +109,7 @@ class CategoryTest {
                 "39bcaa0f20466c9b20356f5045db0261",
                 "5b8151f0394ded76ba68fb8bdde37aca",
                 "365b2e04c25cd8a1a3af4585a0c1f586",
+                "eeb92d4cec188dbf18efb291d4411511",
                 "2756a3df43883aaf1c05fd26d12ee5a9",
             ),
             BuiltInCategory.entries.map { it.id.hex },

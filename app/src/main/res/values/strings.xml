@@ -136,6 +136,7 @@
     <string name="category_gifts_and_donations">Gifts &amp; donations</string>
     <string name="category_fees_and_taxes">Fees &amp; taxes</string>
     <string name="category_savings_and_investments">Savings &amp; investments</string>
+    <string name="category_work_and_income">Work &amp; income</string>
     <string name="category_transfer">Transfer</string>
     <string name="category_restore">Restore category</string>
     <string name="happened_category_created">%1$s added a category</string>

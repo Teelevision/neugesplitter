@@ -390,6 +390,7 @@ and are not localized.
 | `gifts_and_donations`     | `39bcaa0f20466c9b20356f5045db0261` |
 | `fees_and_taxes`          | `5b8151f0394ded76ba68fb8bdde37aca` |
 | `savings_and_investments` | `365b2e04c25cd8a1a3af4585a0c1f586` |
+| `work_and_income`         | `eeb92d4cec188dbf18efb291d4411511` |
 | `transfer`                | `2756a3df43883aaf1c05fd26d12ee5a9` |
 
 An entry or recurring template that refers to an unknown category identifier is

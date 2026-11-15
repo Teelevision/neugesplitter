@@ -308,7 +308,7 @@ are described in [sync-design.md](sync-design.md).
   Hashed character n-grams of three to five, which are trained, add what no word
   vector carries: shop names, compounds, typos. On a tenth of the terms held out
   it is right three times in four, and two in three where no word of the term
-  was trained on; it only suggests at 70 % confidence or more, where nine in ten
+  was trained on; it only suggests at 65 % confidence or more, where nine in ten
   suggestions are right, and leaves the rest to the user. A transfer is told by
   its kind and never suggested. The trainer is Kotlin in `:category-model`,
   sharing tokenisation and hashing with the app's reader in `:domain`, so the

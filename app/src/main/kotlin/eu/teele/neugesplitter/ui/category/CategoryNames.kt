@@ -29,6 +29,7 @@ fun categoryNameResource(category: BuiltInCategory): Int =
         BuiltInCategory.GIFTS_AND_DONATIONS -> R.string.category_gifts_and_donations
         BuiltInCategory.FEES_AND_TAXES -> R.string.category_fees_and_taxes
         BuiltInCategory.SAVINGS_AND_INVESTMENTS -> R.string.category_savings_and_investments
+        BuiltInCategory.WORK_AND_INCOME -> R.string.category_work_and_income
         BuiltInCategory.TRANSFER -> R.string.category_transfer
     }
 

@@ -53,6 +53,8 @@ private val PROBES =
         "Wocheneinkauf",
         "Tankstelle",
         "Kletterhalle",
+        "Gehalt Oktober",
+        "sold the old sofa",
     )
 
 private class Sample(val text: String, val language: String, val label: Int)
