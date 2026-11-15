@@ -692,6 +692,9 @@ on this screen happens automatically.
 | Long press      | chart              | read off the values there, until a tap          |
 | Tap             | averages chart     | pick a bar and show its values                  |
 
+A pull's spinner stays for at least 1.5 seconds, so that a fast sync is still
+seen to happen.
+
 Destructive actions are either undoable by snackbar or confirmed by dialogue,
 never both and never neither. The three that confirm are: delete group (GR-11),
 delete all local data (PR-9) and remove member (GR-6).

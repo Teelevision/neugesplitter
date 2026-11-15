@@ -34,6 +34,25 @@ class SyncPullToRefreshTest {
     }
 
     @Test
+    fun `a fast sync keeps spinning for a moment, and another pull meanwhile waits (SY-9)`() {
+        var refreshes = 0
+        show(shared = true) { refreshes++ }
+        compose.mainClock.autoAdvance = false
+
+        pullDown()
+        compose.mainClock.advanceTimeBy(100)
+        assertEquals(1, refreshes)
+        pullDown()
+        compose.mainClock.advanceTimeBy(100)
+        assertEquals(1, refreshes)
+
+        compose.mainClock.advanceTimeBy(1_500)
+        pullDown()
+        compose.mainClock.advanceTimeBy(100)
+        assertEquals(2, refreshes)
+    }
+
+    @Test
     fun `pulling a local group does not refresh it`() {
         var refreshes = 0
         show(shared = false) { refreshes++ }

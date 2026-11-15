@@ -11,7 +11,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+private val SHORTEST_SPIN = 1500.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +40,13 @@ fun SyncPullToRefresh(
                 refreshing = true
                 scope.launch {
                     try {
-                        onRefresh()
+                        coroutineScope {
+                            // A fast sync would only flash the spinner, which reads as nothing
+                            // done.
+                            val shown = launch { delay(SHORTEST_SPIN) }
+                            onRefresh()
+                            shown.join()
+                        }
                     } finally {
                         refreshing = false
                     }
