@@ -205,11 +205,13 @@ diverges except when each member first sees it.
 
 ## 7. Joining, rejoining and recovery
 
-There is no invitation. Sharing a group means passing on the backend settings,
-and for an encrypted group the passphrase as well (section 9). The app then
-replays the history it finds and asks _who are you?_ (BE-6) — an existing
-member, or a new one. That answer stays on the device and nothing is written
-about it (event-model section 5).
+There is no invitation protocol. Sharing a group means passing on the backend
+settings, and for an encrypted group the passphrase as well (section 9) — typed
+or pasted, or scanned from the QR code another member shows (BE-18), which
+carries the same settings and nothing more. The app then replays the history it
+finds and asks _who are you?_ (BE-6) — an existing member, or a new one. That
+answer stays on the device and nothing is written about it (event-model section
+5).
 
 The same path recovers a lost device and adds a second one (BE-11): no window,
 no re-invitation, no special onboarding protocol.

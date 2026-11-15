@@ -3,6 +3,11 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Asked for only when an invitation is scanned (BE-18). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
 
     <!-- Plain HTTP is allowed, after a warning, for a backend at home (PR-5). A large heap fits
          scrypt's 256 MiB, which some devices' default heap does not. -->

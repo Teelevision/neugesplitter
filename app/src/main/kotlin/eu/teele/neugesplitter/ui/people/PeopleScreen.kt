@@ -79,6 +79,8 @@ fun PeopleScreen(
     onBack: () -> Unit,
     onRecord: (Transfer) -> Unit,
     modifier: Modifier = Modifier,
+    /** Shows the shared group's invitation as a QR code (BE-18). */
+    onInvite: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val locale = LocalConfiguration.current.locales[0]
@@ -169,6 +171,24 @@ fun PeopleScreen(
                             Icon(painterResource(R.drawable.ic_add), contentDescription = null)
                             Text(
                                 stringResource(R.string.member_add),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
+                    }
+                }
+                if (state.sync != null) {
+                    item(key = "invite") {
+                        Row(
+                            modifier =
+                                Modifier.fillMaxWidth()
+                                    .clickable(onClick = onInvite)
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            Icon(painterResource(R.drawable.ic_qr_code), contentDescription = null)
+                            Text(
+                                stringResource(R.string.invite),
                                 style = MaterialTheme.typography.titleMedium,
                             )
                         }

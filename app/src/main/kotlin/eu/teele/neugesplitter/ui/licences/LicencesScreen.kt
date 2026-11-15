@@ -103,6 +103,27 @@ internal val NOTICES =
         ),
         Notice("zxcvbn4j", "MIT", listOf("zxcvbn4j.txt"), listOf("com.nulab-inc:zxcvbn")),
         Notice("zip4j", "Apache-2.0", listOf("zip4j.txt"), listOf("net.lingala.zip4j:")),
+        Notice("ZXing", "Apache-2.0", listOf("zxing.txt"), listOf("com.google.zxing:")),
+        Notice("Dagger", "Apache-2.0", listOf("dagger.txt"), listOf("com.google.dagger:")),
+        Notice(
+            "AutoValue",
+            "Apache-2.0",
+            listOf("auto-value.txt"),
+            listOf("com.google.auto.value:"),
+        ),
+        Notice("javax.inject", "Apache-2.0", listOf("javax-inject.txt"), listOf("javax.inject:")),
+        Notice(
+            "Jakarta Dependency Injection",
+            "Apache-2.0",
+            listOf("jakarta-inject.txt"),
+            listOf("jakarta.inject:"),
+        ),
+        Notice(
+            "kotlinx-atomicfu",
+            "Apache-2.0",
+            listOf("atomicfu.txt"),
+            listOf("org.jetbrains.kotlinx:atomicfu"),
+        ),
         Notice(
             "Guava ListenableFuture",
             "Apache-2.0",

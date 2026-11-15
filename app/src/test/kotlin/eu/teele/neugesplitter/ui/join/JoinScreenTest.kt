@@ -33,6 +33,7 @@ import eu.teele.neugesplitter.sync.Keyring
 import eu.teele.neugesplitter.sync.MemoryLog
 import eu.teele.neugesplitter.sync.Sealing
 import eu.teele.neugesplitter.ui.backend.Location
+import eu.teele.neugesplitter.ui.invite.Invitation
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
 import eu.teele.neugesplitter.work.Polls
 import eu.teele.neugesplitter.work.Syncing
@@ -40,8 +41,10 @@ import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -325,5 +328,60 @@ class JoinScreenTest {
         assertEquals(trip, done)
         assertEquals(actingAs, groups.actingAs(trip))
         assertNull(groups.backends.settings(trip))
+    }
+
+    private fun invitation(endpoint: String = "s3.example", passphrase: String? = null) =
+        Invitation(Location(endpoint, "splits", accessKey = "AK", secretKey = "SK"), passphrase)
+            .encoded()
+
+    @Test
+    fun `a scanned invitation to an encrypted group goes on to who the user is (BE-18)`() {
+        sharedElsewhere(encrypted = true)
+        show()
+        compose.onNodeWithText("Scan QR code").assertExists()
+        compose.runOnIdle { assertTrue(viewModel.invited(invitation(passphrase = passphrase))) }
+        awaitText("Group found")
+        click("Anna")
+        click("Join")
+        await { done != null }
+
+        assertEquals(created, groups.events(trip))
+        assertEquals("SK", secrets.secretKey(trip))
+        assertContentEquals(passphrase.toCharArray(), secrets.passphrase(trip))
+    }
+
+    @Test
+    fun `an invitation whose passphrase does not open the group asks for it (BE-18)`() {
+        sharedElsewhere(encrypted = true)
+        show()
+        compose.runOnIdle { viewModel.invited(invitation(passphrase = "falsch")) }
+        awaitText("This passphrase does not open the group.")
+
+        viewModel.passphrase(passphrase)
+        click("Next")
+        awaitText("Group found")
+    }
+
+    @Test
+    fun `an invitation over plain HTTP stops at its warning (BE-18, PR-5)`() {
+        sharedElsewhere()
+        show()
+        compose.runOnIdle { viewModel.invited(invitation(endpoint = "http://s3.example")) }
+        await { !viewModel.state.value.busy && viewModel.state.value.verdict != null }
+        awaitText("Reachable")
+        assertEquals(JoinStep.TEST, viewModel.state.value.step)
+
+        click("Next")
+        awaitText("Group found")
+    }
+
+    @Test
+    fun `a code that is no invitation is turned down (BE-18)`() {
+        show()
+        compose.runOnIdle {
+            assertFalse(viewModel.invited("https://example.com"))
+            assertFalse(viewModel.invited("neugesplitter:join?endpoint=s3.example"))
+        }
+        assertEquals(JoinStep.LOCATION, viewModel.state.value.step)
     }
 }

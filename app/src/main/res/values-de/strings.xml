@@ -482,6 +482,25 @@
     <string name="join_new_member">Neues Mitglied anlegen</string>
     <string name="join_name_rejected">Dieser Name ist zu lang.</string>
     <string name="join">Beitreten</string>
+    <string name="join_scan_title">Einladung scannen</string>
+    <string name="join_scan_text">Jemand aus der Gruppe zeigt dir einen QR-Code, unter Personen oder in den Einstellungen der Gruppe. Der Scan füllt alles aus, auch die Passphrase.</string>
+    <string name="join_scan">QR-Code scannen</string>
+    <string name="join_scan_hint">Richte die Kamera auf den Code.</string>
+    <string name="join_scan_unknown">Dieser Code ist keine Einladung in eine Gruppe.</string>
+    <string name="join_scan_denied">Zum Scannen braucht die App die Kamera. Erlaube sie in den App-Einstellungen oder gib die Einstellungen unten ein.</string>
+    <string name="join_scan_permission">App-Einstellungen</string>
+
+    <!-- Invite -->
+    <string name="invite">Mit QR-Code einladen</string>
+    <string name="invite_summary">Wer ihn scannt, tritt bei, ohne Einstellungen abzutippen.</string>
+    <string name="invite_text">Auf dem anderen Telefon „Gruppe beitreten“ wählen und diesen Code scannen. Der Speicher wird dort eingerichtet, danach wählt die Person, wer sie in der Gruppe ist.</string>
+    <string name="invite_code">QR-Code zum Beitreten</string>
+    <string name="invite_secret_title">Nur dieser Person zeigen</string>
+    <string name="invite_secret_text">Der Code enthält den geheimen Schlüssel des Speichers. Wer ihn scannt, kann die Gruppe lesen und ändern, auch nachdem er als Mitglied entfernt wurde.</string>
+    <string name="invite_secret_passphrase_text">Der Code enthält den geheimen Schlüssel des Speichers und die Passphrase. Wer ihn scannt, kann die Gruppe lesen und ändern, auch nachdem er als Mitglied entfernt wurde.</string>
+    <string name="invite_screenshots">Bildschirmfotos dieser Seite sind gesperrt.</string>
+    <string name="invite_no_passphrase">Die Passphrase lässt sich auf diesem Gerät nicht mehr öffnen, deshalb fehlt sie im Code. Sie wird beim Beitreten abgefragt.</string>
+    <string name="invite_unavailable">Der geheime Schlüssel des Speichers lässt sich auf diesem Gerät nicht mehr öffnen. Gib ihn in den Einstellungen der Gruppe beim gemeinsamen Speicher neu ein und lade dann ein.</string>
 
     <!-- Export and import -->
     <string name="export_action">Exportieren</string>

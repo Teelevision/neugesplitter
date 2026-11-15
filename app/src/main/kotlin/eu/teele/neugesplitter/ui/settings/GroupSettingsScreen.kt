@@ -89,6 +89,8 @@ fun GroupSettingsScreen(
     /** Exports the group to a file (DA-3). */
     onExport: () -> Unit = {},
     onCategories: () -> Unit = {},
+    /** Shows the shared group's invitation as a QR code (BE-18). */
+    onInvite: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var dialog by rememberSaveable { mutableStateOf<Dialog?>(null) }
@@ -201,6 +203,13 @@ fun GroupSettingsScreen(
                             backend.bucket,
                         ),
                         onClick = onBackend,
+                    )
+                }
+                item(key = "invite") {
+                    SettingRow(
+                        stringResource(R.string.invite),
+                        stringResource(R.string.invite_summary),
+                        onClick = onInvite,
                     )
                 }
                 item(key = "encryption") {

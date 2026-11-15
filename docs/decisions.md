@@ -136,8 +136,9 @@ are described in [sync-design.md](sync-design.md).
   provider could otherwise do without decrypting anything. It does not detect
   truncation, and nothing yet does.
 - **How do people join a group?** Everyone configures the same backend, then
-  picks who they are from the member list (BE-5, BE-6). No QR codes, no
-  invitations, no key exchange.
+  picks who they are from the member list (BE-5, BE-6). A member already in the
+  group can show the settings as a QR code to scan instead of typing them
+  (BE-18). There is still no key exchange and no server in between.
 - **What happens to a join that is given up on?** It is deleted, history and
   all, whether the user goes back or the process dies before a member is chosen.
   Keeping it would leave a group on the device that nobody acts as, and fetching
@@ -145,14 +146,29 @@ are described in [sync-design.md](sync-design.md).
 - **What if the location to join is empty?** The app offers to create a new
   group there and carries the location over, so nothing is typed twice. The
   secret key travels in memory only, never in saved navigation state.
-- **How do the other members receive the backend settings?** By whatever means
-  the group already uses to talk to each other. The app offers no mechanism, and
-  a one-time setup effort is acceptable for the audience this product is for
-  (product requirements, section 2).
-- **How does a passphrase reach the other members?** The same way, and
-  deliberately with no help from the app. Every convenient transfer channel
-  would carry the passphrase next to the settings it protects, which defeats the
-  point of having one. The members work it out among themselves.
+- **How do the other members receive the backend settings?** Face to face, as a
+  QR code a member shows and the other scans while joining (BE-18), or by
+  whatever means the group already uses to talk to each other, pasted in. This
+  reverses an earlier choice to offer no mechanism at all: typing an endpoint, a
+  bucket and two keys on a phone was the step people stumbled over, and meeting
+  in person is how most groups start.
+- **Does the QR code carry the passphrase too?** Yes, and the secret key. An
+  earlier choice kept the passphrase off every channel the app offered, since it
+  would travel next to the settings it protects. A code shown on one screen to a
+  camera held next to it is not such a channel: it is not stored, sent or
+  forwarded, and whoever can scan it is standing there. So the code carries
+  everything, the screen says so and cannot be captured (FLAG_SECURE), and the
+  camera is asked for only when someone chooses to scan. A passphrase this
+  device can no longer open is left out, and asked for while joining. Removing a
+  member still removes no access (BE-13), and the invitation screen says so.
+- **Why ZXing and CameraX, not ML Kit?** ML Kit needs Google Play Services or
+  ships a closed model, which a FOSS build cannot take. ZXing's core both draws
+  and reads the code, and a QR code a phone shows to a phone is easy to read.
+  The viewfinder is CameraX's Compose one rather than `PreviewView`, whose
+  controller pulls in video recording, Media3 and Guava.
+- **How does a passphrase reach the other members otherwise?** By whatever means
+  they choose. The app copies it nowhere and sends it nowhere; outside the QR
+  code, the members work it out among themselves.
 - **One shared backend key, or one per member?** Either; the app does not care.
   A provider can issue a key per person, and a single shared key works too. In
   the typical case every member has full access anyway (GR-10). A key scoped to

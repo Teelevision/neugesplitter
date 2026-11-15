@@ -69,7 +69,12 @@ class PeopleScreenTest {
     private fun eventId() = EventId.parse(id(0x100 + events++))
 
     /** Anna's group, acted in as Anna, after Anna paid [paid] for all three of them. */
-    private fun show(paid: Amount?, onRecord: (Transfer) -> Unit = {}, shared: Boolean = false) {
+    private fun show(
+        paid: Amount?,
+        onRecord: (Transfer) -> Unit = {},
+        shared: Boolean = false,
+        onInvite: () -> Unit = {},
+    ) {
         val created =
             Group.create(trip, "Trip", null, "⛺", null, listOf(anna, ben, clara), at, ::eventId)
         groups.create(created, today)
@@ -94,7 +99,9 @@ class PeopleScreenTest {
         }
         val viewModel =
             PeopleViewModel(groups, trip, { id(0x100 + events++) }, { today }, { at }, {})
-        compose.setContent { NeugesplitterTheme { PeopleScreen(viewModel, {}, onRecord) } }
+        compose.setContent {
+            NeugesplitterTheme { PeopleScreen(viewModel, {}, onRecord, onInvite = onInvite) }
+        }
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("⛺ Trip").fetchSemanticsNodes().isNotEmpty()
         }
@@ -124,6 +131,20 @@ class PeopleScreenTest {
             cloud.fetchSemanticsNode().boundsInRoot.left >=
                 compose.onNodeWithText("⛺ Trip").fetchSemanticsNode().boundsInRoot.right
         )
+    }
+
+    @Test
+    fun `a shared group's members can invite someone with a QR code (BE-18)`() {
+        var invited = 0
+        show(paid = null, shared = true, onInvite = { invited++ })
+        compose.onNodeWithText("Invite with a QR code").performClick()
+        assertEquals(1, invited)
+    }
+
+    @Test
+    fun `a local group offers no invitation (BE-18)`() {
+        show(paid = null)
+        compose.onNodeWithText("Invite with a QR code").assertDoesNotExist()
     }
 
     @Test

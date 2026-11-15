@@ -484,6 +484,25 @@
     <string name="join_new_member">New member</string>
     <string name="join_name_rejected">This name is too long.</string>
     <string name="join">Join</string>
+    <string name="join_scan_title">Scan an invitation</string>
+    <string name="join_scan_text">Someone in the group shows you a QR code, under People or in the group\'s settings. Scanning it fills in everything, the passphrase too.</string>
+    <string name="join_scan">Scan QR code</string>
+    <string name="join_scan_hint">Point the camera at the code.</string>
+    <string name="join_scan_unknown">This code is no invitation to a group.</string>
+    <string name="join_scan_denied">Scanning needs the camera. Allow it in the app\'s settings, or enter the settings below.</string>
+    <string name="join_scan_permission">App settings</string>
+
+    <!-- Invite -->
+    <string name="invite">Invite with a QR code</string>
+    <string name="invite_summary">Whoever scans it joins without typing any settings.</string>
+    <string name="invite_text">On the other phone, choose Join group and scan this code. The storage is set up there, and they choose who they are in the group.</string>
+    <string name="invite_code">QR code to join the group</string>
+    <string name="invite_secret_title">Show it only to them</string>
+    <string name="invite_secret_text">The code holds the storage\'s secret key. Anyone who scans it can read and change the group, even after being removed as a member.</string>
+    <string name="invite_secret_passphrase_text">The code holds the storage\'s secret key and the passphrase. Anyone who scans it can read and change the group, even after being removed as a member.</string>
+    <string name="invite_screenshots">Screenshots of this screen are blocked.</string>
+    <string name="invite_no_passphrase">The passphrase no longer opens on this device, so the code leaves it out. They will be asked for it.</string>
+    <string name="invite_unavailable">The storage\'s secret key no longer opens on this device. Enter it again under shared storage in the group\'s settings, then invite.</string>
 
     <!-- Export and import -->
     <string name="export_action">Export</string>

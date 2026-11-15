@@ -235,6 +235,15 @@ class Syncing(
         scope.launch(context) { joining.withLock { if (groups.actingAs(id) == null) discard(id) } }
     }
 
+    /** Group [id]'s secret key, to invite somebody with (BE-18); null if it no longer opens. */
+    suspend fun secretKey(id: GroupId): String? = withContext(context) { secrets.secretKey(id) }
+
+    /** Encrypted group [id]'s passphrase, to invite with (BE-18); null if it no longer opens. */
+    suspend fun passphrase(id: GroupId): String? =
+        withContext(context) {
+            secrets.passphrase(id)?.let { String(it).also { _ -> it.fill('\u0000') } }
+        }
+
     /** Stops syncing group [id] and forgets its secrets, as deleting it does (GR-11). */
     fun forget(id: GroupId) {
         running.remove(id)?.scope?.cancel()

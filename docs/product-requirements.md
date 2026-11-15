@@ -123,9 +123,10 @@ where the implementation genuinely has a choice.
 
 A group lives on the device that created it. To share it — with other people or
 with another of your own devices — every installation is pointed at the same
-**backend**: a storage location the users provide. There is no invitation, no
-key exchange and no server operated by this project; sharing a group is a matter
-of everyone entering the same backend settings.
+**backend**: a storage location the users provide. There is no key exchange and
+no server operated by this project; sharing a group is a matter of everyone
+entering the same backend settings, which a member already in the group can hand
+over as a QR code (BE-18).
 
 - **BE-1** (Core): A group MUST be fully usable without any backend. Purely
   local groups are a first-class case, not a degraded one.
@@ -184,6 +185,13 @@ of everyone entering the same backend settings.
   keep syncing without this installation, that this copy cannot be connected to
   that location again, and that taking part again means joining the group anew,
   next to the copy.
+- **BE-18** (Core): A member of a shared group MUST be able to show an
+  invitation as a QR code holding everything joining takes: the backend
+  location, its secret key and, for an encrypted group, the passphrase. Scanning
+  it while joining MUST fill all of that in, so that nothing is typed. The app
+  MUST say that the code holds these secrets, MUST keep the screen showing it
+  from being captured, and MUST ask for the camera only when the user chooses to
+  scan.
 
 ### 4.4 Entries
 

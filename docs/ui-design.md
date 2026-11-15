@@ -73,6 +73,7 @@ screen or opened as a bottom sheet, and the bar is hidden while it is up.
 | Recurrence editor   | sheet       | the recurring switch in the entry editor |
 | Member sheet        | sheet       | tapping a member                         |
 | Backend setup       | pushed flow | group settings, new group, join group    |
+| Invite              | pushed      | group settings, People                   |
 | Passphrase setup    | pushed      | inside backend setup                     |
 | Sync problem        | pushed      | the halted-sync banner                   |
 
@@ -121,11 +122,19 @@ one-line warning that a local group dies with the phone (BE-1, DA-1).
 Backend setup first (section 6), then the app reports what it found at that
 location (BE-9): a group, nothing, or something foreign. When it is a group, the
 history is fetched and the user picks who they are from the member list, or
-creates a new member (BE-6, BE-11). Nothing else — there is no invitation and no
-code to type. An encrypted group asks for its passphrase before anything is
-fetched, and says so on the spot when it is wrong. An empty location offers to
-create a new group there, with the location already filled in; a group already
-on the device is offered to open, and nothing is changed.
+creates a new member (BE-6, BE-11). Above the location's fields, a card offers
+to **scan a QR code** another member shows (BE-18, section 6, Invite). The
+camera is asked for only when that button is tapped; refused, the card says so
+and leads to the app's system settings, and typing or pasting still works. A
+scanned invitation fills in everything and goes on by itself as far as it can:
+through the test, and past the passphrase when the code carries the right one,
+to who the user is. Plain HTTP still stops at the test for its warning, and a
+wrong passphrase at the passphrase step. A code that is no invitation is said to
+be none, and the camera keeps looking. An encrypted group asks for its
+passphrase before anything is fetched, and says so on the spot when it is wrong.
+An empty location offers to create a new group there, with the location already
+filled in; a group already on the device is offered to open, and nothing is
+changed.
 
 ### Export and import
 
@@ -242,7 +251,8 @@ case. **Members are not swipeable.** Removing somebody is neither undoable in
 the way deleting an entry is, nor the thing it looks like — BE-13 needs a
 sentence of explanation, and a gesture cannot give one.
 
-An "add member" row sits at the end of the list (GR-5).
+An "add member" row sits at the end of the list (GR-5). In a shared group, an
+**invite with a QR code** row follows it, opening Invite (BE-18).
 
 ### Activity
 
@@ -360,9 +370,10 @@ Plain list, grouped:
 - **Categories**: categories are listed alphabetically by their displayed name.
   Deleted categories are hidden by default and can be shown or hidden with the
   visibility action in the top bar.
-- **Backend**: current backend summary, sync interval (SY-13), edit or configure
-  (BE-2, BE-15), and the encryption state (PR-11). A local group shows one row
-  saying that it is lost with the device, which starts backend setup.
+- **Backend**: current backend summary, **invite with a QR code** (BE-18), sync
+  interval (SY-13), edit or configure (BE-2, BE-15), and the encryption state
+  (PR-11). A local group shows one row saying that it is lost with the device,
+  which starts backend setup.
 - **Export**: the group to a file (DA-3, section 3)
 - **Danger**: leave group (GR-12, later, warning when unsettled), delete group
   from this device (GR-11, confirmation)
@@ -633,6 +644,21 @@ written this down" step (PR-12a). A secondary path allows the user to type their
 own, and warns — without refusing — when it is weak (PR-12b). Both paths end on
 the same sentence, shown at the moment of choosing and nowhere else: lose this
 and the backend copy is worthless to everyone, including us (PR-12).
+
+### Invite
+
+A shared group's location, secret key and, if it is encrypted, passphrase, as
+one QR code to scan while joining (BE-18). It is drawn dark on light whatever
+the theme, with a quiet zone, so that any camera reads it. Under it a warning
+card says that the code holds these secrets, that whoever scans it can read and
+change the group even after being removed as a member (BE-13), and that
+screenshots of the screen are blocked: it sets FLAG_SECURE while it shows. A
+passphrase this device can no longer open is left out, with a line saying it
+will be asked for; without the secret key there is no code, only a line saying
+where to enter it again.
+
+The code is `neugesplitter:join?` and the fields as a URL query, empty ones left
+out.
 
 ### Sync problem
 

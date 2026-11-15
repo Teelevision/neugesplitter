@@ -21,6 +21,7 @@ import eu.teele.neugesplitter.sync.probe.offer
 import eu.teele.neugesplitter.sync.probe.probe
 import eu.teele.neugesplitter.ui.backend.Location
 import eu.teele.neugesplitter.ui.backend.pasted
+import eu.teele.neugesplitter.ui.invite.Invitation
 import eu.teele.neugesplitter.work.Syncing
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
@@ -127,6 +128,8 @@ class JoinViewModel(
     private var fetched: GroupId? = null
     /** Testing, unlocking or fetching, which going back stops. */
     private var work: Job? = null
+    /** An invitation was scanned, so the flow goes on by itself while nothing needs asking. */
+    private var invited = false
 
     fun location(location: Location) =
         mutable.update { it.copy(location = location, invalid = false) }
@@ -136,6 +139,23 @@ class JoinViewModel(
         val found = pasted(text)
         if (found.empty) return false
         mutable.update { it.copy(location = it.location.with(found), invalid = false) }
+        return true
+    }
+
+    /** Takes a scanned invitation and goes on as far as it can (BE-18); false if [text] is none. */
+    fun invited(text: String): Boolean {
+        val invitation = Invitation.parse(text) ?: return false
+        invited = true
+        mutable.update {
+            it.copy(
+                location = invitation.location,
+                invalid = false,
+                passphrase = invitation.passphrase.orEmpty(),
+                wrong = false,
+                memory = false,
+            )
+        }
+        test(invitation.location)
         return true
     }
 
@@ -170,6 +190,7 @@ class JoinViewModel(
         // A member chosen is being written, and the group is joined either way.
         if (state.step == JoinStep.WHO && state.busy) return true
         work?.cancel()
+        invited = false
         val previous =
             when (state.step) {
                 JoinStep.LOCATION -> return false
@@ -224,6 +245,9 @@ class JoinViewModel(
                         }
                     }
                 mutable.update { it.copy(busy = false, verdict = verdict) }
+                // Plain HTTP stops here, for its warning to be read.
+                val usable = verdict == Verdict.Accepted || verdict == Verdict.ReadOnly
+                if (invited && usable && !location.plainHttp) found(checkNotNull(offer))
             }
     }
 
@@ -233,7 +257,11 @@ class JoinViewModel(
             Offer.Foreign ->
                 mutable.update { it.copy(step = JoinStep.CONTENTS, found = Found.FOREIGN) }
             is Offer.Open -> opened(offer.group, null)
-            is Offer.Locked -> mutable.update { it.copy(step = JoinStep.PASSPHRASE) }
+            is Offer.Locked -> {
+                mutable.update { it.copy(step = JoinStep.PASSPHRASE) }
+                val passphrase = mutable.value.passphrase
+                if (invited && passphrase.isNotEmpty()) unlock(passphrase)
+            }
         }
     }
 

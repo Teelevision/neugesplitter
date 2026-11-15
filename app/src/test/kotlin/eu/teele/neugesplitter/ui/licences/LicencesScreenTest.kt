@@ -62,6 +62,7 @@ class LicencesScreenTest {
         val german = hasText("CC BY 3.0 · German word list · adapted")
         compose.onNode(hasScrollAction()).performScrollToNode(german)
         compose.onNode(german).assertExists()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("zxcvbn4j"))
         compose.onNodeWithText("zxcvbn4j").performClick()
         assertEquals("zxcvbn4j", opened)
     }

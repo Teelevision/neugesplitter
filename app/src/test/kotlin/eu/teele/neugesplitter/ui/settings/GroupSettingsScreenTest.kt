@@ -55,6 +55,7 @@ class GroupSettingsScreenTest {
     private var ids = 0
     private var deleted = false
     private var backend = 0
+    private var invite = 0
     private val intervals = mutableListOf<Duration>()
     private lateinit var viewModel: GroupSettingsViewModel
 
@@ -97,6 +98,7 @@ class GroupSettingsScreenTest {
                     onBack = {},
                     onDeleted = { deleted = true },
                     onBackend = { backend++ },
+                    onInvite = { invite++ },
                 )
             }
         }
@@ -314,6 +316,7 @@ class GroupSettingsScreenTest {
             )
             .assertExists()
         compose.onNodeWithText("Set up shared storage").assertDoesNotExist()
+        compose.onNodeWithText("Invite with a QR code").assertDoesNotExist()
         open("Only on this device")
         assertEquals(1, backend)
     }
@@ -333,6 +336,18 @@ class GroupSettingsScreenTest {
         compose.onNodeWithText("Only on this device").assertDoesNotExist()
         open("Shared storage (S3)")
         assertEquals(1, backend)
+    }
+
+    @Test
+    fun `a shared group offers its invitation (BE-18)`() {
+        show {
+            groups.backends.connect(
+                trip,
+                BackendSettings("https://s3.example", "splits", "", "auto", false, "AK"),
+            )
+        }
+        open("Invite with a QR code")
+        assertEquals(1, invite)
     }
 
     @Test

@@ -63,6 +63,8 @@ import eu.teele.neugesplitter.ui.grouplist.GroupListScreen
 import eu.teele.neugesplitter.ui.grouplist.GroupListViewModel
 import eu.teele.neugesplitter.ui.history.EntryHistoryScreen
 import eu.teele.neugesplitter.ui.history.EntryHistoryViewModel
+import eu.teele.neugesplitter.ui.invite.InviteScreen
+import eu.teele.neugesplitter.ui.invite.InviteViewModel
 import eu.teele.neugesplitter.ui.join.JoinScreen
 import eu.teele.neugesplitter.ui.join.JoinViewModel
 import eu.teele.neugesplitter.ui.licences.LicenceScreen
@@ -197,6 +199,9 @@ data class ChartEntries(
 
 /** @property group the group's id, as hex. */
 @Serializable data class BackendSetup(val group: String) : NavKey
+
+/** @property group the group's id, as hex. */
+@Serializable data class Invite(val group: String) : NavKey
 
 /** @property group the group's id, as hex. */
 @Serializable data class SyncProblem(val group: String) : NavKey
@@ -441,6 +446,19 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                         onDone = { pop() },
                     )
                 }
+                entry<Invite> { key ->
+                    InviteScreen(
+                        viewModel {
+                            InviteViewModel(
+                                graph.groups,
+                                GroupId.parse(key.group),
+                                graph.syncing::secretKey,
+                                graph.syncing::passphrase,
+                            )
+                        },
+                        onBack = { pop() },
+                    )
+                }
                 entry<GroupOverview> { key ->
                     val group = GroupId.parse(key.group)
                     LaunchedEffect(key.group) { graph.preferences.lastGroup = key.group }
@@ -574,6 +592,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                         )
                                     },
                                     modifier = modifier,
+                                    onInvite = { stack.add(Invite(key.group)) },
                                 )
                             Destination.ACTIVITY ->
                                 ActivityScreen(
@@ -630,6 +649,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                     onBackend = { stack.add(BackendSetup(key.group)) },
                                     onExport = { stack.add(Export(listOf(key.group))) },
                                     onCategories = { stack.add(CategorySettings(key.group)) },
+                                    onInvite = { stack.add(Invite(key.group)) },
                                     onDeleted = { while (stack.size > 1) pop() },
                                     modifier = modifier,
                                 )

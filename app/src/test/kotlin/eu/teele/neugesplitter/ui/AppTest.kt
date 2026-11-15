@@ -108,6 +108,7 @@ class AppTest {
         awaitText("Total spending")
         compose.onNodeWithContentDescription("More options").performClick()
         compose.onNodeWithText("Settings").performClick()
+        awaitText("Default participants")
         compose
             .onNode(hasScrollAction())
             .performScrollToNode(hasText("Delete group from this device"))

@@ -1,6 +1,13 @@
 package eu.teele.neugesplitter.ui.join
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +26,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -38,10 +47,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.value.GroupId
@@ -51,6 +62,7 @@ import eu.teele.neugesplitter.ui.backend.Found as FoundCard
 import eu.teele.neugesplitter.ui.backend.Location
 import eu.teele.neugesplitter.ui.backend.LocationFields
 import eu.teele.neugesplitter.ui.backend.Secret
+import eu.teele.neugesplitter.ui.invite.Scanner
 
 /**
  * Joins a group shared elsewhere (ui-design 3): its location, what is there, its passphrase if it
@@ -72,6 +84,15 @@ fun JoinScreen(
 
     LaunchedEffect(state.done) { state.done?.let(onDone) }
     BackHandler(onBack = back)
+
+    var scanning by rememberSaveable { mutableStateOf(false) }
+    if (scanning && state.step == JoinStep.LOCATION) {
+        Scanner(
+            onCode = { text -> viewModel.invited(text).also { if (it) scanning = false } },
+            onClose = { scanning = false },
+        )
+        return
+    }
 
     Scaffold(
         topBar = {
@@ -103,13 +124,15 @@ fun JoinScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             when (state.step) {
-                JoinStep.LOCATION ->
+                JoinStep.LOCATION -> {
+                    Scan(onScan = { scanning = true })
                     LocationFields(
                         state.location,
                         state.invalid,
                         viewModel::location,
                         viewModel::paste,
                     )
+                }
                 JoinStep.TEST -> {
                     Checks(state.verdict)
                     if (state.location.plainHttp) {
@@ -168,6 +191,68 @@ private fun Buttons(
                     )
             }
         Button(onClick = action, enabled = enabled) { Text(stringResource(label)) }
+    }
+}
+
+/** An invitation to scan instead of typing the location (BE-18); the camera is asked for here. */
+@Composable
+private fun Scan(onScan: () -> Unit) {
+    val context = LocalContext.current
+    var denied by rememberSaveable { mutableStateOf(false) }
+    val permission =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            denied = !granted
+            if (granted) onScan()
+        }
+
+    Card(
+        colors =
+            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                stringResource(R.string.join_scan_title),
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(stringResource(R.string.join_scan_text))
+            if (denied) {
+                Text(
+                    stringResource(R.string.join_scan_denied),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                TextButton(
+                    onClick = {
+                        context.startActivity(
+                            Intent(
+                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.fromParts("package", context.packageName, null),
+                            )
+                        )
+                    }
+                ) {
+                    Text(stringResource(R.string.join_scan_permission))
+                }
+            }
+            Button(
+                onClick = {
+                    val camera = Manifest.permission.CAMERA
+                    if (
+                        ContextCompat.checkSelfPermission(context, camera) ==
+                            PackageManager.PERMISSION_GRANTED
+                    ) {
+                        denied = false
+                        onScan()
+                    } else {
+                        permission.launch(camera)
+                    }
+                }
+            ) {
+                Icon(painterResource(R.drawable.ic_qr_code), null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.join_scan))
+            }
+        }
     }
 }
 
