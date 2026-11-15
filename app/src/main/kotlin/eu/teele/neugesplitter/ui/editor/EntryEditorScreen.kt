@@ -28,8 +28,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -86,6 +84,7 @@ import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.ui.calculator.CalculatorSheet
+import eu.teele.neugesplitter.ui.category.CategorySheet
 import eu.teele.neugesplitter.ui.category.categoryName
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.kindLabel
@@ -248,6 +247,7 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
                     Kinds(state.kind, viewModel::kind)
                     CategoryChoice(
                         state.categories,
+                        state.categoryUses,
                         state.categoryId,
                         state.categoryGuessed,
                         viewModel::category,
@@ -418,45 +418,38 @@ fun EntryEditorScreen(viewModel: EntryEditorViewModel, onClose: () -> Unit) {
 @Composable
 private fun CategoryChoice(
     categories: List<Category>,
+    uses: Map<CategoryId?, Int>,
     selected: CategoryId?,
     guessed: Boolean,
     onSelect: (CategoryId?) -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val selectedCategory = categories.firstOrNull { it.id == selected }
-    Box {
-        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+    OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            selectedCategory?.let { "${it.emoji} ${categoryName(it)}" }
+                ?: stringResource(R.string.category_none)
+        )
+        if (guessed && selectedCategory != null) {
             Text(
-                selectedCategory?.let { "${it.emoji} ${categoryName(it)}" }
-                    ?: stringResource(R.string.category_none)
+                " · " + stringResource(R.string.category_suggested),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (guessed && selectedCategory != null) {
-                Text(
-                    " · " + stringResource(R.string.category_suggested),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.category_none)) },
-                onClick = {
-                    onSelect(null)
-                    expanded = false
-                },
-            )
-            categories
-                .filterNot { it.deleted }
-                .forEach { category ->
-                    DropdownMenuItem(
-                        text = { Text("${category.emoji} ${categoryName(category)}") },
-                        onClick = {
-                            onSelect(category.id)
-                            expanded = false
-                        },
-                    )
-                }
-        }
+    }
+    if (expanded) {
+        val offered = categories.filterNot { it.deleted }
+        CategorySheet(
+            offered,
+            uses.entries
+                .filter { (id, _) -> id == null || offered.any { it.id == id } }
+                .sortedByDescending { it.value }
+                .map { it.key to null },
+            listOf(selected),
+            onChange = { onSelect(it.single()) },
+            onDismiss = { expanded = false },
+            single = true,
+        )
     }
 }
 

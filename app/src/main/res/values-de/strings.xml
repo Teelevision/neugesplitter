@@ -101,6 +101,15 @@
     <string name="category_show_deleted">Gelöschte Kategorien anzeigen</string>
     <string name="category_hide_deleted">Gelöschte Kategorien ausblenden</string>
     <string name="filter_category">Kategorie</string>
+    <string name="category_all">Alle Kategorien</string>
+    <string name="category_choose">Auswählen…</string>
+    <string name="category_search">Kategorien suchen</string>
+    <string name="category_limit">Höchstens %d</string>
+    <string name="category_remove">Entfernen</string>
+    <plurals name="category_more">
+        <item quantity="one">%d weitere</item>
+        <item quantity="other">%d weitere</item>
+    </plurals>
     <string name="category_housing">Wohnen</string>
     <string name="category_utilities">Nebenkosten</string>
     <string name="category_groceries">Lebensmittel</string>
@@ -687,6 +696,8 @@
     <string name="more_years">Mehr Jahre</string>
     <string name="running_total">Laufende Summe</string>
     <string name="stack_by_category">Nach Kategorie aufteilen</string>
+    <string name="stack_off">Aus</string>
+    <string name="stack_top">Top 5</string>
     <string name="spending_net">Netto %1$s</string>
     <string name="spending_net_label">Netto</string>
     <string name="average_day">Tag %1$d</string>

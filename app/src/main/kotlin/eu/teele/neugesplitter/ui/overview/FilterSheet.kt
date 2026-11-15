@@ -34,16 +34,17 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.calculator.amountIn
 import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.entry.Kind
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
-import eu.teele.neugesplitter.ui.category.categoryName
+import eu.teele.neugesplitter.ui.category.CategorySheet
+import eu.teele.neugesplitter.ui.category.ChosenCategories
 import eu.teele.neugesplitter.ui.editor.DatePick
 import eu.teele.neugesplitter.ui.kindIcon
 import eu.teele.neugesplitter.ui.kindLabel
@@ -61,6 +62,7 @@ internal fun FilterSheet(
     filter: EntryFilter,
     members: Map<MemberId, String>,
     categories: List<Category>,
+    uses: Map<CategoryId?, Int>,
     scale: Scale,
     today: EntryDate,
     onChange: (EntryFilter) -> Unit,
@@ -70,6 +72,16 @@ internal fun FilterSheet(
     val dates = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
     val (payersLabel, beneficiariesLabel) = sideLabels(filter.kind ?: Kind.EXPENSE)
     var picking by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    var choosing by rememberSaveable { mutableStateOf(false) }
+    val chosen: List<CategoryId?> =
+        (if (filter.uncategorized) listOf(null) else emptyList()) + filter.categories
+    fun choose(categories: List<CategoryId?>) =
+        onChange(
+            filter.copy(
+                categories = categories.filterNotNull().toSet(),
+                uncategorized = null in categories,
+            )
+        )
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -126,32 +138,13 @@ internal fun FilterSheet(
                     stringResource(R.string.filter_category),
                     style = MaterialTheme.typography.labelLarge,
                 )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = filter.uncategorized,
-                        onClick = { onChange(filter.copy(uncategorized = !filter.uncategorized)) },
-                        label = { Text(stringResource(R.string.category_none)) },
-                    )
-                    categories.forEach { category ->
-                        FilterChip(
-                            selected = category.id in filter.categories,
-                            onClick = {
-                                val selected =
-                                    if (category.id in filter.categories)
-                                        filter.categories - category.id
-                                    else filter.categories + category.id
-                                onChange(filter.copy(categories = selected))
-                            },
-                            label = {
-                                Text(
-                                    "${category.emoji} ${categoryName(category)}",
-                                    textDecoration =
-                                        if (category.deleted) TextDecoration.LineThrough else null,
-                                )
-                            },
-                        )
-                    }
-                }
+                ChosenCategories(
+                    categories,
+                    chosen,
+                    stringResource(R.string.category_all),
+                    onRemove = { choose(chosen - it) },
+                    onChoose = { choosing = true },
+                )
             }
             Members(stringResource(payersLabel), members, filter.payers) {
                 onChange(filter.copy(payers = it))
@@ -178,6 +171,15 @@ internal fun FilterSheet(
                 )
             }
         }
+    }
+    if (choosing) {
+        CategorySheet(
+            categories,
+            uses.entries.sortedByDescending { it.value }.map { it.key to it.value.toString() },
+            chosen,
+            onChange = ::choose,
+            onDismiss = { choosing = false },
+        )
     }
     picking?.let { from ->
         DatePick(

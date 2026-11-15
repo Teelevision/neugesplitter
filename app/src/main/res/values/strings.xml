@@ -103,6 +103,15 @@
     <string name="category_show_deleted">Show deleted categories</string>
     <string name="category_hide_deleted">Hide deleted categories</string>
     <string name="filter_category">Category</string>
+    <string name="category_all">All categories</string>
+    <string name="category_choose">Choose…</string>
+    <string name="category_search">Search categories</string>
+    <string name="category_limit">At most %d</string>
+    <string name="category_remove">Remove</string>
+    <plurals name="category_more">
+        <item quantity="one">%d more</item>
+        <item quantity="other">%d more</item>
+    </plurals>
     <string name="category_housing">Housing</string>
     <string name="category_utilities">Utilities</string>
     <string name="category_groceries">Groceries</string>
@@ -692,6 +701,8 @@
     <string name="more_years">More years</string>
     <string name="running_total">Running total</string>
     <string name="stack_by_category">Split by category</string>
+    <string name="stack_off">Off</string>
+    <string name="stack_top">Top 5</string>
     <string name="spending_net">Net %1$s</string>
     <string name="spending_net_label">Net</string>
     <string name="average_day">Day %1$d</string>

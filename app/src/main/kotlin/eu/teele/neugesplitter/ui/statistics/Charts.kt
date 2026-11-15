@@ -47,6 +47,9 @@ private val SERIES =
 
 fun seriesColour(index: Int): Color = SERIES[index.mod(SERIES.size)]
 
+/** How many series [seriesColour] tells apart. */
+val SERIES_COUNT: Int = SERIES.size
+
 /** In whole units rather than 10⁻⁸ ones, for drawing only. */
 fun Amount.toDouble(): Double = units / 1e8
 

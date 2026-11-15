@@ -53,10 +53,14 @@ import eu.teele.neugesplitter.domain.statistics.Statistics
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.ui.category.CategorySheet
+import eu.teele.neugesplitter.ui.category.ChosenCategories
 import eu.teele.neugesplitter.ui.editor.Segments
 import eu.teele.neugesplitter.ui.signed
+import java.time.LocalDate
 import java.time.Month
 import java.time.format.TextStyle
+import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.min
 
@@ -193,12 +197,25 @@ private fun SpendingDetail(statistics: Statistics, me: MemberId?, taps: Int) {
     val colours = MaterialTheme.colorScheme
     var mine by rememberSaveable { mutableStateOf(false) }
     val perspective = perspective(me, mine)
-    // The categories stacked, by their ids; the empty string stands for no category.
-    var stacked by rememberSaveable { mutableStateOf(listOf<String>()) }
-    val categories = stacked.map { it.ifEmpty { null }?.let(CategoryId::parse) }
+    var stacking by rememberSaveable { mutableStateOf(Stacking.OFF) }
+    // The categories chosen to stack, by their ids; the empty string stands for no category.
+    var chosen by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var choosing by rememberSaveable { mutableStateOf(false) }
     var cumulative by rememberSaveable { mutableStateOf(false) }
     val viewport = rememberViewport(statistics.today, statistics.first, Span.YEAR)
     var scrub by remember(taps) { mutableStateOf<Float?>(null) }
+    val from = LocalDate.ofEpochDay(floor(viewport.start).toLong())
+    val until = LocalDate.ofEpochDay(ceil(viewport.end).toLong() - 1)
+    val inView =
+        remember(statistics, perspective, from, until) {
+            inView(statistics, perspective, from, until)
+        }
+    val categories =
+        when (stacking) {
+            Stacking.OFF -> emptyList()
+            Stacking.TOP -> inView.take(TOP).map { it.first }
+            Stacking.CHOSEN -> chosen.map { it.ifEmpty { null }?.let(CategoryId::parse) }
+        }
     val granularity = viewport.granularity
     val periods =
         remember(statistics, perspective, categories, granularity, firstDay) {
@@ -279,35 +296,75 @@ private fun SpendingDetail(statistics: Statistics, me: MemberId?, taps: Int) {
             label = { Text(stringResource(R.string.running_total)) },
         )
     }
-    val offered =
-        remember(statistics) {
-            val first = statistics.first ?: statistics.today
-            (statistics.categories(Kind.EXPENSE, Perspective.Everyone, first, statistics.today) +
-                    statistics.categories(
-                        Kind.INCOME,
-                        Perspective.Everyone,
-                        first,
-                        statistics.today,
-                    ))
-                .map { it.first }
-                .distinct()
-        }
     Text(stringResource(R.string.stack_by_category), style = MaterialTheme.typography.titleSmall)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        for (category in offered) {
-            val key = category?.hex.orEmpty()
-            val position = stacked.indexOf(key)
-            FilterChip(
-                selected = position >= 0,
-                onClick = { stacked = if (position >= 0) stacked - key else stacked + key },
-                label = { Text("${group.emoji(category)} ${group.label(category)}") },
-                leadingIcon =
-                    if (position >= 0) {
-                        { Dot(seriesColour(position)) }
-                    } else null,
-            )
+    Segments(
+        Stacking.entries,
+        stacking,
+        {
+            when (it) {
+                Stacking.OFF -> R.string.stack_off
+                Stacking.TOP -> R.string.stack_top
+                Stacking.CHOSEN -> R.string.category_choose
+            }
+        },
+        {
+            if (it == Stacking.CHOSEN) {
+                if (chosen.isEmpty()) chosen = inView.take(TOP).map { (id) -> id?.hex.orEmpty() }
+                choosing = true
+            }
+            stacking = it
+        },
+        compact = true,
+    )
+    val all = group.categories.values.toList()
+    if (stacking == Stacking.CHOSEN) {
+        ChosenCategories(
+            all,
+            categories,
+            stringResource(R.string.category_choose),
+            onRemove = { chosen = chosen - it?.hex.orEmpty() },
+            onChoose = { choosing = true },
+            marker = ::seriesColour,
+        )
+    }
+    if (choosing) {
+        val amounts = group.amounts()
+        CategorySheet(
+            all,
+            inView.map { (id, amount) -> id to amounts(amount) },
+            categories,
+            onChange = { picked -> chosen = picked.map { it?.hex.orEmpty() } },
+            onDismiss = { choosing = false },
+            limit = SERIES_COUNT,
+            marker = ::seriesColour,
+        )
+    }
+}
+
+/** How stacked net spending is: not, by the largest categories in view, or as chosen. */
+private enum class Stacking {
+    OFF,
+    TOP,
+    CHOSEN,
+}
+
+/** How many categories [Stacking.TOP] stacks. */
+private const val TOP = 5
+
+/** Each category's expenses and income from [from] to [until], the largest first. */
+private fun inView(
+    statistics: Statistics,
+    perspective: Perspective,
+    from: LocalDate,
+    until: LocalDate,
+): List<Pair<CategoryId?, Amount>> {
+    val sums = LinkedHashMap<CategoryId?, Amount>()
+    for (kind in listOf(Kind.EXPENSE, Kind.INCOME)) {
+        for ((id, amount) in statistics.categories(kind, perspective, from, until)) {
+            sums[id] = (sums[id] ?: Amount.ZERO) + amount
         }
     }
+    return sums.toList().sortedByDescending { it.second.units }
 }
 
 @Composable

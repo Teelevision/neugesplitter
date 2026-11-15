@@ -99,6 +99,7 @@ data class EntryEditorState(
     val scale: Scale = Scale.DEFAULT,
     val members: List<Member> = emptyList(),
     val categories: List<Category> = emptyList(),
+    val categoryUses: Map<CategoryId?, Int> = emptyMap(),
     val categoryId: CategoryId? = null,
     val categoryGuessed: Boolean = false,
     val source: Entry? = null,
@@ -276,6 +277,8 @@ class EntryEditorViewModel(
                         blank = entry == null && settling == null && changing == null,
                         scale = loaded.scale,
                         categories = loaded.categories.values.toList(),
+                        categoryUses =
+                            loaded.entries.values.groupingBy { it.categoryId }.eachCount(),
                         members =
                             loaded.members.values.filter {
                                 it.id !in loaded.removed || it.id in involved

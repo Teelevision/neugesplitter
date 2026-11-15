@@ -213,6 +213,7 @@ fun OverviewScreen(
             state.filter,
             overview.members,
             overview.categories,
+            remember(overview) { overview.entries.groupingBy { it.categoryId }.eachCount() },
             overview.scale,
             viewModel.today(),
             onChange = viewModel::filter,

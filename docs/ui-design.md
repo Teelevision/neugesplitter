@@ -194,12 +194,16 @@ Interactions:
 - Empty state: "No entries yet" and an arrow toward the centre FAB.
 
 The search icon in the top bar opens a filter sheet (EN-12): a part of the
-description, an amount from and up to, the kind, members who all paid, members
-it was all for, and a date from and until, each optional. The list narrows as
-they are chosen, occurrence by occurrence rather than by series; the header
-still shows the whole group. While a filter is set, a line under the header says
-how many entries match, opens the sheet again, and clears it. Nothing matching
-says so in place of the list.
+description, an amount from and up to, the kind, categories, members who all
+paid, members it was all for, and a date from and until, each optional. The
+categories chosen show as up to three chips, the rest counted, and **Choose…**
+opens the category sheet: a search field, then no category, then the categories
+the group uses, most used first with their counts, and the others alphabetically
+behind "N more" until the user searches. The list narrows as they are chosen,
+occurrence by occurrence rather than by series; the header still shows the whole
+group. While a filter is set, a line under the header says how many entries
+match, opens the sheet again, and clears it. Nothing matching says so in place
+of the list.
 
 ### People and balances
 
@@ -340,7 +344,7 @@ yet, in place of the cards.
 | Chart              | Preview                                | On its own screen                                       |
 | ------------------ | -------------------------------------- | ------------------------------------------------------- |
 | Balance            | the user's balance over the last month | chosen members' lines, as chips in their colours (BA-9) |
-| Net spending       | weekly bars over the last year         | categories to split by, a running total (BA-10)         |
+| Net spending       | weekly bars over the last year         | split by category, a running total (BA-10)              |
 | Categories         | treemap of the top five and the rest   | every category as a bar, largest first (BA-11)          |
 | Who spends on what | the top four categories by share       | names, amounts, paid or share (BA-12)                   |
 | Average spending   | per day of the month over five years   | weekday, day or month; years; lowest to highest (BA-13) |
@@ -360,9 +364,12 @@ elsewhere.
 Where the user acts as a member, a **Group / My share** toggle switches the
 spending charts to the user's share as a beneficiary. Colours are Okabe and
 Ito's seven, which colour-blind eyes tell apart, in a fixed order: a member
-keeps their colour on every chart, and categories take them by rank. Every value
-axis includes zero and glides to its new range rather than jumping. Amounts on
-the axes are compact ("1.2K"); the readouts use the group's decimals.
+keeps their colour on every chart, and categories take them by rank. Net
+spending splits by category **Off**, by the **Top 5** of the period in view, or
+by categories the user chooses from the category sheet, at most seven, ranked by
+what they come to in view and marked in their colours. Every value axis includes
+zero and glides to its new range rather than jumping. Amounts on the axes are
+compact ("1.2K"); the readouts use the group's decimals.
 
 ## 5. Creating and editing an entry
 
@@ -372,7 +379,9 @@ One screen for all three kinds (EN-1), pushed full-screen with a close button
 and a save action. Top to bottom:
 
 - **Kind** as a three-way segmented control: expense, income, transfer.
-- **Category** (EN-10), a menu of the group's categories, or none.
+- **Category** (EN-10), a button opening the category sheet of the overview's
+  filter with one choice: none, or one of the group's categories, most used
+  first.
 - **Description** (EN-2), focused on open so the keyboard is already up.
 - **Amount**, displayed large. Tapping it opens the calculator sheet rather than
   the system keyboard (AM-2).
