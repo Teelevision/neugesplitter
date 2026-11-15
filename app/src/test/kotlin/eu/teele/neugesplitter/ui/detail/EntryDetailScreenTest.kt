@@ -102,7 +102,7 @@ class EntryDetailScreenTest {
             beneficiaries = Side.Equal(listOf(anna.id, ben.id, clara.id)),
         )
 
-    private fun show(entry: EntryId = entryId) {
+    private fun show(entry: EntryId = entryId, fromSeries: Boolean = false) {
         val viewModel = EntryDetailViewModel(groups, trip, entry) { today }
         compose.setContent {
             NeugesplitterTheme {
@@ -113,7 +113,11 @@ class EntryDetailScreenTest {
                     onDuplicate = { calls += "duplicate" },
                     onHistory = { calls += "history" },
                     onDelete = { calls += "delete" },
-                    onSeries = { calls += "series ${it.hex}" },
+                    onSeries =
+                        if (fromSeries) null
+                        else {
+                            { calls += "series ${it.hex}" }
+                        },
                 )
             }
         }
@@ -246,6 +250,24 @@ class EntryDetailScreenTest {
         compose.onNodeWithText("Duplicate").assertExists()
         compose.onNodeWithText("History").assertDoesNotExist()
         compose.onNodeWithText("Not a regular date of this series").assertDoesNotExist()
+    }
+
+    @Test
+    fun `an occurrence opened from its series does not lead back to it (RE-9)`() {
+        seed()
+        val rent = SeriesId.parse(id(20))
+        val first = EntryDate.parse("2026-10-01")
+        val segment =
+            Segment(Interval.MonthlyOn(setOf(15, 1)), Mode.AUTOMATIC, Template.of(dinner()))
+        groups.append(
+            trip,
+            listOf(Event.SeriesCreated(eventId(), anna.id, at, rent, first, segment)),
+            today,
+        )
+        show(EntryId.occurrence(rent, first), fromSeries = true)
+        waitForText("Dinner")
+        compose.onNodeWithText("Recurring · Every month on the 1st and 15th").assertExists()
+        compose.onNodeWithText("Open its series").assertDoesNotExist()
     }
 
     /**

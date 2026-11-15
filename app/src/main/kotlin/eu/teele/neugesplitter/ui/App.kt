@@ -130,7 +130,9 @@ data class EntryEditor(
             else Transfer(MemberId.parse(from), MemberId.parse(to), Amount.ofUnits(amount))
 }
 
-@Serializable data class EntryDetail(val group: String, val entry: String) : NavKey
+@Serializable
+data class EntryDetail(val group: String, val entry: String, val fromSeries: Boolean = false) :
+    NavKey
 
 @Serializable data class CategorySettings(val group: String) : NavKey
 
@@ -677,7 +679,11 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                             pop()
                             deleting = key.entry
                         },
-                        onSeries = { stack.add(RecurringSeries(key.group, it.hex)) },
+                        onSeries =
+                            if (key.fromSeries) null
+                            else {
+                                { stack.add(RecurringSeries(key.group, it.hex)) }
+                            },
                     )
                 }
                 entry<RecurringSeries> { key ->
@@ -694,7 +700,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                         },
                         onBack = { pop() },
                         onChange = { stack.add(EntryEditor(key.group, series = key.series)) },
-                        onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
+                        onOpen = { stack.add(EntryDetail(key.group, it.hex, fromSeries = true)) },
                     )
                 }
                 entry<EntryHistory> { key ->

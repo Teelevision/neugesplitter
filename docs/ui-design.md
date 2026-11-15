@@ -533,9 +533,10 @@ deletion if there is one (HI-3), newest first under their days, in lines like
 Activity's history; tapping one shows all of it: each changed field on its own
 line, or the entry as it was recorded. Opening this screen clears the entry's
 unseen highlight (HI-6). An entry from a series says how the series repeats and
-links to it (RE-9), and under its date, like the editor, whether it was moved
-off its due date or is due off the series' dates; it has no history of its own,
-and deleting it deletes only that occurrence (RE-15).
+links to it unless it was opened from there (RE-9), and under its date, like the
+editor, whether it was moved off its due date or is due off the series' dates;
+it has no history of its own, and deleting it deletes only that occurrence
+(RE-15).
 
 ### Recurring series
 

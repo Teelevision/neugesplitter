@@ -67,8 +67,8 @@ fun EntryDetailScreen(
     onDuplicate: () -> Unit,
     onHistory: () -> Unit,
     onDelete: () -> Unit,
-    /** Opens the series an occurrence came from (RE-9). */
-    onSeries: (SeriesId) -> Unit,
+    /** Opens the series an occurrence came from (RE-9); null when it was opened from there. */
+    onSeries: ((SeriesId) -> Unit)?,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val detail = state.detail
@@ -134,7 +134,11 @@ fun EntryDetailScreen(
 }
 
 @Composable
-private fun Content(detail: Detail, onSeries: (SeriesId) -> Unit, modifier: Modifier = Modifier) {
+private fun Content(
+    detail: Detail,
+    onSeries: ((SeriesId) -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
     val locale = LocalConfiguration.current.locales[0]
     val entry = detail.entry
     val (payersLabel, beneficiariesLabel) = sideLabels(entry.kind)
@@ -211,8 +215,10 @@ private fun Content(detail: Detail, onSeries: (SeriesId) -> Unit, modifier: Modi
                         modifier = Modifier.padding(start = 8.dp),
                     )
                 }
-                TextButton(onClick = { onSeries(series) }) {
-                    Text(stringResource(R.string.series_open))
+                if (onSeries != null) {
+                    TextButton(onClick = { onSeries(series) }) {
+                        Text(stringResource(R.string.series_open))
+                    }
                 }
             }
         }
