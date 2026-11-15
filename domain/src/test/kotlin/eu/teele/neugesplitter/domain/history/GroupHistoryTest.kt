@@ -54,6 +54,24 @@ class GroupHistoryTest {
         assertTrue(history(created + staleEvents).none { it.happened is Happened.Category })
     }
 
+    @Test
+    fun `each step names the event that told it, past those ignored (HI-2)`() {
+        val created = Log().create().add(ANNA, "Anna").events()
+        val stale =
+            Event.CategoryDeleted(
+                EventId.parse("%032x".format(91)),
+                ANNA,
+                AT,
+                CategoryId.parse("ff".repeat(16)),
+            )
+        val joined =
+            Event.MemberAdded(EventId.parse("%032x".format(99)), BEN, AT, Member(BEN, "Ben"))
+        assertEquals(
+            created.map { it.id } + joined.id,
+            history(created + stale + joined).map { it.event },
+        )
+    }
+
     private val thirty = Amount.parse("3000000000")
 
     private fun dinner() =
@@ -174,7 +192,7 @@ class GroupHistoryTest {
         val joined =
             Event.MemberAdded(EventId.parse("%032x".format(99)), BEN, AT, Member(BEN, "Ben"))
         val last = history(log.events() + joined).last()
-        assertEquals(Happening(Happened.MemberAdded(BEN), BEN, AT), last)
+        assertEquals(Happening(Happened.MemberAdded(BEN), BEN, AT, joined.id), last)
     }
 
     @Test
@@ -248,6 +266,8 @@ class GroupHistoryTest {
 
     private val later = AT.plusSeconds(1)
 
+    private fun id(n: Int) = EventId.parse("%032x".format(n))
+
     private val monthly =
         segment(
             Interval.EveryDays(30),
@@ -272,21 +292,22 @@ class GroupHistoryTest {
     fun `an entry deleted for a series at the same moment is one step, made recurring (HI-2, RE-1)`() {
         val history =
             listOf(
-                Happening(Happened.Created, ANNA, AT),
-                Happening(deleted(1, "Rent"), ANNA, later),
-                Happening(started, ANNA, later),
-                Happening(confirmed, ANNA, later),
+                Happening(Happened.Created, ANNA, AT, id(0)),
+                Happening(deleted(1, "Rent"), ANNA, later, id(1)),
+                Happening(started, ANNA, later, id(2)),
+                Happening(confirmed, ANNA, later, id(3)),
             )
         assertEquals(
             listOf(
-                Step(Happening(Happened.Created, ANNA, AT), 0..0),
+                Step(history[0], history.take(1)),
                 Step(
                     Happening(
                         Happened.MadeRecurring(entryId(1), "Rent", RENT, monthly),
                         ANNA,
                         later,
+                        id(1),
                     ),
-                    1..3,
+                    history.drop(1),
                 ),
             ),
             steps(history),
@@ -306,6 +327,7 @@ class GroupHistoryTest {
                     ),
                     ANNA,
                     AT,
+                    id(0),
                 ),
                 Happening(
                     Happened.Changed(
@@ -315,6 +337,7 @@ class GroupHistoryTest {
                     ),
                     ANNA,
                     AT,
+                    id(1),
                 ),
             )
         assertEquals(
@@ -328,8 +351,9 @@ class GroupHistoryTest {
                         ),
                         ANNA,
                         AT,
+                        id(0),
                     ),
-                    0..1,
+                    history,
                 )
             ),
             steps(history),
@@ -341,14 +365,45 @@ class GroupHistoryTest {
         val other = SeriesId.parse("%032x".format(0x5e2))
         val history =
             listOf(
-                Happening(started, ANNA, AT),
-                Happening(confirmed, ANNA, later),
-                Happening(confirmed, BEN, later),
-                Happening(deleted(1, "Rent"), BEN, later),
-                Happening(deleted(2, "Taxi"), BEN, later),
-                Happening(confirmed, ANNA, later),
-                Happening(confirmed.copy(series = other), ANNA, later),
+                Happening(started, ANNA, AT, id(0)),
+                Happening(confirmed, ANNA, later, id(1)),
+                Happening(confirmed, BEN, later, id(2)),
+                Happening(deleted(1, "Rent"), BEN, later, id(3)),
+                Happening(deleted(2, "Taxi"), BEN, later, id(4)),
+                Happening(confirmed, ANNA, later, id(5)),
+                Happening(confirmed.copy(series = other), ANNA, later, id(6)),
             )
-        assertEquals(history.indices.map { it..it }, steps(history).map { it.events })
+        assertEquals(history.map { listOf(it) }, steps(history).map { it.parts })
+    }
+
+    private fun edited(n: Int, description: String): Happened.Entry {
+        val before = dinner().copy(id = entryId(n), description = description)
+        return Happened.Entry(entryId(n), Revision.EDITED, before, before.copy(note = "tidied"))
+    }
+
+    @Test
+    fun `entries edited at one moment are one step, while one edited twice is two (HI-2, TI-1)`() {
+        val history =
+            listOf(
+                Happening(edited(1, "Rewe"), ANNA, AT, id(0)),
+                Happening(edited(2, "Rewe"), ANNA, AT, id(1)),
+                Happening(edited(3, "Lidl"), ANNA, AT, id(2)),
+                Happening(edited(3, "Lidl"), ANNA, AT, id(3)),
+            )
+        assertEquals(
+            listOf(
+                Step(
+                    Happening(
+                        Happened.Entries(history.take(3).map { it.happened as Happened.Entry }),
+                        ANNA,
+                        AT,
+                        id(0),
+                    ),
+                    history.take(3),
+                ),
+                Step(history[3], history.drop(3)),
+            ),
+            steps(history),
+        )
     }
 }

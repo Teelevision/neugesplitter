@@ -48,6 +48,7 @@ class EntryHistoryScreenTest {
     private val at = Instant.parse("2026-10-07T12:00:00Z")
     private var events = 0
     private var backs = 0
+    private val steps = mutableListOf<EventId>()
     private val zone = TimeZone.getDefault()
 
     private fun id(n: Int) = "%032x".format(n)
@@ -100,7 +101,9 @@ class EntryHistoryScreenTest {
         if (received.isNotEmpty()) groups.receive(trip, today, 1, *received.toTypedArray())
         val viewModel = EntryHistoryViewModel(groups, trip, entryId)
         compose.setContent {
-            NeugesplitterTheme { EntryHistoryScreen(viewModel, onBack = { backs++ }) }
+            NeugesplitterTheme {
+                EntryHistoryScreen(viewModel, onBack = { backs++ }, onStep = { steps += it })
+            }
         }
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("Created by Anna").fetchSemanticsNodes().isNotEmpty()
@@ -123,8 +126,9 @@ class EntryHistoryScreenTest {
     }
 
     @Test
-    fun `a new entry shows who created it, when, and the entry as recorded once tapped (HI-3)`() {
-        show(created())
+    fun `a new entry shows who created it and when, and opens in full once tapped (HI-3)`() {
+        val made = created()
+        show(made)
         compose.onNodeWithText("Created by Anna").assertExists()
         compose.onNodeWithText("Wednesday, October 7, 2026").assertExists()
         compose.onNodeWithText("30.00 · Oct 7, 2026").assertExists()
@@ -132,22 +136,13 @@ class EntryHistoryScreenTest {
         assertEquals(0, count("Paid by"))
 
         compose.onNodeWithText("Created by Anna").performClick()
-        // Once as the title and once as the description recorded.
-        assertEquals(2, count("Dinner"))
-        compose.onNodeWithText("Expense").assertExists()
-        assertEquals(2, count("Wednesday, October 7, 2026"))
-        compose.onNodeWithText("30.00").assertExists()
-        compose.onNodeWithText("Paid by").assertExists()
-        compose.onNodeWithText("Anna 30.00").assertExists()
-        compose.onNodeWithText("For").assertExists()
-        compose.onNodeWithText("Anna 10.00, Ben 10.00, Clara 10.00").assertExists()
+        assertEquals(listOf(made.id), steps)
         assertEquals(0, backs)
     }
 
     @Test
-    fun `an edit says only the fields it changed, all of them once tapped (HI-3)`() {
-        show(
-            created(),
+    fun `an edit says the fields it changed, and opens in full once tapped (HI-3)`() {
+        val edit =
             edited(
                 ben,
                 1,
@@ -157,26 +152,17 @@ class EntryHistoryScreenTest {
                     payers = Change.To(Side.Equal(listOf(ben.id))),
                     note = Change.To("Late"),
                 ),
-            ),
-        )
+            )
+        show(created(), edit)
         val description = "Description changed to Supper (previous Dinner)"
         compose.onNodeWithText("Edited by Ben").assertExists()
-        compose.onNodeWithText("$description · Amount", substring = true).assertExists()
+        compose.onNodeWithText("Changed: Description, Amount", substring = true).assertExists()
         assertEquals(0, count(description))
-
-        compose.onNodeWithText("Edited by Ben").performClick()
-        compose.onNodeWithText(description).assertExists()
-        compose.onNodeWithText("Amount changed to 40.00 (previous 30.00)").assertExists()
-        compose.onNodeWithText("Paid by changed to Ben 40.00 (previous Anna 30.00)").assertExists()
-        compose.onNodeWithText("Note changed to Late (previous —)").assertExists()
-        assertEquals(0, count("Type changed", substring = true))
-        assertEquals(0, count("Date changed", substring = true))
-        assertEquals(0, count("For changed", substring = true))
         // The title is the entry as it stands now.
         compose.onNodeWithText("Supper").assertExists()
 
         compose.onNodeWithText("Edited by Ben").performClick()
-        assertEquals(0, count(description))
+        assertEquals(listOf(edit.id), steps)
     }
 
     @Test

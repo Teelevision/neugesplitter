@@ -426,7 +426,15 @@ private fun PreviewScreen(
             }
             items(preview.happenings) { happening ->
                 HistoryRow(
-                    resources.told(happening, state.names, state.scale, locale),
+                    resources
+                        .told(
+                            happening,
+                            state.names,
+                            state.categories.associateBy { it.id },
+                            state.scale,
+                            locale,
+                        )
+                        .copy(brief = null),
                     happening.at,
                     locale,
                     detailLines = Int.MAX_VALUE,

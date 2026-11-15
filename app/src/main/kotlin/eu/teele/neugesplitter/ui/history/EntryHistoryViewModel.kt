@@ -2,9 +2,11 @@ package eu.teele.neugesplitter.ui.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.history.Version
 import eu.teele.neugesplitter.domain.history.versions
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
@@ -28,6 +30,7 @@ data class EntryHistoryState(
     val title: String = "",
     val scale: Scale = Scale.DEFAULT,
     val names: Map<MemberId, String> = emptyMap(),
+    val categories: Map<CategoryId, Category> = emptyMap(),
     val versions: List<Version> = emptyList(),
 )
 
@@ -52,6 +55,7 @@ class EntryHistoryViewModel(repository: GroupRepository, group: GroupId, entry: 
                         title = versions.firstOrNull()?.after?.description.orEmpty(),
                         scale = replayed.scale,
                         names = replayed.members.mapValues { it.value.name },
+                        categories = replayed.categories,
                         versions = versions,
                     )
                 }

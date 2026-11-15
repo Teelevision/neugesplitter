@@ -4,6 +4,7 @@ import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.value.EntryId
+import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.MemberId
 import java.time.Instant
 
@@ -22,6 +23,7 @@ enum class Revision {
  * @property before the entry as it was just before, null for [Revision.CREATED].
  * @property after the entry as it is just after; for [Revision.DELETED] the same as [before], the
  *   content at deletion.
+ * @property event the event that made it.
  */
 data class Version(
     val change: Revision,
@@ -29,6 +31,7 @@ data class Version(
     val at: Instant,
     val before: Entry?,
     val after: Entry,
+    val event: EventId,
 )
 
 /**
@@ -53,7 +56,7 @@ fun versions(events: List<Event>, entry: EntryId): List<Version> {
                 else -> continue
             }
         val after = group.entries[entry] ?: group.deleted.getValue(entry)
-        versions += Version(change, event.by, event.at, before, after)
+        versions += Version(change, event.by, event.at, before, after, event.id)
     }
     return versions
 }

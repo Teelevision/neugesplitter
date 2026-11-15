@@ -491,11 +491,13 @@ are described in [sync-design.md](sync-design.md).
 - **How is a history line made of several events?** (HI-2) An action that writes
   several events writes them by one member at one moment, and neighbouring
   events like that merge where they tell one thing: settings changed together,
-  an entry deleted to make way for its series ("made recurring"), or a series
-  changed along with its occurrence. Anything else stays apart, so that an
-  import of many entries, which also shares a moment, still lists each. A merged
-  line is unseen while any of its events is, and reading it reads them all
-  (HI-5).
+  entries edited together, as tidying up does (TI-1), an entry deleted to make
+  way for its series ("made recurring"), or a series changed along with its
+  occurrence. Anything else stays apart, so that an import of many entries,
+  which also shares a moment, still lists each. Edits merge in the history
+  rather than through one event for many entries, so that the log format stays
+  as it is. A merged line is unseen while any of its events is, and reading it
+  reads them all (HI-5).
 - **What happens to the occurrence a rule change starts from?** (RE-6) It
   becomes the first of the new rule: the change runs from the occurrence's date,
   not its due date, so rent on the 2nd moved to the 10th comes once that month.

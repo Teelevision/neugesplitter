@@ -55,6 +55,7 @@ import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.recurrence.Stop
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
+import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.ui.DayHeading
 import eu.teele.neugesplitter.ui.EntryRow
 import eu.teele.neugesplitter.ui.UNCATEGORIZED_ENTRY_EMOJI
@@ -82,6 +83,7 @@ private enum class Dialog {
  *
  * @param onChange opens the series to change it from a date on.
  * @param onOpen opens one of its entries.
+ * @param onStep opens a line of its history in full, by an event it was told from.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -90,6 +92,7 @@ fun SeriesScreen(
     onBack: () -> Unit,
     onChange: () -> Unit,
     onOpen: (EntryId) -> Unit,
+    onStep: (EventId) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val detail = state.detail
@@ -188,11 +191,13 @@ fun SeriesScreen(
                                 LocalResources.current.told(
                                     happening,
                                     detail.names,
+                                    detail.categories,
                                     detail.scale,
                                     locale,
                                 ),
                                 happening.at,
                                 locale,
+                                modifier = Modifier.clickable { onStep(happening.event) },
                             )
                         }
                     }

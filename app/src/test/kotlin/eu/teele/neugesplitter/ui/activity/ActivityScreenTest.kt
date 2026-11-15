@@ -15,6 +15,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeLeft
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import eu.teele.neugesplitter.domain.category.BuiltInCategory
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
@@ -29,6 +30,7 @@ import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Template
 import eu.teele.neugesplitter.domain.todo.Todo
 import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
@@ -53,6 +55,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -71,10 +75,8 @@ class ActivityScreenTest {
     private val at = Instant.parse("2026-10-07T12:00:00Z")
     private var events = 0
     private val zone = TimeZone.getDefault()
-    private val opened = mutableListOf<EntryId>()
     private val edited = mutableListOf<EntryId>()
-    private val histories = mutableListOf<EntryId>()
-    private val openedSeries = mutableListOf<SeriesId>()
+    private val steps = mutableListOf<EventId>()
     private val synced = mutableListOf<GroupId>()
     private var shares = 0
     private var problems = 0
@@ -157,10 +159,8 @@ class ActivityScreenTest {
                     viewModel,
                     todos,
                     onBack = {},
-                    onOpen = { opened += it },
                     onEdit = { edited += it },
-                    onHistory = { histories += it },
-                    onSeries = { openedSeries += it },
+                    onStep = { steps += it },
                     onShare = { shares++ },
                     onSyncProblem = { problems++ },
                     onTodos = { todoLists++ },
@@ -181,9 +181,14 @@ class ActivityScreenTest {
 
     private fun count(text: String) = compose.onAllNodesWithText(text).fetchSemanticsNodes().size
 
+    // History lines name to-dos too, but say what was done to them.
     private fun todoRows(text: String) =
         compose
-            .onAllNodes(hasText(text, substring = true).and(hasClickAction()))
+            .onAllNodes(
+                hasText(text, substring = true)
+                    .and(hasClickAction())
+                    .and(hasText("to-do", substring = true).not())
+            )
             .fetchSemanticsNodes()
             .size
 
@@ -219,7 +224,7 @@ class ActivityScreenTest {
     }
 
     @Test
-    fun `a change says what changed, cut off where it does not fit (HI-2, ui-design 4)`() {
+    fun `an edit names the fields it changed, cut off where they do not fit (HI-2, ui-design 4)`() {
         show {
             groups.append(
                 trip,
@@ -229,17 +234,39 @@ class ActivityScreenTest {
                         anna.id,
                         hours(2),
                         dinnerId,
-                        EntryChanges(description = Change.To("Supper")),
+                        EntryChanges(
+                            description = Change.To("Supper"),
+                            categoryId = Change.To(BuiltInCategory.DINING_AND_CAFES.id),
+                        ),
                     )
                 ),
                 today,
             )
         }
         compose.onNodeWithText("Anna edited 'Supper'").assertExists()
-        compose.onNodeWithText("Description changed to Supper (previous Dinner)").assertExists()
+        compose.onNodeWithText("Changed: Description, Category").assertExists()
         val row = compose.onNodeWithText("Anna edited 'Supper'").fetchSemanticsNode()
         val other = compose.onNodeWithText("Ben added 'Dinner'").fetchSemanticsNode()
         assertEquals(other.size.height, row.size.height)
+    }
+
+    @Test
+    fun `entries edited at once are one line, saying how where each changed alike (HI-2, TI-1)`() {
+        val groceries = EntryChanges(categoryId = Change.To(BuiltInCategory.GROCERIES.id))
+        show {
+            groups.append(
+                trip,
+                listOf(
+                    Event.EntryCreated(eventId(), ben.id, hours(1), entry(taxiId, "Taxi")),
+                    Event.EntryUpdated(eventId(), anna.id, hours(2), dinnerId, groceries),
+                    Event.EntryUpdated(eventId(), anna.id, hours(2), taxiId, groceries),
+                ),
+                today,
+            )
+        }
+        compose.onNodeWithText("Anna edited 2 entries").assertExists()
+        compose.onNodeWithText("Groceries (previous —)", substring = true).assertExists()
+        assertEquals(0, count("Anna edited 'Taxi'"))
     }
 
     @Test
@@ -357,7 +384,7 @@ class ActivityScreenTest {
     }
 
     @Test
-    fun `a change to an entry opens it, or its history once it is deleted (HI-2, HI-3)`() {
+    fun `every line opens its change in full, whatever it names (HI-10)`() {
         show {
             groups.append(
                 trip,
@@ -369,21 +396,26 @@ class ActivityScreenTest {
             )
         }
         compose.onNodeWithText("Ben added 'Dinner'").performClick()
-        assertEquals(listOf(dinnerId), opened)
         compose.onNodeWithText("Anna deleted 'Taxi'").performClick()
-        compose.onNodeWithText("Anna added 'Taxi'").performClick()
-        assertEquals(listOf(taxiId, taxiId), histories)
         compose.onNodeWithText("Anna created the group").performClick()
-        assertEquals(listOf(dinnerId), opened)
+        val log = groups.events(trip)
+        assertEquals(
+            listOf(
+                log.single { it is Event.EntryCreated && it.entry.id == dinnerId }.id,
+                log.single { it is Event.EntryDeleted }.id,
+                log.first().id,
+            ),
+            steps,
+        )
     }
 
     @Test
-    fun `a recurring series event opens its series (RE-1)`() {
+    fun `a recurring series line opens in full (HI-10, RE-1)`() {
         show { suggesting() }
 
         compose.onNodeWithText("Ben added 'Cleaning', repeating").performClick()
 
-        assertEquals(listOf(cleaning), openedSeries)
+        assertEquals(listOf(groups.events(trip).single { it is Event.SeriesCreated }.id), steps)
     }
 
     @Test
@@ -417,9 +449,32 @@ class ActivityScreenTest {
         compose.onNodeWithText("Benni renamed Ben to Benni").performClick()
         compose.waitUntil(5_000) { unseen() == 1 }
         compose.onNodeWithText("Benni added 'Taxi'").performClick()
-        assertEquals(listOf(taxiId), opened)
+        assertEquals(2, steps.size)
         compose.waitUntil(5_000) { unseen() == 0 }
         compose.onNodeWithText("Benni added 'Dinner'").assertExists()
+    }
+
+    @Test
+    fun `a change after one the history leaves out stands out until its line is tapped (HI-5)`() {
+        show {
+            groups.receive(
+                trip,
+                today,
+                1,
+                Event.CategoryDeleted(
+                    eventId(),
+                    ben.id,
+                    hours(1),
+                    CategoryId.parse("ff".repeat(16)),
+                ),
+                Event.EntryCreated(eventId(), ben.id, hours(1), entry(taxiId, "Taxi")),
+            )
+            groups.seen(trip, groups.events(trip).indexOfFirst { it is Event.CategoryDeleted })
+        }
+        compose.waitUntil(5_000) { unseen() == 1 }
+        compose.onNodeWithText("Ben added 'Taxi'").performClick()
+        compose.waitUntil(5_000) { unseen() == 0 }
+        assertEquals(emptySet(), runBlocking { groups.unseen(trip).first() })
     }
 
     @Test
@@ -437,7 +492,7 @@ class ActivityScreenTest {
         compose.onNodeWithContentDescription("More options").performClick()
         compose.onNodeWithText("Mark all as read").performClick()
         compose.waitUntil(5_000) { unseen() == 0 }
-        assertEquals(emptyList(), opened)
+        assertEquals(emptyList(), steps)
     }
 
     @Test

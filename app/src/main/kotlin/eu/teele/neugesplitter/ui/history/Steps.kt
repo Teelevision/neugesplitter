@@ -41,6 +41,7 @@ import eu.teele.neugesplitter.domain.history.TodosChange
 import eu.teele.neugesplitter.domain.recurrence.Mode
 import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.todo.Todo
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.MemberId
@@ -76,8 +77,20 @@ private fun clock(at: Instant, locale: Locale): String =
         .withZone(ZoneId.systemDefault())
         .format(at)
 
-/** One step of a history: an [icon] for its kind, who did what, and what changed. */
-data class Told(@DrawableRes val icon: Int, val headline: String, val detail: String)
+/**
+ * One step of a history: an [icon] for its kind, who did what, and what changed in [lines], or in
+ * [brief] where a row has no room for them.
+ */
+data class Told(
+    @DrawableRes val icon: Int,
+    val headline: String,
+    val lines: List<String>,
+    val brief: String? = null,
+) {
+    /** [brief], or [lines] on one line. */
+    val detail: String
+        get() = brief ?: lines.joinToString(" · ")
+}
 
 /**
  * A step of a history the size of an entry row however much it says (ui-design 4): [told] on two
@@ -143,13 +156,15 @@ fun HistoryRow(
 fun Resources.told(
     happening: Happening,
     names: Map<MemberId, String>,
+    categories: Map<CategoryId, Category>,
     scale: Scale,
     locale: Locale,
 ): Told {
     fun name(member: MemberId) = names[member] ?: member.hex.take(8)
     val by = name(happening.by)
     return when (val happened = happening.happened) {
-        Happened.Created -> Told(R.drawable.ic_add, getString(R.string.happened_created, by), "")
+        Happened.Created ->
+            Told(R.drawable.ic_add, getString(R.string.happened_created, by), emptyList())
         is Happened.Changed ->
             Told(
                 R.drawable.ic_settings,
@@ -165,27 +180,26 @@ fun Resources.told(
                     },
                     by,
                 ),
-                settingChanges(happened.settings, happened.before, happened.after, names, locale)
-                    .joinToString(" · "),
+                settingChanges(happened.settings, happened.before, happened.after, names, locale),
             )
         is Happened.MemberAdded ->
             Told(
                 R.drawable.ic_people,
                 if (happened.member == happening.by) getString(R.string.happened_joined, by)
                 else getString(R.string.happened_added, by, name(happened.member)),
-                "",
+                emptyList(),
             )
         is Happened.MemberRenamed ->
             Told(
                 R.drawable.ic_people,
                 getString(R.string.happened_renamed, by, happened.from, happened.to),
-                "",
+                emptyList(),
             )
         is Happened.MemberRemoved ->
             Told(
                 R.drawable.ic_people,
                 getString(R.string.happened_removed, by, name(happened.member)),
-                "",
+                emptyList(),
             )
         is Happened.Category -> {
             val action = happened.changes.first().action
@@ -217,23 +231,50 @@ fun Resources.told(
             Told(
                 icon,
                 getString(sentence, by, happened.description),
-                revised(happened.before, happened.after, scale, names, locale),
+                revisions(happened.before, happened.after, scale, names, categories, locale),
+                happened.before
+                    ?.takeIf { happened.change == Revision.EDITED }
+                    ?.let { changedFields(it, happened.after) },
+            )
+        }
+        is Happened.Entries -> {
+            val changes =
+                happened.edits.map { edit ->
+                    edit.before
+                        ?.let { changes(it, edit.after, scale, names, categories, locale) }
+                        .orEmpty()
+                }
+            Told(
+                R.drawable.ic_edit,
+                getQuantityString(
+                    R.plurals.happened_entries_edited,
+                    happened.edits.size,
+                    by,
+                    happened.edits.size,
+                ),
+                happened.edits.map { it.description }.distinct(),
+                changes.distinct().singleOrNull()?.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+                    ?: changedFields(
+                        happened.edits.flatMap { edit ->
+                            edit.before?.let { fieldLabels(it, edit.after) }.orEmpty()
+                        }
+                    ),
             )
         }
         is Happened.MadeRecurring ->
             Told(
                 R.drawable.ic_repeat,
                 getString(R.string.happened_made_recurring, by, happened.description),
-                recurrenceText(happened.segment.interval, locale),
+                listOf(recurrenceText(happened.segment.interval, locale)),
             )
-        is Happened.Recurring -> recurring(happened, by, names, scale, locale)
+        is Happened.Recurring -> recurring(happened, by, names, categories, scale, locale)
         is Happened.Todo -> todo(happened, by, names, locale)
         is Happened.Todos -> todos(happened, by)
     }
 }
 
-private fun Resources.categoryChanges(changes: List<CategoryChange>): String =
-    changes.joinToString(" · ") { change ->
+private fun Resources.categoryChanges(changes: List<CategoryChange>): List<String> =
+    changes.map { change ->
         val before = change.before
         val after = change.after
         when (change.action) {
@@ -283,12 +324,12 @@ private fun Resources.todos(happened: Happened.Todos, by: String): Told {
                 )
         }
     val descriptions = happened.descriptions
-    return descriptions.singleOrNull()?.let { Told(icon, getString(one, by), it) }
-        ?: Told(
-            icon,
-            getQuantityString(several, descriptions.size, by, descriptions.size),
-            descriptions.joinToString(" · "),
-        )
+    return Told(
+        icon,
+        if (descriptions.size == 1) getString(one, by)
+        else getQuantityString(several, descriptions.size, by, descriptions.size),
+        descriptions,
+    )
 }
 
 private fun Resources.todo(
@@ -297,22 +338,20 @@ private fun Resources.todo(
     names: Map<MemberId, String>,
     locale: Locale,
 ): Told {
-    val (icon, sentence, detail) =
+    val (icon, sentence, changes) =
         when (val change = happened.change) {
-            TodoChange.Created -> Triple(R.drawable.ic_add, R.string.happened_todo_created, "")
+            TodoChange.Created ->
+                Triple(R.drawable.ic_add, R.string.happened_todo_created, emptyList())
             is TodoChange.Edited ->
                 Triple(
                     R.drawable.ic_edit,
                     R.string.happened_todo_edited,
                     todoChanges(change.before, change.after, names, locale),
                 )
-            TodoChange.Deleted -> Triple(R.drawable.ic_delete, R.string.happened_todo_deleted, "")
+            TodoChange.Deleted ->
+                Triple(R.drawable.ic_delete, R.string.happened_todo_deleted, emptyList())
         }
-    return Told(
-        icon,
-        getString(sentence, by),
-        listOf(happened.description, detail).filter { it.isNotEmpty() }.joinToString(" · "),
-    )
+    return Told(icon, getString(sentence, by), listOf(happened.description) + changes)
 }
 
 /** One part for each field in which [after] differs from [before], the same todo. */
@@ -321,7 +360,7 @@ private fun Resources.todoChanges(
     after: Todo,
     names: Map<MemberId, String>,
     locale: Locale,
-): String {
+): List<String> {
     fun due(todo: Todo) = todo.due?.let { mediumDate(it, locale) } ?: NONE
     fun assigned(todo: Todo) =
         todo.assignees
@@ -339,99 +378,128 @@ private fun Resources.todoChanges(
         .map { (field, old, new) ->
             getString(R.string.history_field_changed, getString(field), new, old)
         }
-        .joinToString(" · ")
 }
 
 private fun Resources.recurring(
     happened: Happened.Recurring,
     by: String,
     names: Map<MemberId, String>,
+    categories: Map<CategoryId, Category>,
     scale: Scale,
     locale: Locale,
 ): Told {
     val what = happened.description
     fun from(date: EntryDate) = mediumDate(date, locale)
-    val (sentence, detail) =
+    var brief: String? = null
+    val (sentence, lines) =
         when (val change = happened.change) {
             is SeriesChange.Started ->
                 R.string.happened_series_started to
                     listOf(
-                            recurrenceText(change.segment.interval, locale),
-                            formatted(change.segment.template.amount, scale, locale),
-                        )
-                        .joinToString(" · ")
-            is SeriesChange.Amended ->
+                        recurrenceText(change.segment.interval, locale),
+                        formatted(change.segment.template.amount, scale, locale),
+                    )
+            is SeriesChange.Amended -> {
+                val since = getString(R.string.history_from, from(change.from))
+                val before = change.before
+                if (before != null) {
+                    brief =
+                        listOfNotNull(
+                                since,
+                                changedFields(
+                                    amendedLabels(
+                                        happened.series,
+                                        change.from,
+                                        before,
+                                        change.after,
+                                    )
+                                ),
+                            )
+                            .joinToString(" · ")
+                }
                 R.string.happened_series_amended to
-                    (listOf(getString(R.string.history_from, from(change.from))) +
-                            (change.before?.let {
-                                amended(
-                                    happened.series,
-                                    change.from,
-                                    it,
-                                    change.after,
-                                    scale,
-                                    names,
-                                    locale,
-                                )
-                            } ?: emptyList()))
-                        .joinToString(" · ")
+                    (listOf(since) +
+                        (before?.let {
+                            amended(
+                                happened.series,
+                                change.from,
+                                it,
+                                change.after,
+                                scale,
+                                names,
+                                categories,
+                                locale,
+                            )
+                        } ?: emptyList()))
+            }
             is SeriesChange.Stopped -> {
                 val until = change.stop.until
                 if (until == null) {
                     R.string.happened_series_stopped to
-                        getString(R.string.series_stop_open, from(change.stop.from))
+                        listOf(getString(R.string.series_stop_open, from(change.stop.from)))
                 } else {
                     R.string.happened_series_paused to
-                        getString(R.string.series_stop_span, from(change.stop.from), from(until))
+                        listOf(
+                            getString(
+                                R.string.series_stop_span,
+                                from(change.stop.from),
+                                from(until),
+                            )
+                        )
                 }
             }
             is SeriesChange.Continued ->
                 R.string.happened_series_continued to
-                    getString(R.string.history_from, from(change.span.from))
-            SeriesChange.Deleted -> R.string.happened_series_deleted to ""
+                    listOf(getString(R.string.history_from, from(change.span.from)))
+            SeriesChange.Deleted -> R.string.happened_series_deleted to emptyList()
             is SeriesChange.Confirmed ->
                 R.string.happened_occurrence_confirmed to
-                    getString(R.string.suggestion_due, from(change.due))
+                    listOf(getString(R.string.suggestion_due, from(change.due)))
             is SeriesChange.LeftOut ->
                 R.string.happened_occurrence_left_out to
-                    getString(R.string.suggestion_due, from(change.due))
-            is SeriesChange.Edited ->
+                    listOf(getString(R.string.suggestion_due, from(change.due)))
+            is SeriesChange.Edited -> {
+                brief = change.before?.let { changedFields(it, change.after) }
                 R.string.happened_entry_edited to
-                    revised(change.before, change.after, scale, names, locale)
+                    revisions(change.before, change.after, scale, names, categories, locale)
+            }
         }
-    return Told(R.drawable.ic_repeat, getString(sentence, by, what), detail)
+    return Told(R.drawable.ic_repeat, getString(sentence, by, what), lines, brief)
 }
 
-/** What changed from [before] to [after], or what [after] is where there was nothing before. */
-fun Resources.revised(
+/**
+ * One line for each field changed from [before] to [after], or what [after] is where there was
+ * nothing before or nothing changed.
+ */
+fun Resources.revisions(
     before: Entry?,
     after: Entry,
     scale: Scale,
     names: Map<MemberId, String>,
+    categories: Map<CategoryId, Category>,
     locale: Locale,
-): String =
-    before
-        ?.let { changes(it, after, scale, names, locale) }
-        ?.takeIf { it.isNotEmpty() }
-        ?.joinToString(" · ") ?: summary(after, scale, locale)
+): List<String> =
+    before?.let { changes(it, after, scale, names, categories, locale) }?.takeIf { it.isNotEmpty() }
+        ?: listOf(summary(after, scale, locale))
 
 /** "12.00 · Oct 5, 2026": the amount and date of [entry]. */
 fun summary(entry: Entry, scale: Scale, locale: Locale): String =
     "${formatted(entry.amount, scale, locale)} · ${mediumDate(entry.date, locale)}"
 
 /** What [series] does from [from] on as [after] where it did [before], field by field. */
-private fun Resources.amended(
+fun Resources.amended(
     series: SeriesId,
     from: EntryDate,
     before: Segment,
     after: Segment,
     scale: Scale,
     names: Map<MemberId, String>,
+    categories: Map<CategoryId, Category>,
     locale: Locale,
 ): List<String> {
     val id = EntryId.occurrence(series, from)
     val repeats =
-        if (before.interval == after.interval && before.mode == after.mode) null
+        if (!rescheduled(before, after)) null
         else {
             getString(
                 R.string.history_field_changed,
@@ -441,11 +509,33 @@ private fun Resources.amended(
             )
         }
     return listOfNotNull(repeats) +
-        changes(before.template.on(id, from), after.template.on(id, from), scale, names, locale)
+        changes(
+            before.template.on(id, from),
+            after.template.on(id, from),
+            scale,
+            names,
+            categories,
+            locale,
+        )
+}
+
+private fun rescheduled(before: Segment, after: Segment) =
+    before.interval != after.interval || before.mode != after.mode
+
+/** The labels of the fields [amended] tells of. */
+private fun amendedLabels(
+    series: SeriesId,
+    from: EntryDate,
+    before: Segment,
+    after: Segment,
+): List<Int> {
+    val id = EntryId.occurrence(series, from)
+    return listOfNotNull(R.string.field_repeats.takeIf { rescheduled(before, after) }) +
+        fieldLabels(before.template.on(id, from), after.template.on(id, from))
 }
 
 /** "Every month on the 1st, suggested". */
-private fun Resources.rule(segment: Segment, locale: Locale): String {
+fun Resources.rule(segment: Segment, locale: Locale): String {
     val mode =
         getString(
             if (segment.mode == Mode.SUGGESTED) R.string.mode_suggested else R.string.mode_automatic
@@ -462,6 +552,7 @@ fun Resources.changes(
     after: Entry,
     scale: Scale,
     names: Map<MemberId, String>,
+    categories: Map<CategoryId, Category>,
     locale: Locale,
 ): List<String> {
     val diff = EntryChanges.between(before, after)
@@ -503,10 +594,52 @@ fun Resources.changes(
         sideText(before.beneficiaries, before, scale, names, locale),
         sideText(after.beneficiaries, after, scale, names, locale),
     )
+    field(
+        R.string.category_label,
+        diff.categoryId,
+        categoryText(before.categoryId, categories),
+        categoryText(after.categoryId, categories),
+    )
     field(R.string.field_note, diff.note, before.note ?: NONE, after.note ?: NONE)
     if (diff.attachments is Change.To) lines += getString(R.string.history_attachments)
     return lines
 }
+
+private fun Resources.categoryText(id: CategoryId?, categories: Map<CategoryId, Category>) =
+    id?.let { categories[it]?.let { category -> "${category.emoji} ${categoryLabel(category)}" } }
+        ?: id?.hex?.take(8)
+        ?: NONE
+
+/** The labels of the fields in which [after] differs from [before], the same entry. */
+private fun fieldLabels(before: Entry, after: Entry): List<Int> {
+    val diff = EntryChanges.between(before, after)
+    val (payersLabel, beneficiariesLabel) = sideLabels(after.kind)
+    return listOf(
+            R.string.field_kind to diff.kind,
+            R.string.entry_description to diff.description,
+            R.string.entry_date to diff.date,
+            R.string.entry_amount to diff.amount,
+            payersLabel to diff.payers,
+            beneficiariesLabel to diff.beneficiaries,
+            R.string.category_label to diff.categoryId,
+            R.string.field_note to diff.note,
+            R.string.field_attachments to diff.attachments,
+        )
+        .filter { (_, change) -> change is Change.To }
+        .map { (label, _) -> label }
+}
+
+/** "Changed: Category, Date": the fields in which [after] differs from [before], if any. */
+fun Resources.changedFields(before: Entry, after: Entry): String? =
+    changedFields(fieldLabels(before, after))
+
+private fun Resources.changedFields(labels: List<Int>): String? =
+    labels
+        .distinct()
+        .takeIf { it.isNotEmpty() }
+        ?.let {
+            getString(R.string.history_changed, it.joinToString(", ") { label -> getString(label) })
+        }
 
 /** One line for each of [settings], changed from [before] to [after]. */
 private fun Resources.settingChanges(

@@ -55,11 +55,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
-import eu.teele.neugesplitter.domain.history.Happened
 import eu.teele.neugesplitter.domain.history.Happening
-import eu.teele.neugesplitter.domain.history.series
 import eu.teele.neugesplitter.domain.value.EntryId
-import eu.teele.neugesplitter.domain.value.SeriesId
+import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.TodoId
 import eu.teele.neugesplitter.storage.settings.SyncState
 import eu.teele.neugesplitter.ui.DayHeading
@@ -87,10 +85,8 @@ import java.util.Locale
  * the history fold away (ui-design 4). The todos are swiped for done and delete as in their list,
  * through its [todoViewModel] (TD-5, TD-6).
  *
- * @param onOpen opens an entry a change names.
  * @param onEdit opens a suggestion in the editor, which confirms it as saved (RE-4).
- * @param onHistory opens the history of a deleted entry a change names.
- * @param onSeries opens the recurring series named by a history event.
+ * @param onStep opens a step of the history in full, by an event it was told from.
  * @param onShare starts sharing a group kept only on this device.
  * @param onSyncProblem opens why the group stopped syncing.
  * @param onTodos opens the todo list.
@@ -101,10 +97,8 @@ fun ActivityScreen(
     viewModel: ActivityViewModel,
     todoViewModel: TodoViewModel,
     onBack: () -> Unit,
-    onOpen: (EntryId) -> Unit,
     onEdit: (EntryId) -> Unit,
-    onHistory: (EntryId) -> Unit,
-    onSeries: (SeriesId) -> Unit,
+    onStep: (EventId) -> Unit,
     onShare: () -> Unit,
     onSyncProblem: () -> Unit,
     onTodos: () -> Unit,
@@ -236,16 +230,10 @@ fun ActivityScreen(
                             item(key = "day-$index") { DayHeading(day(at), locale) }
                         }
                         item(key = "happened-$index") {
-                            HappeningRow(
-                                step.happening,
-                                index in state.unseen,
-                                state,
-                                locale,
-                                { viewModel.read(index) },
-                                onOpen,
-                                onHistory,
-                                onSeries,
-                            )
+                            HappeningRow(step.happening, index in state.unseen, state, locale) {
+                                if (index in state.unseen) viewModel.read(index)
+                                onStep(step.happening.event)
+                            }
                         }
                     }
                 }
@@ -322,39 +310,21 @@ private fun SuggestionRow(
     }
 }
 
-/**
- * One change, the size of an entry row; tapping it reads it, and opens the entry or series it names
- * (HI-3, HI-5).
- */
+/** One change, the size of an entry row; tapping it reads it and opens it in full (HI-2, HI-5). */
 @Composable
 private fun HappeningRow(
     happening: Happening,
     unseen: Boolean,
     state: ActivityState,
     locale: Locale,
-    onRead: () -> Unit,
-    onOpen: (EntryId) -> Unit,
-    onHistory: (EntryId) -> Unit,
-    onSeries: (SeriesId) -> Unit,
+    onOpen: () -> Unit,
 ) {
-    val entry = (happening.happened as? Happened.Entry)?.entry
-    val series = happening.happened.series
     HistoryRow(
-        LocalResources.current.told(happening, state.names, state.scale, locale),
+        LocalResources.current.told(happening, state.names, state.categories, state.scale, locale),
         happening.at,
         locale,
         unseen = unseen,
-        modifier =
-            if (entry == null && series == null && !unseen) Modifier
-            else
-                Modifier.clickable {
-                    if (unseen) onRead()
-                    if (series != null) {
-                        onSeries(series)
-                    } else if (entry != null) {
-                        if (entry in state.deleted) onHistory(entry) else onOpen(entry)
-                    }
-                },
+        modifier = Modifier.clickable(onClick = onOpen),
     )
 }
 

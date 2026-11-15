@@ -3,6 +3,7 @@ package eu.teele.neugesplitter.ui.series
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.teele.neugesplitter.domain.Malformed
+import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.history.Happening
@@ -14,6 +15,7 @@ import eu.teele.neugesplitter.domain.recurrence.Impact
 import eu.teele.neugesplitter.domain.recurrence.Segment
 import eu.teele.neugesplitter.domain.recurrence.Series
 import eu.teele.neugesplitter.domain.recurrence.Stop
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
@@ -47,6 +49,7 @@ data class SeriesDetail(
     val entries: List<ListedEntry>,
     val history: List<Happening> = emptyList(),
     val names: Map<MemberId, String> = emptyMap(),
+    val categories: Map<CategoryId, Category> = emptyMap(),
     val categoryEmoji: String? = null,
 ) {
     /** Its first day, while that is still ahead. */
@@ -201,6 +204,7 @@ class SeriesViewModel(
                     .filter { it.happened.series == found.id }
                     .asReversed(),
             names = members.mapValues { it.value.name },
+            categories = categories,
             categoryEmoji = segment.template.categoryId?.let(categories::get)?.emoji,
         )
     }

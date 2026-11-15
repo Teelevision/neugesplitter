@@ -256,6 +256,9 @@ over as a QR code (BE-18).
   changes as seen on one installation MUST NOT affect other installations.
 - **HI-9** (Optional): A member MUST be able to restore a deleted entry or
   revert an entry to an earlier version from the history.
+- **HI-10** (Core): Members MUST be able to open one change in a history to see
+  all of it: every field it changed or what it recorded, and each part of what
+  one action changed at once.
 
 ### 4.6 Splitting
 

@@ -56,6 +56,7 @@ class SeriesScreenTest {
     private var back = 0
     private var changes = 0
     private val opened = mutableListOf<EntryId>()
+    private val steps = mutableListOf<EventId>()
 
     private fun id(n: Int) = "%032x".format(n)
 
@@ -101,6 +102,7 @@ class SeriesScreenTest {
                     onBack = { back++ },
                     onChange = { changes++ },
                     onOpen = { opened += it },
+                    onStep = { steps += it },
                 )
             }
         }
@@ -155,7 +157,8 @@ class SeriesScreenTest {
     @Test
     fun `what was done to a series is listed between its entries, on the day it was done (RE-9, HI-2)`() {
         val later = at.plusSeconds(3600)
-        show(Event.OccurrenceDeleted(eventId(), ben.id, later, rent, date("2026-09-01")))
+        val leftOut = Event.OccurrenceDeleted(eventId(), ben.id, later, rent, date("2026-09-01"))
+        show(leftOut)
         compose.onNodeWithText("Anna added 'Rent', repeating").assertExists()
         compose.onNodeWithText("Every month on the 1st · 900.00").assertExists()
         compose.onNodeWithText("Ben left out 'Rent'").assertExists()
@@ -166,6 +169,9 @@ class SeriesScreenTest {
         assertTrue(top("Wednesday, October 7, 2026") < top("Ben left out 'Rent'"))
         assertTrue(top("Ben left out 'Rent'") < top("Anna added 'Rent', repeating"))
         assertTrue(top("Anna added 'Rent', repeating") < top("Thursday, October 1, 2026"))
+
+        compose.onNodeWithText("Ben left out 'Rent'").performClick()
+        assertEquals(listOf(leftOut.id), steps)
     }
 
     @Test

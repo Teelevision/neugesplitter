@@ -70,6 +70,7 @@ screen or opened as a bottom sheet, and the bar is hidden while it is up.
 | Split editor        | sheet       | tapping a side in the entry editor       |
 | Entry detail        | pushed      | tapping an entry                         |
 | Entry history       | pushed      | entry detail                             |
+| Change detail       | pushed      | a line of a history                      |
 | Recurrence editor   | sheet       | the recurring switch in the entry editor |
 | Member sheet        | sheet       | tapping a member                         |
 | Backend setup       | pushed flow | group settings, new group, join group    |
@@ -274,14 +275,15 @@ stacked in collapsible sections below it:
    chronological list covering entries, series, membership and group settings,
    under a heading for each day like the entry list. Each line is the size of an
    entry row whatever it says: an icon for its kind, who did what, and below it
-   what changed — "Amount changed to 15.00 (previous 12.00)", several joined by
-   "·" — cut off with an ellipsis where it does not fit, and the time of day at
-   the end. What one action wrote at once is one line: settings changed
-   together, or an entry made recurring rather than "deleted" and "changed a
-   recurring entry". A line about an entry opens it, or its history once it is
-   deleted (HI-3). Unseen items are highlighted; tapping one clears it, and
-   opening an entry clears every line about it (HI-5, HI-6). The overflow holds
-   **mark all as read** (HI-7).
+   what changed — the fields an edit changed, "Changed: Category, Date", and
+   otherwise what it was about, several joined by "·" — cut off with an ellipsis
+   where it does not fit, and the time of day at the end. What one action wrote
+   at once is one line: settings changed together, entries edited together,
+   "Anna edited 50 entries", saying how where each changed alike, or an entry
+   made recurring rather than "deleted" and "changed a recurring entry". Every
+   line opens its change in full (HI-10). Unseen items are highlighted; tapping
+   one clears it, and opening an entry clears every line about it (HI-5, HI-6).
+   The overflow holds **mark all as read** (HI-7).
 
 Between the suggestions and the history, **To-dos due** lists the to-dos not
 done whose due date has come, earliest first, as rows of the to-do list; one
@@ -351,13 +353,14 @@ batch at a time (TI-1). Two tabs, each counting its entries:
   **Skip** leaves the batch out from then on.
 
 A batch is a card of the entries whose descriptions read the same once case,
-digits and punctuation are set aside, newest first, each with a checkbox. In a
-shared group, applying first shows **Check changes**: a sentence that the
-changes are shared with everyone, that every balance stays the same, and the
-rows the group's activity will show for them, with their details in full (TI-5).
-Nothing is written until **Apply N changes**; back or cancel returns to the
-batch as it was. A group kept only on this device writes at once. Either way a
-snackbar says how many entries changed.
+digits and punctuation are set aside, newest first, each with a checkbox where
+there are several. A batch applied or skipped from below its top brings the next
+one into view from its top. In a shared group, applying first shows **Check
+changes**: a sentence that the changes are shared with everyone, that every
+balance stays the same, and the rows the group's activity will show for them,
+with their details in full (TI-5). Nothing is written until **Apply N changes**;
+back or cancel returns to the batch as it was. A group kept only on this device
+writes at once. Either way a snackbar says how many entries changed.
 
 ### Group settings
 
@@ -552,13 +555,12 @@ What the entry is, who paid, who benefited, and the per-member amounts as
 derived, plus who created it and whether it has been edited (HI-4). Actions:
 edit, duplicate, delete, and **history**, which lists previous versions and the
 deletion if there is one (HI-3), newest first under their days, in lines like
-Activity's history; tapping one shows all of it: each changed field on its own
-line, or the entry as it was recorded. Opening this screen clears the entry's
-unseen highlight (HI-6). An entry from a series says how the series repeats and
-links to it unless it was opened from there (RE-9), and under its date, like the
-editor, whether it was moved off its due date or is due off the series' dates;
-it has no history of its own, and deleting it deletes only that occurrence
-(RE-15).
+Activity's history; tapping one opens it in full (HI-10). Opening this screen
+clears the entry's unseen highlight (HI-6). An entry from a series says how the
+series repeats and links to it unless it was opened from there (RE-9), and under
+its date, like the editor, whether it was moved off its due date or is due off
+the series' dates; it has no history of its own, and deleting it deletes only
+that occurrence (RE-15).
 
 ### Recurring series
 
@@ -595,9 +597,28 @@ removing takes it back as a whole. Below them, every due date so far, newest
 first under its day: the entry it produced, opening its detail, or else why
 there is none — a suggestion still waiting in Activity, or one declined or
 deleted (RE-4, RE-5) — and, on the day it was done, what somebody did to the
-series or its occurrences, in lines like Activity's history (HI-2). The header
-says when it is next due, past its stops, so that a missing entry is never a
-mystery.
+series or its occurrences, in lines like Activity's history (HI-2), each opening
+in full (HI-10). The header says when it is next due, past its stops, so that a
+missing entry is never a mystery.
+
+### Change detail
+
+One line of a history in full (HI-10): its icon and sentence, then the day and
+time it was done. Each field it changed has a line of its own, "Amount changed
+to 15.00 (previous 12.00)", the category and a series' rule among them; where
+nothing was before, as for a new or deleted entry, it shows the entry as
+recorded: description, kind, date, amount, and each side with every member's
+part. The group as created shows its name, description, emoji and decimal
+places; a series started, its rule and what it produces. A line that stands for
+several events shows each of them under its own sentence, oldest first — an
+entry made recurring as the entry it was and the series it became, entries
+edited together each with what changed; settings and categories changed together
+are already one list, and to-dos completed together list every one.
+
+Its buttons lead on: **Open entry** while the entry it names is there, **Entry
+history**, and **Open its series** while that is there, each hidden where the
+screen was opened from it. There is no undo: a correction is a new change
+(HI-1).
 
 ## 6. Backend setup
 

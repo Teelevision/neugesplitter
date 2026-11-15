@@ -38,6 +38,7 @@ import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
+import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.SeriesId
@@ -63,6 +64,8 @@ import eu.teele.neugesplitter.ui.grouplist.GroupListScreen
 import eu.teele.neugesplitter.ui.grouplist.GroupListViewModel
 import eu.teele.neugesplitter.ui.history.EntryHistoryScreen
 import eu.teele.neugesplitter.ui.history.EntryHistoryViewModel
+import eu.teele.neugesplitter.ui.history.StepScreen
+import eu.teele.neugesplitter.ui.history.StepViewModel
 import eu.teele.neugesplitter.ui.invite.InviteScreen
 import eu.teele.neugesplitter.ui.invite.InviteViewModel
 import eu.teele.neugesplitter.ui.join.JoinScreen
@@ -191,6 +194,20 @@ data class ChartEntries(
 }
 
 @Serializable data class EntryHistory(val group: String, val entry: String) : NavKey
+
+/**
+ * Ids are hex.
+ *
+ * @property fromEntry whether it was opened from the history of the entry it names.
+ * @property fromSeries whether it was opened from the series it names.
+ */
+@Serializable
+data class HistoryStep(
+    val group: String,
+    val event: String,
+    val fromEntry: Boolean = false,
+    val fromSeries: Boolean = false,
+) : NavKey
 
 @Serializable data class TidyUp(val group: String) : NavKey
 
@@ -619,10 +636,8 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                         )
                                     },
                                     onBack = back,
-                                    onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
                                     onEdit = { stack.add(EntryEditor(key.group, it.hex)) },
-                                    onHistory = { stack.add(EntryHistory(key.group, it.hex)) },
-                                    onSeries = { stack.add(RecurringSeries(key.group, it.hex)) },
+                                    onStep = { stack.add(HistoryStep(key.group, it.hex)) },
                                     onShare = { stack.add(BackendSetup(key.group)) },
                                     onSyncProblem = { stack.add(SyncProblem(key.group)) },
                                     onTodos = { go(Destination.TODOS) },
@@ -804,6 +819,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                         onBack = { pop() },
                         onChange = { stack.add(EntryEditor(key.group, series = key.series)) },
                         onOpen = { stack.add(EntryDetail(key.group, it.hex, fromSeries = true)) },
+                        onStep = { stack.add(HistoryStep(key.group, it.hex, fromSeries = true)) },
                     )
                 }
                 entry<EntryHistory> { key ->
@@ -816,6 +832,34 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                             )
                         },
                         onBack = { pop() },
+                        onStep = { stack.add(HistoryStep(key.group, it.hex, fromEntry = true)) },
+                    )
+                }
+                entry<HistoryStep> { key ->
+                    StepScreen(
+                        viewModel {
+                            StepViewModel(
+                                graph.groups,
+                                GroupId.parse(key.group),
+                                EventId.parse(key.event),
+                            )
+                        },
+                        onBack = { pop() },
+                        onEntry =
+                            if (key.fromEntry) null
+                            else {
+                                { stack.add(EntryDetail(key.group, it.hex)) }
+                            },
+                        onEntryHistory =
+                            if (key.fromEntry) null
+                            else {
+                                { stack.add(EntryHistory(key.group, it.hex)) }
+                            },
+                        onSeries =
+                            if (key.fromSeries) null
+                            else {
+                                { stack.add(RecurringSeries(key.group, it.hex)) }
+                            },
                     )
                 }
                 entry<SyncProblem> { key ->

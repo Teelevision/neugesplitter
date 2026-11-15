@@ -286,6 +286,10 @@
     <string name="history_field_changed">%1$s geändert auf %2$s (vorher %3$s)</string>
     <string name="history_from">Ab %1$s</string>
     <string name="history_attachments">Anhänge geändert</string>
+    <string name="history_changed">Geändert: %1$s</string>
+    <string name="field_attachments">Anhänge</string>
+    <string name="step_open_entry">Zum Eintrag</string>
+    <string name="step_entry_history">Verlauf des Eintrags</string>
     <string name="field_kind">Art</string>
     <string name="field_note">Notiz</string>
     <string name="field_repeats">Wiederholung</string>
@@ -611,6 +615,10 @@
     <string name="happened_entry_edited">%1$s hat \'%2$s\' bearbeitet</string>
     <string name="happened_entry_deleted">%1$s hat \'%2$s\' gelöscht</string>
     <string name="happened_entry_restored">%1$s hat \'%2$s\' wiederhergestellt</string>
+    <plurals name="happened_entries_edited">
+        <item quantity="one">%1$s hat %2$d Eintrag bearbeitet</item>
+        <item quantity="other">%1$s hat %2$d Einträge bearbeitet</item>
+    </plurals>
     <string name="happened_made_recurring">%1$s hat \'%2$s\' wiederkehrend gemacht</string>
     <string name="happened_series_started">%1$s hat \'%2$s\' wiederkehrend hinzugefügt</string>
     <string name="happened_series_amended">%1$s hat die Serie \'%2$s\' geändert</string>

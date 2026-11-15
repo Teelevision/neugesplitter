@@ -53,14 +53,20 @@ class Notifications(
         if (shown() || !manager.areNotificationsEnabled()) return
         val group = groups.load(id) ?: return
         val events = groups.events(id)
+        val fresh = unseen.mapNotNullTo(mutableSetOf()) { events.getOrNull(it)?.id }
         val news =
-            steps(history(events)).asReversed().filter { step -> step.events.any { it in unseen } }
+            steps(history(events)).asReversed().filter { step ->
+                step.parts.any { it.event in fresh }
+            }
         if (news.isEmpty()) return
         val resources = context.resources
         val locale = resources.configuration.locales[0]
         val names = group.members.mapValues { it.value.name }
+        val categories = group.categories
         val headlines =
-            news.map { resources.told(it.happening, names, group.scale, locale).headline }
+            news.map {
+                resources.told(it.happening, names, categories, group.scale, locale).headline
+            }
         val lines = Notification.InboxStyle()
         headlines.take(LINES).forEach(lines::addLine)
         val more = headlines.size - LINES

@@ -15,6 +15,7 @@ import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
+import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
@@ -134,6 +135,9 @@ sealed interface Happened {
             get() = after.description
     }
 
+    /** Several entries edited at one moment, as tidying up does, each as [edits] tells (TI-1). */
+    data class Entries(val edits: List<Entry>) : Happened
+
     /** Series [series], which said [description] then, underwent [change] (RE-1). */
     data class Recurring(val series: SeriesId, val description: String, val change: SeriesChange) :
         Happened
@@ -165,21 +169,25 @@ val Happened.series: SeriesId?
             else -> null
         }
 
-/** One step in the history of a group: what [happened], by which member, and when (HI-2). */
-data class Happening(val happened: Happened, val by: MemberId, val at: Instant)
+/**
+ * One step in the history of a group: what [happened], by which member, and when (HI-2).
+ *
+ * @property event the event that told it; of a merged step, its first.
+ */
+data class Happening(val happened: Happened, val by: MemberId, val at: Instant, val event: EventId)
 
-/** [happening], told by the events at [events] in the log (HI-2). */
-data class Step(val happening: Happening, val events: IntRange)
+/** [happening], told from [parts], what each of its events did, oldest first (HI-2). */
+data class Step(val happening: Happening, val parts: List<Happening>)
 
 /**
  * [history] with what one action wrote at once told as one step (HI-2): neighbouring steps by one
- * member at one moment merge where together they tell one thing — settings changed, an entry made
- * recurring, a series changed. A series change is told by its first event, the one that names the
- * most.
+ * member at one moment merge where together they tell one thing — settings changed, entries edited,
+ * an entry made recurring, a series changed. A series change is told by its first event, the one
+ * that names the most.
  */
 fun steps(history: List<Happening>): List<Step> {
     val steps = mutableListOf<Step>()
-    history.forEachIndexed { index, happening ->
+    history.forEach { happening ->
         val last =
             steps.lastOrNull()?.takeIf {
                 it.happening.by == happening.by && it.happening.at == happening.at
@@ -187,9 +195,9 @@ fun steps(history: List<Happening>): List<Step> {
         val merged = last?.let { merge(it.happening.happened, happening.happened) }
         if (last != null && merged != null) {
             steps[steps.lastIndex] =
-                Step(last.happening.copy(happened = merged), last.events.first..index)
+                Step(last.happening.copy(happened = merged), last.parts + happening)
         } else {
-            steps += Step(happening, index..index)
+            steps += Step(happening, listOf(happening))
         }
     }
     return steps
@@ -220,6 +228,20 @@ private fun merge(first: Happened, second: Happened): Happened? =
         first is Happened.Recurring &&
             second is Happened.Recurring &&
             first.series == second.series -> first
+        else -> edits(first, second)
+    }
+
+/** Edits of different entries, told by [first] and [second], as one step. */
+private fun edits(first: Happened, second: Happened): Happened.Entries? {
+    val edits = (first.edited() ?: return null) + (second.edited() ?: return null)
+    return Happened.Entries(edits).takeIf { edits.distinctBy { it.entry }.size == edits.size }
+}
+
+/** The entry edits [this] tells, if it tells only such. */
+private fun Happened.edited(): List<Happened.Entry>? =
+    when (this) {
+        is Happened.Entry -> listOf(this).takeIf { change == Revision.EDITED }
+        is Happened.Entries -> edits
         else -> null
     }
 
@@ -230,7 +252,7 @@ private fun merge(first: Happened, second: Happened): Happened? =
 fun history(events: List<Event>): List<Happening> {
     val first = events.firstOrNull() ?: return emptyList()
     var group = Group.replay(listOf(first))
-    val history = mutableListOf(Happening(Happened.Created, first.by, first.at))
+    val history = mutableListOf(Happening(Happened.Created, first.by, first.at, first.id))
     for (event in events.drop(1)) {
         val before = group
         group += event
@@ -383,7 +405,7 @@ fun history(events: List<Event>): List<Happening> {
                 is Event.TodoReopened -> before.todos(TodosChange.REOPENED, event.targets)
                 is Event.TodoDeleted -> before.happened(event.target, TodoChange.Deleted)
             }
-        if (happened != null) history += Happening(happened, event.by, event.at)
+        if (happened != null) history += Happening(happened, event.by, event.at, event.id)
     }
     return history
 }
