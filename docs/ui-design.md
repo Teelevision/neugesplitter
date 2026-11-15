@@ -327,11 +327,11 @@ Pushed from the Overview's overflow menu, for cleaning up an imported history a
 batch at a time (TI-1). Two tabs, each counting its entries:
 
 - **Incomes**: expenses whose description reads like money coming in — salary, a
-  sale, a pension, a refund, in English or German — and that leave exactly one
-  member owing (TI-2). A line explains why Splitwise recorded them as expenses.
-  Each row says who paid and whom the income would be received by and for.
-  **Make income** turns the ticked ones into incomes with every balance as
-  before; the unticked ones and those of a batch marked **Not an income** are
+  sale, a pension, but not a refund, in English or German — and that leave
+  exactly one member owing (TI-2). A line explains why Splitwise recorded them
+  as expenses. Each row says who paid and whom the income would be received by
+  and for. **Make income** turns the ticked ones into incomes with every balance
+  as before; the unticked ones and those of a batch marked **Not an income** are
   not proposed again on this device (TI-4).
 - **Categories**: entries without a category. Each batch shows up to three
   categories the built-in model suggests as chips, the likeliest chosen already

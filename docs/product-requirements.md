@@ -561,9 +561,9 @@ confirm, so that years of entries can be cleaned up gradually.
   changes in batches of entries whose descriptions read the same. Each entry of
   a batch MUST be untickable before the batch is applied.
 - **TI-2** (Optional): An expense whose description reads like money coming in
-  (salary, a sale, a pension, a refund, …) and that leaves exactly one member
-  owing MUST be offered as an income received by that member. Every member's
-  balance MUST stay the same.
+  (salary, a sale, a pension, …, but not a refund) and that leaves exactly one
+  member owing MUST be offered as an income received by that member. Every
+  member's balance MUST stay the same.
 - **TI-3** (Optional): An entry without a category MUST be offered the
   categories the built-in model suggests for its description, and any other
   category of the group.

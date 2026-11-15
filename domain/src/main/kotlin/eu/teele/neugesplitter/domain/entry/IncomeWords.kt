@@ -3,9 +3,9 @@ package eu.teele.neugesplitter.domain.entry
 /**
  * Whether a description reads like money coming in rather than going out, in English or German.
  *
- * This only proposes candidates; a person confirms every conversion. Stems match anywhere, so
- * German compounds such as "Steuererstattung" are found; words match whole, so "Rente" does not
- * catch "Rentenversicherung".
+ * This only proposes candidates; a person confirms every conversion. Refunds and deposits returned
+ * are not income. Stems match anywhere, so German compounds such as "Monatsgehalt" are found; words
+ * match whole, so "Rente" does not catch "Rentenversicherung".
  */
 object IncomeWords {
 
@@ -13,9 +13,6 @@ object IncomeWords {
         listOf(
             "gehalt",
             "lohnzahlung",
-            "erstattung",
-            "rückzahlung",
-            "gutschrift",
             "auszahlung",
             "verkauf",
             "einnahme",
@@ -34,13 +31,10 @@ object IncomeWords {
             "urlaubsgeld",
             "taschengeld",
             "trinkgeld erhalten",
-            "cashback",
             "salary",
             "paycheck",
             "paycheque",
             "payroll",
-            "refund",
-            "reimburse",
             "dividend",
             "scholarship",
             "winnings",
@@ -54,9 +48,6 @@ object IncomeWords {
             "pension",
             "bafög",
             "zinsen",
-            "pfand",
-            "kaution",
-            "zurück",
             "verkauft",
             "bonus",
             "provision",
@@ -69,9 +60,7 @@ object IncomeWords {
             "interest",
             "tips",
             "prize",
-            "rebate",
             "allowance",
-            "returned",
         )
 
     private val separator = Regex("[^\\p{L}\\p{N}]+")

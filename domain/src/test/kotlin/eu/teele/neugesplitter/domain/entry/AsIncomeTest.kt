@@ -110,16 +110,24 @@ class AsIncomeTest {
     fun `income words match in English and German`() {
         listOf(
                 "Gehalt Oktober",
-                "Steuererstattung",
+                "Monatsgehalt",
                 "sold the old sofa",
                 "Rente März",
                 "Kindergeld",
-                "Pfand zurück",
                 "eBay Verkauf",
             )
             .forEach { assertTrue(IncomeWords.match(it), it) }
-        listOf("Groceries", "Rentenversicherung", "Lohnsteuer", "Pizza").forEach {
-            assertFalse(IncomeWords.match(it), it)
-        }
+        listOf(
+                "Groceries",
+                "Rentenversicherung",
+                "Lohnsteuer",
+                "Pizza",
+                "Steuererstattung",
+                "Pfand zurück",
+                "Kaution",
+                "Tax refund",
+                "Cashback",
+            )
+            .forEach { assertFalse(IncomeWords.match(it), it) }
     }
 }
