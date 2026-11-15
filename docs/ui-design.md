@@ -56,6 +56,8 @@ screen or opened as a bottom sheet, and the bar is hidden while it is up.
 | Activity            | destination | navigation bar                           |
 | Group settings      | destination | navigation bar                           |
 | To-dos              | destination | overview top bar, Activity               |
+| Statistics          | pushed      | overview top bar                         |
+| Chart               | pushed      | a card on Statistics                     |
 | Entry editor        | pushed      | centre FAB, editing an entry             |
 | Amount calculator   | full sheet  | tapping the amount field                 |
 | Group picker        | pushed      | another app's text selection toolbar     |
@@ -153,8 +155,8 @@ for a local group (SY-6).
 The default destination and the one the user sees most.
 
 A header shows the user's own position first and large ("you owe 12.30", BA-7),
-and under it the group's total spending — one number, not a dashboard;
-per-member and per-category statistics are BA-8 and come later. Tapping the
+and under it the group's total spending — one number, not a dashboard; the
+charts are on Statistics, behind a chart icon in the top bar (BA-8). Tapping the
 header opens People, where the balances are. Under it, a shared group says in
 one line how its sync stands: when a pass last succeeded, or why the last ones
 failed ("Not reachable") in the error colour (SY-6, TR-12). The line opens
@@ -326,6 +328,41 @@ Plain list, grouped:
 
 The interval control states what it is: the shortest wait between polls, not a
 promise, and that polling costs requests the users pay for (SY-13, TR-10).
+
+### Statistics
+
+Pushed from the chart icon in the overview's top bar (BA-8). A column of cards,
+one per chart, each with its title, the stretch of time it covers, one headline
+figure, and a small preview that does not move. A tap opens the chart on a
+screen of its own. A group without entries says that there is nothing to chart
+yet, in place of the cards.
+
+| Chart              | Preview                                | On its own screen                                       |
+| ------------------ | -------------------------------------- | ------------------------------------------------------- |
+| Balance            | the user's balance over the last month | chosen members' lines, as chips in their colours (BA-9) |
+| Net spending       | weekly bars over the last year         | categories to split by, a running total (BA-10)         |
+| Categories         | treemap of the top five and the rest   | every category as a bar, largest first (BA-11)          |
+| Who spends on what | the top four categories by share       | names, amounts, paid or share (BA-12)                   |
+| Average spending   | per day of the month over five years   | weekday, day or month; years; lowest to highest (BA-13) |
+| Income, expenses   | flow chart, four nodes a side          | six nodes a side, and every node listed (BA-14)         |
+
+Charts along time (balance, net spending) open on a span chosen by segments —
+month, quarter, year, five years, all — and then pan and zoom freely (section
+7); a segment is marked only while the view matches it, and **Today** appears
+once the view has left today. Days become weeks past about a hundred days and
+weeks months past about two years, with some slack so that zooming does not
+flicker between two. Charts of one stretch (categories, who spends on what,
+flows) use the same segments and step back and forth by one span with arrows.
+Under each chart, a readout lists the values of the period last held, or the
+latest one. The line marking it stays after the finger lifts, until a tap
+elsewhere.
+
+Where the user acts as a member, a **Group / My share** toggle switches the
+spending charts to the user's share as a beneficiary. Colours are Okabe and
+Ito's seven, which colour-blind eyes tell apart, in a fixed order: a member
+keeps their colour on every chart, and categories take them by rank. Every value
+axis includes zero and glides to its new range rather than jumping. Amounts on
+the axes are compact ("1.2K"); the readouts use the group's decimals.
 
 ## 5. Creating and editing an entry
 
@@ -567,6 +604,10 @@ on this screen happens automatically.
 | Long press      | group row          | selection: archive, delete                      |
 | Long press      | calculator number  | paste an amount                                 |
 | Pull to refresh | Overview, Activity | manual sync (SY-9)                              |
+| Drag            | chart along time   | pan, no later than today (BA-15)                |
+| Pinch           | chart along time   | zoom the time axis only                         |
+| Long press      | chart              | read off the values there, until a tap          |
+| Tap             | averages chart     | pick a bar and show its values                  |
 
 Destructive actions are either undoable by snackbar or confirmed by dialogue,
 never both and never neither. The three that confirm are: delete group (GR-11),
@@ -713,7 +754,7 @@ destination labels are always shown and never reduced to icons (UX-6).
 
 ## 10. Not in the first version
 
-Categories (EN-10), attachments (EN-11), charts and per-member statistics
-(BA-8), and export (DA-2) are all later, and none of them gets a placeholder in
-the navigation. There is no onboarding carousel, no avatar or photo anywhere —
-there are no profiles to put one on (ID-2) — and no empty dashboard.
+Categories (EN-10), attachments (EN-11) and export (DA-2) are all later, and
+none of them gets a placeholder in the navigation. There is no onboarding
+carousel, no avatar or photo anywhere — there are no profiles to put one on
+(ID-2) — and no empty dashboard.

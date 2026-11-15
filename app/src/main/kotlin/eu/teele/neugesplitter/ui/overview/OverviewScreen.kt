@@ -88,6 +88,7 @@ private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
  *   are decided.
  * @param onBalances opens who owes whom.
  * @param onTodos opens the group's todo list (TD-1).
+ * @param onStatistics opens the group's charts (BA-8).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,6 +105,7 @@ fun OverviewScreen(
     onActivity: () -> Unit,
     onBalances: () -> Unit,
     onTodos: () -> Unit,
+    onStatistics: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -160,6 +162,12 @@ fun OverviewScreen(
                             Icon(
                                 painterResource(R.drawable.ic_search),
                                 stringResource(R.string.filter),
+                            )
+                        }
+                        IconButton(onClick = onStatistics) {
+                            Icon(
+                                painterResource(R.drawable.ic_bar_chart),
+                                stringResource(R.string.statistics),
                             )
                         }
                         IconButton(onClick = onTodos) {

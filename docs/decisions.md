@@ -530,6 +530,30 @@ are described in [sync-design.md](sync-design.md).
   each add the last one at once. Refusing the longer list on reading would halt
   the group over a list that is fine to show, so readers accept it and writers
   stop adding until it shrinks.
+- **Why are the charts drawn by hand?** (BA-8) A charting library is one more
+  dependency to vet for licence and for F-Droid (TR-51), and a flow chart and a
+  time axis that pans only back from today would need drawing by hand anyway.
+  Six charts on a canvas are a few hundred lines, and look like the rest of the
+  app.
+- **What counts as spending?** (BA-8) Expenses less income, and never a
+  transfer, which moves money between members without anyone spending it
+  (event-model 3). The preview's treemap and the ranked bars show expenses
+  alone, gross, so that their total is the overview's "total spending"; net
+  spending and the averages subtract income. "My share" counts what the user had
+  a share of as a beneficiary, which is what they spent; what they paid is in
+  the balance. A period under way counts as far as it has gone, so the last bar
+  is short until it ends, rather than missing until then.
+- **How is the flow chart laid out?** (BA-14) Nothing records which income paid
+  for which expense, so the bands do not claim to. Both sides are stacked
+  largest first along the same total, and each band is where an income node and
+  an expense node overlap; that is the one layout in which no two bands cross.
+  What one side lacks to match the other is a node without a label at the bottom
+  of that side: on the income side when more was spent than came in, on the
+  expense side when something was left over.
+- **Why are the averages' ranges lowest and highest?** (BA-13) They are what a
+  reader understands without a legend. Percentiles would hide a single outlier
+  that the lowest and highest show, which in a group's spending — rent once a
+  month, a holiday once a year — is usually what the reader is looking for.
 
 ## Open Questions
 

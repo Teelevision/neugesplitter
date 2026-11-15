@@ -74,6 +74,10 @@ import eu.teele.neugesplitter.ui.series.SeriesScreen
 import eu.teele.neugesplitter.ui.series.SeriesViewModel
 import eu.teele.neugesplitter.ui.settings.GroupSettingsScreen
 import eu.teele.neugesplitter.ui.settings.GroupSettingsViewModel
+import eu.teele.neugesplitter.ui.statistics.Chart
+import eu.teele.neugesplitter.ui.statistics.ChartScreen
+import eu.teele.neugesplitter.ui.statistics.StatisticsScreen
+import eu.teele.neugesplitter.ui.statistics.StatisticsViewModel
 import eu.teele.neugesplitter.ui.sync.SyncProblemScreen
 import eu.teele.neugesplitter.ui.sync.SyncProblemViewModel
 import eu.teele.neugesplitter.ui.todo.TodoScreen
@@ -127,6 +131,12 @@ data class EntryEditor(
 @Serializable data class EntryDetail(val group: String, val entry: String) : NavKey
 
 @Serializable data class CategorySettings(val group: String) : NavKey
+
+/** @property group the group's id, as hex. */
+@Serializable data class Statistics(val group: String) : NavKey
+
+/** @property chart the name of a [Chart]. */
+@Serializable data class StatisticsChart(val group: String, val chart: String) : NavKey
 
 @Serializable data class EntryHistory(val group: String, val entry: String) : NavKey
 
@@ -451,6 +461,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                     onActivity = { go(Destination.ACTIVITY) },
                                     onBalances = { go(Destination.PEOPLE) },
                                     onTodos = { go(Destination.TODOS) },
+                                    onStatistics = { stack.add(Statistics(key.group)) },
                                     modifier = modifier,
                                 )
                             Destination.TODOS ->
@@ -569,6 +580,32 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                             )
                         },
                         onBack = pop,
+                    )
+                }
+                entry<Statistics> { key ->
+                    StatisticsScreen(
+                        viewModel {
+                            StatisticsViewModel(
+                                graph.groups,
+                                GroupId.parse(key.group),
+                                graph::today,
+                            )
+                        },
+                        onBack = { pop() },
+                        onOpen = { stack.add(StatisticsChart(key.group, it.name)) },
+                    )
+                }
+                entry<StatisticsChart> { key ->
+                    ChartScreen(
+                        viewModel {
+                            StatisticsViewModel(
+                                graph.groups,
+                                GroupId.parse(key.group),
+                                graph::today,
+                            )
+                        },
+                        Chart.valueOf(key.chart),
+                        onBack = { pop() },
                     )
                 }
                 entry<EntryEditor> { key ->

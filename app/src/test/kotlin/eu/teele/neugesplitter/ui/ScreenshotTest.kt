@@ -23,6 +23,7 @@ import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureScreenRoboImage
 import eu.teele.neugesplitter.AppGraph
 import eu.teele.neugesplitter.R
+import eu.teele.neugesplitter.domain.category.BuiltInCategory
 import eu.teele.neugesplitter.domain.entry.Entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
@@ -175,6 +176,7 @@ class ScreenshotTest(private val scale: Float) {
             cents: Long,
             payers: Side,
             beneficiaries: Side,
+            category: BuiltInCategory? = null,
         ) =
             Entry(
                 EntryId.parse(id(n)),
@@ -184,10 +186,18 @@ class ScreenshotTest(private val scale: Float) {
                 euros(cents),
                 payers,
                 beneficiaries,
+                categoryId = category?.id,
             )
         val equal = Side.Equal(everyone)
         val rent =
-            Template(Kind.EXPENSE, "Miete", euros(184000), Side.Equal(listOf(anna.id)), equal)
+            Template(
+                Kind.EXPENSE,
+                "Miete",
+                euros(184000),
+                Side.Equal(listOf(anna.id)),
+                equal,
+                categoryId = BuiltInCategory.HOUSING.id,
+            )
         val supplies =
             Template(
                 Kind.EXPENSE,
@@ -195,6 +205,7 @@ class ScreenshotTest(private val scale: Float) {
                 euros(1290),
                 Side.Equal(listOf(ben.id)),
                 equal,
+                categoryId = BuiltInCategory.HOUSING.id,
             )
         graph.groups.append(
             home,
@@ -211,6 +222,7 @@ class ScreenshotTest(private val scale: Float) {
                         8437,
                         Side.Equal(listOf(anna.id)),
                         equal,
+                        BuiltInCategory.GROCERIES,
                     ),
                 ),
                 Event.EntryCreated(
@@ -225,6 +237,7 @@ class ScreenshotTest(private val scale: Float) {
                         6200,
                         Side.Equal(listOf(ben.id)),
                         equal,
+                        BuiltInCategory.UTILITIES,
                     ),
                 ),
                 Event.EntryCreated(
@@ -241,6 +254,7 @@ class ScreenshotTest(private val scale: Float) {
                         Side.Shares(
                             mapOf(anna.id to 2L, ben.id to 1L, clara.id to 1L, max.id to 2L)
                         ),
+                        BuiltInCategory.DINING_AND_CAFES,
                     ),
                 ),
                 Event.EntryCreated(
@@ -316,6 +330,7 @@ class ScreenshotTest(private val scale: Float) {
                     799,
                     Side.Equal(listOf(clara.id)),
                     equal,
+                    BuiltInCategory.GROCERIES,
                 ),
             ),
         )
@@ -329,7 +344,8 @@ class ScreenshotTest(private val scale: Float) {
         awaitText(name)
         shot("01-gruppen")
 
-        compose.onNodeWithContentDescription(s(R.string.destination_settings)).performClick()
+        compose.onNodeWithContentDescription(s(R.string.more_options)).performClick()
+        compose.onNodeWithText(s(R.string.destination_settings)).performClick()
         awaitText(s(R.string.theme))
         shot("02-app-einstellungen")
         back()
@@ -352,6 +368,20 @@ class ScreenshotTest(private val scale: Float) {
         compose.onNodeWithText(name).performClick()
         awaitText(s(R.string.total_spending))
         shot("06-uebersicht")
+
+        compose.onNodeWithContentDescription(s(R.string.statistics)).performClick()
+        awaitText(s(R.string.chart_balance))
+        shot("10-statistik")
+        compose
+            .onNode(hasScrollAction())
+            .performScrollToNode(hasText(s(R.string.chart_flows), substring = true))
+        compose.onNode(hasText(s(R.string.chart_flows), substring = true)).performClick()
+        awaitText(s(R.string.kind_income))
+        shot("19-einnahmen-ausgaben")
+        back()
+        awaitText(s(R.string.statistics))
+        back()
+        awaitText(s(R.string.total_spending), substring = true)
 
         compose.onNodeWithText(s(R.string.destination_people)).performClick()
         awaitText(s(R.string.balances_header))
@@ -385,7 +415,6 @@ class ScreenshotTest(private val scale: Float) {
         back()
         back()
 
-        awaitText(s(R.string.total_spending))
         compose.onNode(hasScrollAction()).performScrollToNode(hasText("Wocheneinkauf"))
         // At the largest text the row can sit under the navigation bar, where a tap would land.
         compose.onNodeWithText("Wocheneinkauf").performSemanticsAction(SemanticsActions.OnClick)

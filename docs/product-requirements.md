@@ -365,8 +365,36 @@ of everyone entering the same backend settings.
 - **BA-7** (Core): The app MUST show a personal summary ("you owe / you are
   owed") on the group screen, and for each entry what it does to the user's
   balance.
-- **BA-8** (Later): The app MUST show group statistics: total spending, spending
-  per member, and spending per category over a period.
+- **BA-8** (Core): The app MUST show a group's statistics on a screen of their
+  own, reached from the overview: each chart as a card with a small static
+  preview, opening a screen of its own with the controls. Spending is expenses
+  less income; a transfer is never spending. Counted are the entries in the
+  balances dated up to today. A period under way counts as far as it has gone.
+- **BA-9** (Core): The app MUST show members' balances over time, as one line
+  each, for the members chosen.
+- **BA-10** (Core): The app MUST show net spending per day, week or month as
+  bars from zero, SHOULD offer a running total over the periods in view, and
+  SHOULD split the bars by chosen categories, the rest in grey.
+- **BA-11** (Core): The app MUST show expenses per category over a period, as a
+  treemap in the preview and as bars ranked largest first on its own screen.
+- **BA-12** (Core): The app MUST show expenses per category and member, by what
+  each paid or had a share of, as a table whose cells are as strong as their
+  amounts.
+- **BA-13** (Core): The app MUST show average spending per weekday, day of the
+  month or month of the year over a chosen number of years, with the lowest and
+  highest values seen. A day of the month is averaged only over months that have
+  it, and the years start no earlier than the first entry.
+- **BA-14** (Core): The app MUST show income and expenses per category for a
+  period as a flow chart: income on the left, expenses on the right, each
+  largest first, and what one side lacks to match the other as an unlabelled
+  node at the bottom of that side. The bands MUST NOT cross, and a band thick
+  enough MUST say its amount.
+- **BA-15** (Core): A chart along time MUST pan with one finger, no later than
+  today and no earlier than the first entry, zoom with two, and read off values
+  under a long-pressed finger. It MUST offer fixed spans back from today and a
+  way back to today, and SHOULD divide time more coarsely as it zooms out. Every
+  value axis MUST include zero. Where a member is acting, the spending charts
+  MUST offer that member's share instead of the group's.
 
 ### 4.10 Sync and Multi-Device
 

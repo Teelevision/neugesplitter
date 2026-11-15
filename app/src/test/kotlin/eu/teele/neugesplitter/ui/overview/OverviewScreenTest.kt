@@ -158,6 +158,7 @@ class OverviewScreenTest {
                     { activities++ },
                     { balances++ },
                     { todos++ },
+                    {},
                 )
             }
         }

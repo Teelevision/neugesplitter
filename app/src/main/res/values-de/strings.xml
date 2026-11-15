@@ -654,6 +654,48 @@
     <string name="sync_resumed">Synchronisierung läuft wieder</string>
     <string name="sync_resumed_text">Der Speicher passt wieder zu diesem Gerät.</string>
     <string name="done">Fertig</string>
+    <string name="statistics">Statistik</string>
+    <string name="statistics_empty">Noch nichts auszuwerten. Die Diagramme füllen sich, sobald die Gruppe Einträge hat.</string>
+    <string name="chart_balance">Saldo</string>
+    <string name="chart_spending">Nettoausgaben</string>
+    <string name="chart_categories">Kategorien</string>
+    <string name="chart_matrix">Wer gibt wofür aus</string>
+    <string name="chart_averages">Durchschnittliche Ausgaben</string>
+    <string name="chart_flows">Einnahmen und Ausgaben</string>
+    <string name="chart_rest">Sonstige</string>
+    <string name="span_month">Monat</string>
+    <string name="span_quarter">Quartal</string>
+    <string name="span_year">Jahr</string>
+    <string name="span_five_years">5 Jahre</string>
+    <string name="span_all">Alles</string>
+    <string name="today">Heute</string>
+    <string name="earlier">Früher</string>
+    <string name="later">Später</string>
+    <string name="date_range">%1$s – %2$s</string>
+    <string name="perspective_group">Gruppe</string>
+    <string name="perspective_me">Mein Anteil</string>
+    <string name="measure_paid">Bezahlt</string>
+    <string name="measure_consumed">Anteil</string>
+    <string name="cycle_week">Wochentag</string>
+    <string name="cycle_month">Monatstag</string>
+    <string name="cycle_year">Monat</string>
+    <plurals name="years">
+        <item quantity="one">%1$d Jahr</item>
+        <item quantity="other">%1$d Jahre</item>
+    </plurals>
+    <string name="fewer_years">Weniger Jahre</string>
+    <string name="more_years">Mehr Jahre</string>
+    <string name="running_total">Laufende Summe</string>
+    <string name="stack_by_category">Nach Kategorie aufteilen</string>
+    <string name="spending_net">Netto %1$s</string>
+    <string name="spending_net_label">Netto</string>
+    <string name="average_day">Tag %1$d</string>
+    <string name="average_readout">Durchschnitt %1$s · niedrigster %2$s · höchster %3$s</string>
+    <string name="average_interval">Niedrigster bis höchster</string>
+    <string name="averages_hint">Tippe auf einen Balken, um seine Werte zu sehen.</string>
+    <string name="flows_summary">Einnahmen %1$s · Ausgaben %2$s</string>
+    <string name="flows_deficit">Mehr ausgegeben als eingenommen</string>
+    <string name="flows_surplus">Übrig</string>
     <!-- Compose's own German reads "Tabelle schließen". -->
     <string name="close_sheet" tools:ignore="ExtraTranslation,PrivateResource">Schließen</string>
 </resources>
