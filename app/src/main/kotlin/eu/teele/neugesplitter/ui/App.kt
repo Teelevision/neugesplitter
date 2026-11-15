@@ -132,9 +132,6 @@ data class EntryEditor(
 
 @Serializable data class CategorySettings(val group: String) : NavKey
 
-/** @property group the group's id, as hex. */
-@Serializable data class Statistics(val group: String) : NavKey
-
 /** @property chart the name of a [Chart]. */
 @Serializable data class StatisticsChart(val group: String, val chart: String) : NavKey
 
@@ -461,7 +458,16 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                     onActivity = { go(Destination.ACTIVITY) },
                                     onBalances = { go(Destination.PEOPLE) },
                                     onTodos = { go(Destination.TODOS) },
-                                    onStatistics = { stack.add(Statistics(key.group)) },
+                                    onSettings = { go(Destination.SETTINGS) },
+                                    modifier = modifier,
+                                )
+                            Destination.STATISTICS ->
+                                StatisticsScreen(
+                                    viewModel {
+                                        StatisticsViewModel(graph.groups, group, graph::today)
+                                    },
+                                    onBack = back,
+                                    onOpen = { stack.add(StatisticsChart(key.group, it.name)) },
                                     modifier = modifier,
                                 )
                             Destination.TODOS ->
@@ -580,19 +586,6 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                             )
                         },
                         onBack = pop,
-                    )
-                }
-                entry<Statistics> { key ->
-                    StatisticsScreen(
-                        viewModel {
-                            StatisticsViewModel(
-                                graph.groups,
-                                GroupId.parse(key.group),
-                                graph::today,
-                            )
-                        },
-                        onBack = { pop() },
-                        onOpen = { stack.add(StatisticsChart(key.group, it.name)) },
                     )
                 }
                 entry<StatisticsChart> { key ->

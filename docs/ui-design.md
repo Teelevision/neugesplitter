@@ -19,13 +19,17 @@ an overflow into export, import and app settings.
 **Inside a group** a navigation bar carries four destinations with the new-entry
 action docked in the middle:
 
-| Position | Destination   | What it is for                                     |
-| -------- | ------------- | -------------------------------------------------- |
-| 1        | **Overview**  | total spending and the list of entries             |
-| 2        | **People**    | members, balances, and how to settle them          |
-| centre   | **New entry** | docked FAB, the most prominent thing on the screen |
-| 3        | **Activity**  | history, pending suggestions, sync state           |
-| 4        | **Settings**  | the group, its backend, its members' defaults      |
+| Position | Destination    | What it is for                                     |
+| -------- | -------------- | -------------------------------------------------- |
+| 1        | **Overview**   | total spending and the list of entries             |
+| 2        | **People**     | members, balances, and how to settle them          |
+| centre   | **New entry**  | docked FAB, the most prominent thing on the screen |
+| 3        | **Activity**   | history, pending suggestions, sync state           |
+| 4        | **Statistics** | the group's charts (BA-8)                          |
+
+The overview's overflow menu leads to the **to-dos** and the group's
+**settings**: the group, its backend, its members' defaults. Both are shown
+under Overview in the bar, and back returns to it.
 
 Two deliberate notes on that bar. Material 3 says a navigation bar holds
 destinations and not actions; the centre FAB breaks that on purpose, because
@@ -54,9 +58,9 @@ screen or opened as a bottom sheet, and the bar is hidden while it is up.
 | Group overview      | destination | opening a group                          |
 | People and balances | destination | navigation bar                           |
 | Activity            | destination | navigation bar                           |
-| Group settings      | destination | navigation bar                           |
-| To-dos              | destination | overview top bar, Activity               |
-| Statistics          | pushed      | overview top bar                         |
+| Group settings      | destination | overview overflow                        |
+| To-dos              | destination | overview overflow, Activity              |
+| Statistics          | destination | navigation bar                           |
 | Chart               | pushed      | a card on Statistics                     |
 | Entry editor        | pushed      | centre FAB, editing an entry             |
 | Amount calculator   | full sheet  | tapping the amount field                 |
@@ -145,10 +149,10 @@ new member offered as always. A file in several currencies is refused.
 
 ## 4. Inside a group
 
-All four destinations show the group's emoji and name in their top bar, and the
-sync state as a cloud icon at its right, before any menu: done, uploading while
-changes wait, crossed out in the error colour on a failure or a halt, and absent
-for a local group (SY-6).
+Overview, People, Activity and the group's settings show the group's emoji and
+name in their top bar, and the sync state as a cloud icon at its right, before
+any menu: done, uploading while changes wait, crossed out in the error colour on
+a failure or a halt, and absent for a local group (SY-6).
 
 ### Overview
 
@@ -156,15 +160,14 @@ The default destination and the one the user sees most.
 
 A header shows the user's own position first and large ("you owe 12.30", BA-7),
 and under it the group's total spending — one number, not a dashboard; the
-charts are on Statistics, behind a chart icon in the top bar (BA-8). Tapping the
-header opens People, where the balances are. Under it, a shared group says in
-one line how its sync stands: when a pass last succeeded, or why the last ones
-failed ("Not reachable") in the error colour (SY-6, TR-12). The line opens
-Activity. If suggestions are pending, a banner sits directly under the header
-saying how many, and leads to Activity, where they are decided (RE-10). Until
-then they are not listed and count nowhere. A group whose sync has halted shows
-an error banner there instead of the line, which opens the sync problem screen
-(SY-15).
+charts are on Statistics, in the navigation bar (BA-8). Tapping the header opens
+People, where the balances are. Under it, a shared group says in one line how
+its sync stands: when a pass last succeeded, or why the last ones failed ("Not
+reachable") in the error colour (SY-6, TR-12). The line opens Activity. If
+suggestions are pending, a banner sits directly under the header saying how
+many, and leads to Activity, where they are decided (RE-10). Until then they are
+not listed and count nowhere. A group whose sync has halted shows an error
+banner there instead of the line, which opens the sync problem screen (SY-15).
 
 Below that, entries newest first, grouped under date headers. Each row carries:
 
@@ -284,9 +287,9 @@ opened.
 
 ### To-dos
 
-Opened by the checklist icon in the Overview's top bar; the navigation bar
-stays, with Overview selected, and back returns to Overview. The centre FAB adds
-a to-do here instead of an entry (TD-1).
+Opened from the Overview's overflow menu; the navigation bar stays, with
+Overview selected, and back returns to Overview. The centre FAB adds a to-do
+here instead of an entry (TD-1).
 
 The top bar's three icons filter the list: every to-do, those not done, and
 those with a due date, earliest first (TD-7). The one in force is filled.
@@ -335,11 +338,11 @@ promise, and that polling costs requests the users pay for (SY-13, TR-10).
 
 ### Statistics
 
-Pushed from the chart icon in the overview's top bar (BA-8). A column of cards,
-one per chart, each with its title, the stretch of time it covers, one headline
-figure, and a small preview that does not move. A tap opens the chart on a
-screen of its own. A group without entries says that there is nothing to chart
-yet, in place of the cards.
+The navigation bar's last destination (BA-8). A column of cards, one per chart,
+each with its title, the stretch of time it covers, one headline figure, and a
+small preview that does not move. A tap opens the chart on a screen of its own.
+A group without entries says that there is nothing to chart yet, in place of the
+cards.
 
 | Chart              | Preview                                | On its own screen                                       |
 | ------------------ | -------------------------------------- | ------------------------------------------------------- |

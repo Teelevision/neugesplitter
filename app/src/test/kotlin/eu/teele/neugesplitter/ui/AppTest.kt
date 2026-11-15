@@ -78,7 +78,8 @@ class AppTest {
 
         awaitText("Trip")
         compose.onNodeWithText("Trip").performClick()
-        awaitText("Settings")
+        awaitText("Total spending")
+        compose.onNodeWithContentDescription("More options").performClick()
         compose.onNodeWithText("Settings").performClick()
         awaitText("Export group")
         Espresso.pressBack()
@@ -104,7 +105,8 @@ class AppTest {
 
         awaitText("Trip")
         compose.onNodeWithText("Trip").performClick()
-        awaitText("Settings")
+        awaitText("Total spending")
+        compose.onNodeWithContentDescription("More options").performClick()
         compose.onNodeWithText("Settings").performClick()
         compose
             .onNode(hasScrollAction())

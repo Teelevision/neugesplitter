@@ -3,6 +3,7 @@ package eu.teele.neugesplitter.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -38,6 +39,7 @@ class GroupScreenTest {
                     Column(modifier) {
                         TextButton(onClick = back) { Text("showing $destination") }
                         TextButton(onClick = { go(Destination.ACTIVITY) }) { Text("to activity") }
+                        TextButton(onClick = { go(Destination.SETTINGS) }) { Text("to settings") }
                     }
                 }
             }
@@ -62,8 +64,8 @@ class GroupScreenTest {
                 .boundsInRoot
         val action =
             compose.onNodeWithContentDescription("New entry").fetchSemanticsNode().boundsInRoot
-        val settings = compose.onNodeWithText("Settings").fetchSemanticsNode().boundsInRoot
-        assertTrue(badge.center.x in action.right..settings.left)
+        val statistics = compose.onNodeWithText("Statistics").fetchSemanticsNode().boundsInRoot
+        assertTrue(badge.center.x in action.right..statistics.left)
     }
 
     @Test
@@ -91,12 +93,21 @@ class GroupScreenTest {
     }
 
     @Test
-    fun `the navigation bar switches to settings and back (ui-design 1)`() {
+    fun `the navigation bar switches to statistics and back (ui-design 1)`() {
         show()
-        compose.onNodeWithText("Settings").performClick()
-        compose.onNodeWithText("showing SETTINGS").assertExists()
+        compose.onNodeWithText("Statistics").performClick()
+        compose.onNodeWithText("showing STATISTICS").assertExists()
         compose.onNodeWithText("Overview").performClick()
         compose.onNodeWithText("showing OVERVIEW").assertExists()
+    }
+
+    @Test
+    fun `the settings are shown under the overview in the navigation bar (ui-design 1)`() {
+        show()
+        compose.onNodeWithText("Settings").assertDoesNotExist()
+        compose.onNodeWithText("to settings").performClick()
+        compose.onNodeWithText("showing SETTINGS").assertExists()
+        compose.onNodeWithText("Overview").assertIsSelected()
     }
 
     @Test
@@ -115,12 +126,12 @@ class GroupScreenTest {
         val action =
             compose.onNodeWithContentDescription("New entry").fetchSemanticsNode().boundsInRoot
         val activity = compose.onNodeWithText("Activity").fetchSemanticsNode().boundsInRoot
-        val settings = compose.onNodeWithText("Settings").fetchSemanticsNode().boundsInRoot
+        val statistics = compose.onNodeWithText("Statistics").fetchSemanticsNode().boundsInRoot
         val people = compose.onNodeWithText("People").fetchSemanticsNode().boundsInRoot
         assertEquals(root.center.x, action.center.x, 1f)
         assertTrue(people.right < action.left)
         assertTrue(action.right < activity.left)
-        assertTrue(activity.right < settings.left)
+        assertTrue(activity.right < statistics.left)
     }
 
     @Test
@@ -143,7 +154,7 @@ class GroupScreenTest {
     @Test
     fun `back from settings returns to the overview (ui-design 1)`() {
         show()
-        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("to settings").performClick()
         compose.onNodeWithText("showing SETTINGS").assertExists()
         Espresso.pressBack()
         compose.waitForIdle()
@@ -153,8 +164,8 @@ class GroupScreenTest {
     @Test
     fun `a destination's back arrow returns to the overview, and the overview's leaves (ui-design 1)`() {
         show()
-        compose.onNodeWithText("Settings").performClick()
-        compose.onNodeWithText("showing SETTINGS").performClick()
+        compose.onNodeWithText("Statistics").performClick()
+        compose.onNodeWithText("showing STATISTICS").performClick()
         compose.onNodeWithText("showing OVERVIEW").assertExists()
         assertEquals(0, left)
         compose.onNodeWithText("showing OVERVIEW").performClick()

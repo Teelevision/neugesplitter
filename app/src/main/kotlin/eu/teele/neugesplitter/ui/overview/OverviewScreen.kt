@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -91,7 +94,7 @@ private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
  *   are decided.
  * @param onBalances opens who owes whom.
  * @param onTodos opens the group's todo list (TD-1).
- * @param onStatistics opens the group's charts (BA-8).
+ * @param onSettings opens the group's settings.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,7 +111,7 @@ fun OverviewScreen(
     onActivity: () -> Unit,
     onBalances: () -> Unit,
     onTodos: () -> Unit,
-    onStatistics: () -> Unit,
+    onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -117,6 +120,7 @@ fun OverviewScreen(
     val snackbar = remember { SnackbarHostState() }
     var menu by remember { mutableStateOf<ListedEntry?>(null) }
     var filtering by rememberSaveable { mutableStateOf(false) }
+    var more by remember { mutableStateOf(false) }
     val deleted = stringResource(R.string.entry_deleted)
     val undo = stringResource(R.string.undo)
 
@@ -167,17 +171,29 @@ fun OverviewScreen(
                                 stringResource(R.string.filter),
                             )
                         }
-                        IconButton(onClick = onStatistics) {
-                            Icon(
-                                painterResource(R.drawable.ic_bar_chart),
-                                stringResource(R.string.statistics),
-                            )
-                        }
-                        IconButton(onClick = onTodos) {
-                            Icon(
-                                painterResource(R.drawable.ic_checklist),
-                                stringResource(R.string.todos),
-                            )
+                        Box {
+                            IconButton(onClick = { more = true }) {
+                                Icon(
+                                    painterResource(R.drawable.ic_more_vert),
+                                    stringResource(R.string.more_options),
+                                )
+                            }
+                            DropdownMenu(expanded = more, onDismissRequest = { more = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.todos)) },
+                                    onClick = {
+                                        more = false
+                                        onTodos()
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.destination_settings)) },
+                                    onClick = {
+                                        more = false
+                                        onSettings()
+                                    },
+                                )
+                            }
                         }
                     }
                 },

@@ -42,9 +42,12 @@ enum class Destination(@param:DrawableRes val icon: Int, @param:StringRes val la
     OVERVIEW(R.drawable.ic_list, R.string.destination_overview),
     PEOPLE(R.drawable.ic_people, R.string.destination_people),
     ACTIVITY(R.drawable.ic_activity, R.string.destination_activity),
+    STATISTICS(R.drawable.ic_bar_chart, R.string.statistics),
+
+    /** Opened from the overview's menu, and under it in the navigation bar. */
     SETTINGS(R.drawable.ic_settings, R.string.destination_settings),
 
-    /** Opened from the overview, and under it in the navigation bar (TD-1). */
+    /** Opened from the overview's menu, and under it in the navigation bar (TD-1). */
     TODOS(R.drawable.ic_checklist, R.string.todos),
 }
 
@@ -111,8 +114,13 @@ private fun GroupBar(
             unselectedTextColor = colours.onSurfaceVariant,
         )
     NavigationBar {
-        // The todo list belongs to the overview it is opened from.
-        val shown = if (selected == Destination.TODOS) Destination.OVERVIEW else selected
+        // The todo list and the settings belong to the overview they are opened from.
+        val shown =
+            if (selected == Destination.TODOS || selected == Destination.SETTINGS) {
+                Destination.OVERVIEW
+            } else {
+                selected
+            }
         DestinationItem(Destination.OVERVIEW, shown, onSelect, itemColours)
         DestinationItem(Destination.PEOPLE, shown, onSelect, itemColours)
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -129,7 +137,7 @@ private fun GroupBar(
             }
         }
         DestinationItem(Destination.ACTIVITY, shown, onSelect, itemColours, attention)
-        DestinationItem(Destination.SETTINGS, shown, onSelect, itemColours)
+        DestinationItem(Destination.STATISTICS, shown, onSelect, itemColours)
     }
 }
 

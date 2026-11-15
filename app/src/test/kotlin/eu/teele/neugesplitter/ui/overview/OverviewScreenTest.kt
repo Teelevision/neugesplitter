@@ -304,9 +304,10 @@ class OverviewScreenTest {
     }
 
     @Test
-    fun `the top bar opens the todo list (TD-1)`() {
+    fun `the top bar's menu opens the todo list (TD-1)`() {
         show()
-        compose.onNodeWithContentDescription("To-dos").performClick()
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("To-dos").performClick()
         assertEquals(1, todos)
     }
 

@@ -369,7 +369,7 @@ class ScreenshotTest(private val scale: Float) {
         awaitText(s(R.string.total_spending))
         shot("06-uebersicht")
 
-        compose.onNodeWithContentDescription(s(R.string.statistics)).performClick()
+        compose.onNodeWithText(s(R.string.statistics)).performClick()
         awaitText(s(R.string.chart_balance))
         shot("10-statistik")
         compose
@@ -394,6 +394,9 @@ class ScreenshotTest(private val scale: Float) {
             .performScrollToNode(hasText(s(R.string.suggestion_confirm)))
         shot("08-aktivitaet")
 
+        compose.onNodeWithText(s(R.string.destination_overview)).performClick()
+        awaitText(s(R.string.total_spending))
+        compose.onNodeWithContentDescription(s(R.string.more_options)).performClick()
         compose.onNodeWithText(s(R.string.destination_settings)).performClick()
         awaitText(s(R.string.group_name))
         shot("09-gruppen-einstellungen")
