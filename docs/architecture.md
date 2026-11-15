@@ -185,6 +185,8 @@ at the next start, so every group on the device has somebody to act as (BE-6).
 | `acting_as`        | no       | which member this installation writes into `by` (ID-3, format-spec 4.2)       |
 | `backend_settings` | no       | endpoint, bucket, prefix, region, addressing style, access key, poll interval |
 | `sync_state`       | no       | last successful sync, halt state and its reason, the last failure             |
+| `unseen`           | no       | the received events not seen yet on this installation (HI-5, HI-8)            |
+| `dismissal`        | no       | the entries whose tidy-up proposal the user declined on this device (TI-4)    |
 | `projection_state` | no       | the projection version the derived tables were built by (TR-18b)              |
 | everything else    | yes      | `group_row`, `member`, `entry`, `side`, `occurrence`, `balance`               |
 

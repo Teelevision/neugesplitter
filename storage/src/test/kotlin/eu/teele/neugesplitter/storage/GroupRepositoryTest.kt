@@ -648,12 +648,33 @@ class GroupRepositoryTest {
     }
 
     @Test
+    fun `a declined proposal is kept per group and per proposal (TI-4)`(): Unit = runBlocking {
+        groups.dismiss(GROUP, Proposal.INCOME, listOf(entryId(1), entryId(2)))
+        groups.dismiss(GROUP, Proposal.INCOME, listOf(entryId(1)))
+        groups.dismiss(trip, Proposal.CATEGORY, listOf(entryId(3)))
+
+        assertEquals(
+            setOf(entryId(1), entryId(2)),
+            groups.dismissed(GROUP, Proposal.INCOME, Dispatchers.Unconfined).first(),
+        )
+        assertEquals(
+            emptySet(),
+            groups.dismissed(GROUP, Proposal.CATEGORY, Dispatchers.Unconfined).first(),
+        )
+        assertEquals(
+            setOf(entryId(3)),
+            groups.dismissed(trip, Proposal.CATEGORY, Dispatchers.Unconfined).first(),
+        )
+    }
+
+    @Test
     fun `deleting a group removes its log, retained objects, projection and backend (TR-20, GR-11)`() {
         appendedOneByOne(GROUP, household)
         groups.append(trip, weekend, TODAY)
         for (group in listOf(GROUP, trip)) {
             database.logObjectQueries.retain(group.hex, 1, "ba7c".repeat(8), byteArrayOf(1, 2, 3))
             connected(group)
+            groups.dismiss(group, Proposal.INCOME, listOf(entryId(1)))
         }
         groups.actAs(GROUP, ANNA)
         groups.actAs(trip, BEN)
@@ -690,6 +711,7 @@ class GroupRepositoryTest {
         for (group in listOf(GROUP, trip)) {
             database.logObjectQueries.retain(group.hex, 1, "ba7c".repeat(8), byteArrayOf(1, 2, 3))
             connected(group)
+            groups.dismiss(group, Proposal.CATEGORY, listOf(entryId(1)))
         }
         groups.actAs(GROUP, ANNA)
         groups.actAs(trip, BEN)

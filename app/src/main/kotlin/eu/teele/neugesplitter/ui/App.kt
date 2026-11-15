@@ -80,6 +80,8 @@ import eu.teele.neugesplitter.ui.statistics.StatisticsScreen
 import eu.teele.neugesplitter.ui.statistics.StatisticsViewModel
 import eu.teele.neugesplitter.ui.sync.SyncProblemScreen
 import eu.teele.neugesplitter.ui.sync.SyncProblemViewModel
+import eu.teele.neugesplitter.ui.tidy.TidyScreen
+import eu.teele.neugesplitter.ui.tidy.TidyViewModel
 import eu.teele.neugesplitter.ui.todo.TodoScreen
 import eu.teele.neugesplitter.ui.todo.TodoViewModel
 import java.io.IOException
@@ -136,6 +138,8 @@ data class EntryEditor(
 @Serializable data class StatisticsChart(val group: String, val chart: String) : NavKey
 
 @Serializable data class EntryHistory(val group: String, val entry: String) : NavKey
+
+@Serializable data class TidyUp(val group: String) : NavKey
 
 /** Ids are hex. */
 @Serializable data class RecurringSeries(val group: String, val series: String) : NavKey
@@ -467,6 +471,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                     onTodos = { go(Destination.TODOS) },
                                     onSettings = { go(Destination.SETTINGS) },
                                     modifier = modifier,
+                                    onTidy = { stack.add(TidyUp(key.group)) },
                                 )
                             Destination.STATISTICS ->
                                 StatisticsScreen(
@@ -590,6 +595,23 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                 graph::today,
                                 graph::now,
                                 graph.scope,
+                            )
+                        },
+                        onBack = pop,
+                    )
+                }
+                entry<TidyUp> { key ->
+                    TidyScreen(
+                        viewModel {
+                            TidyViewModel(
+                                graph.groups,
+                                GroupId.parse(key.group),
+                                graph::identifier,
+                                graph::today,
+                                graph::now,
+                                rank = { graph.rank(it) },
+                                guess = graph::guess,
+                                scope = graph.scope,
                             )
                         },
                         onBack = pop,

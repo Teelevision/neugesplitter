@@ -1,0 +1,25 @@
+-- Entries the user decided to leave as they are when tidying up a group's history (TI-4). Like
+-- `unseen` this is local to the installation and cannot be derived again. `task` names the
+-- proposal that was declined: 'income' or 'category'.
+CREATE TABLE IF NOT EXISTS dismissal (
+    group_id TEXT NOT NULL,
+    entry TEXT NOT NULL,
+    task TEXT NOT NULL,
+    PRIMARY KEY (group_id, entry, task)
+);
+
+dismiss:
+INSERT OR IGNORE INTO dismissal (group_id, entry, task)
+VALUES (?, ?, ?);
+
+dismissed:
+SELECT entry
+FROM dismissal
+WHERE group_id = ? AND task = ?;
+
+forget:
+DELETE FROM dismissal
+WHERE group_id = ?;
+
+forgetAll:
+DELETE FROM dismissal;

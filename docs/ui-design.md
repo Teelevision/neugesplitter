@@ -27,9 +27,9 @@ action docked in the middle:
 | 3        | **Activity**   | history, pending suggestions, sync state           |
 | 4        | **Statistics** | the group's charts (BA-8)                          |
 
-The overview's overflow menu leads to the **to-dos** and the group's
-**settings**: the group, its backend, its members' defaults. Both are shown
-under Overview in the bar, and back returns to it.
+The overview's overflow menu leads to the **to-dos**, **tidy up history** and
+the group's **settings**: the group, its backend, its members' defaults. To-dos
+and settings are shown under Overview in the bar, and back returns to it.
 
 Two deliberate notes on that bar. Material 3 says a navigation bar holds
 destinations and not actions; the centre FAB breaks that on purpose, because
@@ -60,6 +60,7 @@ screen or opened as a bottom sheet, and the bar is hidden while it is up.
 | Activity            | destination | navigation bar                           |
 | Group settings      | destination | overview overflow                        |
 | To-dos              | destination | overview overflow, Activity              |
+| Tidy up history     | pushed      | overview overflow                        |
 | Statistics          | destination | navigation bar                           |
 | Chart               | pushed      | a card on Statistics                     |
 | Entry editor        | pushed      | centre FAB, editing an entry             |
@@ -319,6 +320,33 @@ among those not done goes just before the one it landed on.
 
 Moves and ticks show at once but are written only on leaving the list, when the
 app goes to the background, or before an add or a delete, as one event each.
+
+### Tidy up history
+
+Pushed from the Overview's overflow menu, for cleaning up an imported history a
+batch at a time (TI-1). Two tabs, each counting its entries:
+
+- **Incomes**: expenses whose description reads like money coming in — salary, a
+  sale, a pension, a refund, in English or German — and that leave exactly one
+  member owing (TI-2). A line explains why Splitwise recorded them as expenses.
+  Each row says who paid and whom the income would be received by and for.
+  **Make income** turns the ticked ones into incomes with every balance as
+  before; the unticked ones and those of a batch marked **Not an income** are
+  not proposed again on this device (TI-4).
+- **Categories**: entries without a category. Each batch shows up to three
+  categories the built-in model suggests as chips, the likeliest chosen already
+  where the model is sure enough, and **Choose…** opens the category sheet for
+  any other (TI-3). **Apply** gives the ticked ones the chosen category;
+  **Skip** leaves the batch out from then on.
+
+A batch is a card of the entries whose descriptions read the same once case,
+digits and punctuation are set aside, newest first, each with a checkbox. In a
+shared group, applying first shows **Check changes**: a sentence that the
+changes are shared with everyone, that every balance stays the same, and the
+rows the group's activity will show for them, with their details in full (TI-5).
+Nothing is written until **Apply N changes**; back or cancel returns to the
+batch as it was. A group kept only on this device writes at once. Either way a
+snackbar says how many entries changed.
 
 ### Group settings
 

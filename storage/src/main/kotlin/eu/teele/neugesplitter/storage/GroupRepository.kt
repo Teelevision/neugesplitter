@@ -135,6 +135,30 @@ class GroupRepository(private val driver: SqlDriver) {
     }
 
     /**
+     * The entries of group [id] whose [proposal] the user declined (TI-4), again on every change.
+     */
+    fun dismissed(
+        id: GroupId,
+        proposal: Proposal,
+        context: CoroutineContext = Dispatchers.IO,
+    ): Flow<Set<EntryId>> =
+        database.dismissalQueries
+            .dismissed(id.hex, proposal.key)
+            .asFlow()
+            .mapToList(context)
+            .map { entries -> entries.mapTo(mutableSetOf(), EntryId::parse) }
+            .distinctUntilChanged()
+
+    /**
+     * Leaves [entries] of group [id] out of [proposal] from now on, on this installation (TI-4).
+     */
+    fun dismiss(id: GroupId, proposal: Proposal, entries: Collection<EntryId>) {
+        database.transaction {
+            entries.forEach { database.dismissalQueries.dismiss(id.hex, it.hex, proposal.key) }
+        }
+    }
+
+    /**
      * Group [id]'s log as sync writes and receives it (TR-17b, TR-17d). What it receives is brought
      * into the projection as of [today].
      */
@@ -455,6 +479,7 @@ class GroupRepository(private val driver: SqlDriver) {
             database.backendSettingsQueries.forget(id.hex)
             database.syncStateQueries.forget(id.hex)
             database.unseenQueries.forget(id.hex)
+            database.dismissalQueries.forget(id.hex)
             database.projectionQueries.forget(id.hex)
             afterCommit { replays.remove(id) }
         }
@@ -469,6 +494,7 @@ class GroupRepository(private val driver: SqlDriver) {
             database.backendSettingsQueries.forgetAll()
             database.syncStateQueries.forgetAll()
             database.unseenQueries.forgetAll()
+            database.dismissalQueries.forgetAll()
             database.projectionQueries.forgetAll()
             afterCommit { replays.clear() }
         }

@@ -1,0 +1,7 @@
+-- Version 5 had no tidying up, so nothing was dismissed.
+CREATE TABLE dismissal (
+    group_id TEXT NOT NULL,
+    entry TEXT NOT NULL,
+    task TEXT NOT NULL,
+    PRIMARY KEY (group_id, entry, task)
+);

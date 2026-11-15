@@ -123,7 +123,8 @@ class BackendsTest {
         runBlocking {
             val old = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
             Database.Schema.create(old)
-            for (table in listOf("log_object", "backend_settings", "sync_state", "unseen")) {
+            for (table in
+                listOf("log_object", "backend_settings", "sync_state", "unseen", "dismissal")) {
                 old.execute(null, "DROP TABLE $table", 0)
             }
             old.execute(

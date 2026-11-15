@@ -620,6 +620,39 @@
         <item quantity="other">%1$s hat %2$d Aufgaben wieder geöffnet</item>
     </plurals>
     <string name="todos">Aufgaben</string>
+
+    <!-- Tidy up -->
+    <string name="tidy_title">Verlauf aufräumen</string>
+    <string name="tidy_tab_income">Einnahmen (%1$d)</string>
+    <string name="tidy_tab_categories">Kategorien (%1$d)</string>
+    <string name="tidy_income_explain">Splitwise kennt keine Einnahmen, deshalb wurde Geld, das jemand bekommen hat, eventuell als Ausgabe der anderen erfasst. Als Einnahme bleibt jeder Saldo gleich.</string>
+    <string name="tidy_categories_explain">Einträge ohne Kategorie, nach Beschreibung gruppiert.</string>
+    <string name="tidy_income_empty">Keine Einträge mehr, die nach einer Einnahme aussehen.</string>
+    <string name="tidy_categories_empty">Jeder Eintrag hat eine Kategorie.</string>
+    <plurals name="tidy_entries">
+        <item quantity="one">%1$d Eintrag</item>
+        <item quantity="other">%1$d Einträge</item>
+    </plurals>
+    <string name="tidy_income_becomes">Wird eine Einnahme, erhalten von %1$s</string>
+    <string name="tidy_income_for">für %1$s</string>
+    <string name="tidy_not_income">Keine Einnahme</string>
+    <string name="tidy_make_income">Zur Einnahme machen</string>
+    <string name="tidy_skip">Überspringen</string>
+    <string name="tidy_apply">Übernehmen</string>
+    <string name="tidy_preview_title">Änderungen prüfen</string>
+    <plurals name="tidy_preview_explain">
+        <item quantity="one">Diese Änderung wird mit allen in der Gruppe geteilt. Ihre Aktivität zeigt sie so:</item>
+        <item quantity="other">Diese %1$d Änderungen werden mit allen in der Gruppe geteilt. Ihre Aktivität zeigt sie so:</item>
+    </plurals>
+    <string name="tidy_balances_same">Jeder Saldo bleibt gleich.</string>
+    <plurals name="tidy_confirm">
+        <item quantity="one">%1$d Änderung übernehmen</item>
+        <item quantity="other">%1$d Änderungen übernehmen</item>
+    </plurals>
+    <plurals name="tidy_applied">
+        <item quantity="one">%1$d Eintrag geändert</item>
+        <item quantity="other">%1$d Einträge geändert</item>
+    </plurals>
     <string name="todos_due">Fällige Aufgaben</string>
     <string name="todo_new">Neue Aufgabe</string>
     <string name="todo_edit">Aufgabe bearbeiten</string>

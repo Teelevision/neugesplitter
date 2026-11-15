@@ -97,6 +97,19 @@ class AppGraph(context: Context) {
     /** The category a new entry's description suggests, if any (EN-13). */
     fun guess(description: String): BuiltInCategory? = categories.guess(description)
 
+    /** The categories the description most likely is of, most likely first, at most [count]. */
+    fun rank(description: String, count: Int = 3): List<BuiltInCategory> {
+        val probabilities = categories.probabilities(description)
+        return categories.labels.indices
+            .filter {
+                val label = categories.labels[it]
+                label != null && label != BuiltInCategory.TRANSFER && probabilities[it] >= 0.05f
+            }
+            .sortedByDescending { probabilities[it] }
+            .take(count)
+            .mapNotNull { categories.labels[it] }
+    }
+
     /** A fresh random identifier, as 32 hex characters (TR-24). */
     fun identifier(): String {
         val bytes = ByteArray(16).also(random::nextBytes)

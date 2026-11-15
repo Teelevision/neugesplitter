@@ -94,6 +94,7 @@ private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
  *   are decided.
  * @param onBalances opens who owes whom.
  * @param onTodos opens the group's todo list (TD-1).
+ * @param onTidy opens tidying up the group's history (TI-1).
  * @param onSettings opens the group's settings.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -113,6 +114,7 @@ fun OverviewScreen(
     onTodos: () -> Unit,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    onTidy: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val overview = state.overview
@@ -184,6 +186,13 @@ fun OverviewScreen(
                                     onClick = {
                                         more = false
                                         onTodos()
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.tidy_title)) },
+                                    onClick = {
+                                        more = false
+                                        onTidy()
                                     },
                                 )
                                 DropdownMenuItem(

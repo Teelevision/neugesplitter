@@ -551,6 +551,28 @@ there is no backup, the group is gone.
   activity screen from its due date on.
 - **TD-8** (Core): A list MUST hold up to 10 000 to-dos.
 
+### 4.15 Tidying Up History
+
+An imported history (DA-5) is often rough: Splitwise has no incomes, and many
+entries have no category. Tidying up proposes fixes in batches for the user to
+confirm, so that years of entries can be cleaned up gradually.
+
+- **TI-1** (Optional): A group MUST offer to tidy up its history, proposing
+  changes in batches of entries whose descriptions read the same. Each entry of
+  a batch MUST be untickable before the batch is applied.
+- **TI-2** (Optional): An expense whose description reads like money coming in
+  (salary, a sale, a pension, a refund, …) and that leaves exactly one member
+  owing MUST be offered as an income received by that member. Every member's
+  balance MUST stay the same.
+- **TI-3** (Optional): An entry without a category MUST be offered the
+  categories the built-in model suggests for its description, and any other
+  category of the group.
+- **TI-4** (Optional): A declined proposal MUST NOT be made again on the same
+  installation. An entry unticked from an income batch counts as declined.
+- **TI-5** (Optional): In a shared group, the app MUST show the changes as the
+  group's activity will show them before writing anything, and write nothing
+  unless the user confirms.
+
 ---
 
 ## 5. Explicit Non-Goals

@@ -625,6 +625,39 @@
         <item quantity="other">%1$s reopened %2$d to-dos</item>
     </plurals>
     <string name="todos">To-dos</string>
+
+    <!-- Tidy up -->
+    <string name="tidy_title">Tidy up history</string>
+    <string name="tidy_tab_income">Incomes (%1$d)</string>
+    <string name="tidy_tab_categories">Categories (%1$d)</string>
+    <string name="tidy_income_explain">Splitwise has no incomes, so money someone received may have been recorded as an expense paid by the others. Turned into an income, every balance stays the same.</string>
+    <string name="tidy_categories_explain">Entries without a category, grouped by description.</string>
+    <string name="tidy_income_empty">No entries left that look like an income.</string>
+    <string name="tidy_categories_empty">Every entry has a category.</string>
+    <plurals name="tidy_entries">
+        <item quantity="one">%1$d entry</item>
+        <item quantity="other">%1$d entries</item>
+    </plurals>
+    <string name="tidy_income_becomes">Becomes an income received by %1$s</string>
+    <string name="tidy_income_for">for %1$s</string>
+    <string name="tidy_not_income">Not an income</string>
+    <string name="tidy_make_income">Make income</string>
+    <string name="tidy_skip">Skip</string>
+    <string name="tidy_apply">Apply</string>
+    <string name="tidy_preview_title">Check changes</string>
+    <plurals name="tidy_preview_explain">
+        <item quantity="one">This change is shared with everyone in the group. Their activity will show it like this:</item>
+        <item quantity="other">These %1$d changes are shared with everyone in the group. Their activity will show them like this:</item>
+    </plurals>
+    <string name="tidy_balances_same">Every balance stays the same.</string>
+    <plurals name="tidy_confirm">
+        <item quantity="one">Apply %1$d change</item>
+        <item quantity="other">Apply %1$d changes</item>
+    </plurals>
+    <plurals name="tidy_applied">
+        <item quantity="one">%1$d entry changed</item>
+        <item quantity="other">%1$d entries changed</item>
+    </plurals>
     <string name="todos_due">To-dos due</string>
     <string name="todo_new">New to-do</string>
     <string name="todo_edit">Edit to-do</string>

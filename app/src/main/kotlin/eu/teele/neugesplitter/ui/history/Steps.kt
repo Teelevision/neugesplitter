@@ -81,7 +81,8 @@ data class Told(@DrawableRes val icon: Int, val headline: String, val detail: St
 
 /**
  * A step of a history the size of an entry row however much it says (ui-design 4): [told] on two
- * lines, each cut off with an ellipsis where it does not fit, and the time of day at the end.
+ * lines, each cut off with an ellipsis where it does not fit, and the time of day at the end. A
+ * preview of changes not made yet shows the detail in full, on up to [detailLines] lines.
  */
 @Composable
 fun HistoryRow(
@@ -90,6 +91,7 @@ fun HistoryRow(
     locale: Locale,
     modifier: Modifier = Modifier,
     unseen: Boolean = false,
+    detailLines: Int = 1,
 ) {
     val colours = MaterialTheme.colorScheme
     Row(
@@ -125,7 +127,7 @@ fun HistoryRow(
                 style = MaterialTheme.typography.bodyMedium,
                 color = colours.onSurfaceVariant,
                 minLines = 1,
-                maxLines = 1,
+                maxLines = detailLines,
                 overflow = TextOverflow.Ellipsis,
             )
         }

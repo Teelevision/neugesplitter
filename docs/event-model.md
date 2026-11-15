@@ -205,8 +205,8 @@ Built-in categories are an application catalog, not group events: housing,
 utilities, groceries, dining and cafes, transportation, health, insurance,
 shopping, entertainment, hobbies, sport, personal care, family, education,
 travel, pets, gifts and donations, fees and taxes, savings and investments, work
-and income, and transfer. Each has a stable key, globally hard-coded identifier, and emoji;
-installations localize labels to English or German.
+and income, and transfer. Each has a stable key, globally hard-coded identifier,
+and emoji; installations localize labels to English or German.
 
 An entry or recurring template whose category identifier is not present in the
 group is treated as uncategorized. This lets entries survive catalog changes
