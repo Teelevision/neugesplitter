@@ -326,7 +326,7 @@ class OverviewScreenTest {
         }
         compose.onNodeWithText("Dinner").assertExists()
         closeSheet()
-        compose.onNodeWithText("1 entry matches").assertExists()
+        compose.onNodeWithText("1 entry matches · net expenses +30.00").assertExists()
         // The total is the group's, whatever is listed.
         compose.onNodeWithText("42.00").assertExists()
     }
@@ -340,11 +340,31 @@ class OverviewScreenTest {
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("No entries match").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("0 entries match").assertExists()
+        compose.onNodeWithText("0 entries match · net expenses 0.00").assertExists()
         compose.onNodeWithText("Clear").performClick()
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("Dinner").fetchSemanticsNodes().isNotEmpty()
         }
+    }
+
+    @Test
+    fun `matching entries show expenses less income (EN-12)`() {
+        show(
+            before = {
+                val refund =
+                    entry(EntryId.parse(id(12)), "Tax refund", today, cents(700), anna)
+                        .copy(kind = Kind.INCOME)
+                groups.append(
+                    trip,
+                    listOf(Event.EntryCreated(eventId(), anna.id, at, refund)),
+                    today,
+                )
+            }
+        )
+        compose.onNodeWithContentDescription("Search and filter").performClick()
+        compose.onNodeWithText("Description contains").performTextInput("Tax")
+        closeSheet()
+        compose.onNodeWithText("2 entries match · net expenses +5.00").assertExists()
     }
 
     @Test

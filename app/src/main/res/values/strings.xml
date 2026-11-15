@@ -17,8 +17,8 @@
     <string name="filter_clear">Clear</string>
     <string name="filter_none">No entries match</string>
     <plurals name="filter_matches">
-        <item quantity="one">%1$d entry matches</item>
-        <item quantity="other">%1$d entries match</item>
+        <item quantity="one">%1$d entry matches · net expenses %2$s</item>
+        <item quantity="other">%1$d entries match · net expenses %2$s</item>
     </plurals>
     <string name="group_settled">All settled</string>
     <string name="group_owed">You are owed %1$s</string>

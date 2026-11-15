@@ -15,8 +15,8 @@
     <string name="filter_clear">Zurücksetzen</string>
     <string name="filter_none">Keine passenden Einträge</string>
     <plurals name="filter_matches">
-        <item quantity="one">%1$d Eintrag passt</item>
-        <item quantity="other">%1$d Einträge passen</item>
+        <item quantity="one">%1$d Eintrag passt · Nettoausgaben %2$s</item>
+        <item quantity="other">%1$d Einträge passen · Nettoausgaben %2$s</item>
     </plurals>
     <string name="group_settled">Ausgeglichen</string>
     <string name="group_owed">Du bekommst %1$s</string>

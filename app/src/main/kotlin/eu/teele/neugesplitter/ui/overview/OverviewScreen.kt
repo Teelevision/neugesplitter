@@ -55,6 +55,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
+import eu.teele.neugesplitter.domain.entry.Kind
+import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.storage.ListedEntry
 import eu.teele.neugesplitter.storage.Overview
@@ -67,6 +69,7 @@ import eu.teele.neugesplitter.ui.SwipeToDismissSnackbarHost
 import eu.teele.neugesplitter.ui.SwipeToReveal
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.position
+import eu.teele.neugesplitter.ui.signed
 import eu.teele.neugesplitter.ui.sync.GroupTitle
 import eu.teele.neugesplitter.ui.sync.SyncHaltedCard
 import eu.teele.neugesplitter.ui.sync.SyncPullToRefresh
@@ -276,11 +279,21 @@ private fun Entries(
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val days = state.listed.groupBy { it.date }
+    val netExpenses = remember(state.listed) { netExpenses(state.listed) }
     val sync = state.sync
     LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 16.dp)) {
         item(key = "header") { Header(overview, locale, onBalances) }
         if (state.filter.active) {
-            item(key = "filter") { FilterLine(state.listed.size, onFilter, onClearFilter) }
+            item(key = "filter") {
+                FilterLine(
+                    state.listed.size,
+                    netExpenses,
+                    overview.scale,
+                    locale,
+                    onFilter,
+                    onClearFilter,
+                )
+            }
         }
         if (state.suggestions > 0) {
             item(key = "suggestions") {
@@ -385,9 +398,16 @@ private fun Header(overview: Overview, locale: Locale, onBalances: () -> Unit) {
     }
 }
 
-/** That the entries are narrowed, and to how many (EN-12); tapping it changes the filter. */
+/** The count and net expenses of the narrowed entries (EN-12); tapping it changes the filter. */
 @Composable
-private fun FilterLine(count: Int, onFilter: () -> Unit, onClear: () -> Unit) {
+private fun FilterLine(
+    count: Int,
+    netExpenses: Amount,
+    scale: eu.teele.neugesplitter.domain.value.Scale,
+    locale: Locale,
+    onFilter: () -> Unit,
+    onClear: () -> Unit,
+) {
     val colours = MaterialTheme.colorScheme
     Row(
         Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
@@ -405,7 +425,12 @@ private fun FilterLine(count: Int, onFilter: () -> Unit, onClear: () -> Unit) {
             modifier = Modifier.size(20.dp),
         )
         Text(
-            pluralStringResource(R.plurals.filter_matches, count, count),
+            pluralStringResource(
+                R.plurals.filter_matches,
+                count,
+                count,
+                signed(netExpenses, scale, locale),
+            ),
             style = MaterialTheme.typography.bodyLarge,
             color = colours.onSecondaryContainer,
             modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
@@ -413,6 +438,15 @@ private fun FilterLine(count: Int, onFilter: () -> Unit, onClear: () -> Unit) {
         TextButton(onClick = onClear) { Text(stringResource(R.string.filter_clear)) }
     }
 }
+
+private fun netExpenses(entries: List<ListedEntry>): Amount =
+    entries.fold(Amount.ZERO) { sum, entry ->
+        when (entry.kind) {
+            Kind.EXPENSE -> sum + entry.amount
+            Kind.INCOME -> sum - entry.amount
+            Kind.TRANSFER -> sum
+        }
+    }
 
 /**
  * That [count] suggested occurrences wait for someone, leading to Activity where they are decided
