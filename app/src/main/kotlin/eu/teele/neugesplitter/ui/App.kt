@@ -33,7 +33,10 @@ import androidx.navigation3.ui.NavDisplay
 import eu.teele.neugesplitter.AppGraph
 import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.balance.Transfer
+import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.CategoryId
+import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
@@ -66,6 +69,8 @@ import eu.teele.neugesplitter.ui.licences.LicenceScreen
 import eu.teele.neugesplitter.ui.licences.LicencesScreen
 import eu.teele.neugesplitter.ui.newgroup.NewGroupScreen
 import eu.teele.neugesplitter.ui.newgroup.NewGroupViewModel
+import eu.teele.neugesplitter.ui.overview.EntryFilter
+import eu.teele.neugesplitter.ui.overview.Listing
 import eu.teele.neugesplitter.ui.overview.OverviewScreen
 import eu.teele.neugesplitter.ui.overview.OverviewViewModel
 import eu.teele.neugesplitter.ui.people.PeopleScreen
@@ -138,6 +143,50 @@ data class EntryDetail(val group: String, val entry: String, val fromSeries: Boo
 
 /** @property chart the name of a [Chart]. */
 @Serializable data class StatisticsChart(val group: String, val chart: String) : NavKey
+
+/**
+ * The entries a part of a chart counts (BA-16), headed by [title] and [subtitle]; the rest is an
+ * [EntryFilter] that leaves transfers out. Ids are hex, dates ISO, and [kind] a [Kind]'s name.
+ */
+@Serializable
+data class ChartEntries(
+    val group: String,
+    val title: String,
+    val subtitle: String,
+    val from: String? = null,
+    val until: String? = null,
+    val kind: String? = null,
+    val categories: List<String> = emptyList(),
+    val uncategorized: Boolean = false,
+    val beneficiaries: List<String> = emptyList(),
+) : NavKey {
+    val filter: EntryFilter
+        get() =
+            EntryFilter(
+                kind = kind?.let(Kind::valueOf),
+                beneficiaries = beneficiaries.mapTo(HashSet(), MemberId::parse),
+                categories = categories.mapTo(HashSet(), CategoryId::parse),
+                uncategorized = uncategorized,
+                from = from?.let(EntryDate::parse),
+                until = until?.let(EntryDate::parse),
+                transfers = false,
+            )
+
+    companion object {
+        fun of(group: String, listing: Listing, filter: EntryFilter) =
+            ChartEntries(
+                group,
+                listing.title,
+                listing.subtitle,
+                filter.from?.toString(),
+                filter.until?.toString(),
+                filter.kind?.name,
+                filter.categories.map { it.hex },
+                filter.uncategorized,
+                filter.beneficiaries.map { it.hex },
+            )
+    }
+}
 
 @Serializable data class EntryHistory(val group: String, val entry: String) : NavKey
 
@@ -630,6 +679,40 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                         },
                         Chart.valueOf(key.chart),
                         onBack = { pop() },
+                        onEntries = { listing, filter ->
+                            stack.add(ChartEntries.of(key.group, listing, filter))
+                        },
+                    )
+                }
+                entry<ChartEntries> { key ->
+                    OverviewScreen(
+                        viewModel {
+                            OverviewViewModel(
+                                graph.groups,
+                                GroupId.parse(key.group),
+                                graph::identifier,
+                                graph::today,
+                                graph::now,
+                                graph.scope,
+                                graph.syncing::poll,
+                                key.filter,
+                            )
+                        },
+                        deleteRequested = deleting?.let(EntryId::parse),
+                        onDeleteTaken = { deleting = null },
+                        onBack = { pop() },
+                        onOpen = { stack.add(EntryDetail(key.group, it.hex)) },
+                        onEdit = { stack.add(EntryEditor(key.group, it.hex)) },
+                        onDuplicate = {
+                            stack.add(EntryEditor(key.group, it.hex, duplicate = true))
+                        },
+                        onHistory = { stack.add(EntryHistory(key.group, it.hex)) },
+                        onSyncProblem = {},
+                        onActivity = {},
+                        onBalances = {},
+                        onTodos = {},
+                        onSettings = {},
+                        listing = Listing(key.title, key.subtitle),
                     )
                 }
                 entry<EntryEditor> { key ->

@@ -52,10 +52,13 @@ import eu.teele.neugesplitter.domain.statistics.Perspective
 import eu.teele.neugesplitter.domain.statistics.Statistics
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.CategoryId
+import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.ui.category.CategorySheet
 import eu.teele.neugesplitter.ui.category.ChosenCategories
 import eu.teele.neugesplitter.ui.editor.Segments
+import eu.teele.neugesplitter.ui.overview.EntryFilter
+import eu.teele.neugesplitter.ui.overview.Listing
 import eu.teele.neugesplitter.ui.signed
 import java.time.LocalDate
 import java.time.Month
@@ -70,7 +73,11 @@ private val CHART = 240.dp
 /** The most years the averages go back. */
 private const val MOST_YEARS = 30
 
-/** One chart with all its controls (BA-9 to BA-15). */
+/**
+ * One chart with all its controls (BA-9 to BA-15).
+ *
+ * @param onEntries lists the entries a category or a total under the chart counts (BA-16).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChartScreen(
@@ -78,6 +85,7 @@ fun ChartScreen(
     chart: Chart,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onEntries: (Listing, EntryFilter) -> Unit = { _, _ -> },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     // Counts taps that nothing took, each of which lets go of the values read off.
@@ -114,11 +122,11 @@ fun ChartScreen(
         ) {
             when (chart) {
                 Chart.BALANCE -> BalanceDetail(statistics, me, taps)
-                Chart.SPENDING -> SpendingDetail(statistics, me, taps)
-                Chart.CATEGORIES -> CategoriesDetail(statistics, me)
+                Chart.SPENDING -> SpendingDetail(statistics, me, taps, onEntries)
+                Chart.CATEGORIES -> CategoriesDetail(statistics, me, onEntries)
                 Chart.MATRIX -> MatrixDetail(statistics)
                 Chart.AVERAGES -> AveragesDetail(statistics, me, taps)
-                Chart.FLOWS -> FlowsDetail(statistics, me)
+                Chart.FLOWS -> FlowsDetail(statistics, me, onEntries)
             }
         }
     }
@@ -190,7 +198,12 @@ private fun BalanceDetail(statistics: Statistics, me: MemberId?, taps: Int) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SpendingDetail(statistics: Statistics, me: MemberId?, taps: Int) {
+private fun SpendingDetail(
+    statistics: Statistics,
+    me: MemberId?,
+    taps: Int,
+    onEntries: (Listing, EntryFilter) -> Unit,
+) {
     val group = statistics.group
     val firstDay = firstDay()
     val locale = locale()
@@ -215,6 +228,13 @@ private fun SpendingDetail(statistics: Statistics, me: MemberId?, taps: Int) {
             Stacking.OFF -> emptyList()
             Stacking.TOP -> inView.take(TOP).map { it.first }
             Stacking.CHOSEN -> chosen.map { it.ifEmpty { null }?.let(CategoryId::parse) }
+        }
+    // Every category spent in, which the rest of a stacked bar is narrowed from.
+    val present =
+        remember(statistics) {
+            statistics.entries
+                .filter { it.kind != Kind.TRANSFER }
+                .mapTo(HashSet()) { it.categoryId }
         }
     val granularity = viewport.granularity
     val periods =
@@ -251,41 +271,58 @@ private fun SpendingDetail(statistics: Statistics, me: MemberId?, taps: Int) {
     val index = periods.indexOfLast { it.start.toEpochDay() <= at }
     if (index >= 0) {
         val period = periods[index]
-        Text(
-            periodLabel(period.start, granularity, statistics.today),
-            style = MaterialTheme.typography.titleSmall,
-        )
+        val heading = periodLabel(period.start, granularity, statistics.today)
+        val end = minOf(granularity.next(period.start).minusDays(1), statistics.today)
+        val during = subtitle(heading, perspective)
+        val open = { title: String, categories: Collection<CategoryId?> ->
+            onEntries(
+                Listing(title, during),
+                counted(perspective, period.start, end, categories = categories),
+            )
+        }
+        Text(heading, style = MaterialTheme.typography.titleSmall)
+        val net = stringResource(R.string.chart_spending)
         Readout(
             null,
             stringResource(R.string.spending_net_label),
             signed(period.value.total, group.scale, locale),
+            onClick = { open(net, emptyList()) },
         )
         if (cumulative) {
-            val running =
-                Amount.sum(
-                    periods
-                        .subList(0, index + 1)
-                        .filter { granularity.next(it.start).toEpochDay() > viewport.start }
-                        .map { it.value.total }
-                )
+            val summed =
+                periods.subList(0, index + 1).filter {
+                    granularity.next(it.start).toEpochDay() > viewport.start
+                }
+            val running = Amount.sum(summed.map { it.value.total })
+            val since = summed.firstOrNull()?.start ?: period.start
+            val title = stringResource(R.string.running_total)
+            val throughout = subtitle(windowLabel(Window(since, end)), perspective)
             Readout(
                 null,
-                stringResource(R.string.running_total),
+                title,
                 signed(running, group.scale, locale),
+                onClick = {
+                    onEntries(Listing(title, throughout), counted(perspective, since, end))
+                },
             )
         }
         categories.forEachIndexed { i, category ->
+            val label = "${group.emoji(category)} ${group.label(category)}"
             Readout(
                 seriesColour(i),
-                "${group.emoji(category)} ${group.label(category)}",
+                label,
                 signed(period.value.parts[i], group.scale, locale),
+                onClick = { open(label, listOf(category)) },
             )
         }
         if (categories.isNotEmpty()) {
+            val label = stringResource(R.string.chart_rest)
+            val rest = present - categories.toSet()
             Readout(
                 colours.outline,
-                stringResource(R.string.chart_rest),
+                label,
                 signed(period.value.rest, group.scale, locale),
+                onClick = { open(label, rest) }.takeIf { rest.isNotEmpty() },
             )
         }
     }
@@ -368,7 +405,11 @@ private fun inView(
 }
 
 @Composable
-private fun CategoriesDetail(statistics: Statistics, me: MemberId?) {
+private fun CategoriesDetail(
+    statistics: Statistics,
+    me: MemberId?,
+    onEntries: (Listing, EntryFilter) -> Unit,
+) {
     val group = statistics.group
     var mine by rememberSaveable { mutableStateOf(false) }
     val perspective = perspective(me, mine)
@@ -379,6 +420,14 @@ private fun CategoriesDetail(statistics: Statistics, me: MemberId?) {
         remember(statistics, perspective, window) {
             statistics.categories(Kind.EXPENSE, perspective, window.from, window.until)
         }
+    val during = subtitle(windowLabel(window), perspective)
+    val labels = ranked.associate { (id) -> id to "${group.emoji(id)} ${group.label(id)}" }
+    val open = { title: String, categories: Collection<CategoryId?> ->
+        onEntries(
+            Listing(title, during),
+            counted(perspective, window.from, window.until, Kind.EXPENSE, categories),
+        )
+    }
 
     PerspectiveToggle(me, mine) { mine = it }
     PeriodControls(
@@ -391,12 +440,14 @@ private fun CategoriesDetail(statistics: Statistics, me: MemberId?) {
         },
         { back = it },
     )
+    val total = stringResource(R.string.total_spending)
     Readout(
         null,
-        stringResource(R.string.total_spending),
+        total,
         group.amounts()(Amount.sum(ranked.map { it.second })),
+        onClick = { open(total, emptyList()) }.takeIf { ranked.isNotEmpty() },
     )
-    RankedBars(group, ranked)
+    RankedBars(group, ranked) { open(labels.getValue(it), listOf(it)) }
 }
 
 @Composable
@@ -537,7 +588,11 @@ private fun AveragesDetail(statistics: Statistics, me: MemberId?, taps: Int) {
 }
 
 @Composable
-private fun FlowsDetail(statistics: Statistics, me: MemberId?) {
+private fun FlowsDetail(
+    statistics: Statistics,
+    me: MemberId?,
+    onEntries: (Listing, EntryFilter) -> Unit,
+) {
     val group = statistics.group
     val colours = MaterialTheme.colorScheme
     val amounts = group.amounts()
@@ -578,6 +633,14 @@ private fun FlowsDetail(statistics: Statistics, me: MemberId?) {
             ),
             style = MaterialTheme.typography.titleSmall,
         )
+        val during = subtitle(windowLabel(window), perspective, kind)
+        val open = { title: String, categories: Collection<CategoryId?> ->
+            onEntries(
+                Listing(title, during),
+                counted(perspective, window.from, window.until, kind, categories),
+            )
+        }
+        val shown = nodes.filterIsInstance<Node.Category>().mapTo(HashSet()) { it.id }
         nodes.forEachIndexed { i, node ->
             val label =
                 when (node) {
@@ -589,7 +652,27 @@ private fun FlowsDetail(statistics: Statistics, me: MemberId?) {
                             else R.string.flows_surplus
                         )
                 }
-            Readout(drawn[i].colour, label, amounts(node.amount))
+            Readout(
+                drawn[i].colour,
+                label,
+                amounts(node.amount),
+                onClick =
+                    when (node) {
+                        is Node.Category -> {
+                            { open(label, listOf(node.id)) }
+                        }
+                        is Node.Rest -> {
+                            {
+                                val all =
+                                    statistics
+                                        .categories(kind, perspective, window.from, window.until)
+                                        .map { it.first }
+                                open(label, all - shown)
+                            }
+                        }
+                        is Node.Balance -> null
+                    },
+            )
         }
     }
 }
@@ -642,6 +725,43 @@ private fun PeriodControls(
 /** The whole group's spending, or [me]'s share of it if [mine]. */
 private fun perspective(me: MemberId?, mine: Boolean): Perspective =
     if (me != null && mine) Perspective.Share(me) else Perspective.Everyone
+
+/**
+ * The entries [perspective] counts from [from] to [until], of [kind] if one and in [categories] if
+ * any; null among them stands for no category (BA-16).
+ */
+private fun counted(
+    perspective: Perspective,
+    from: LocalDate,
+    until: LocalDate,
+    kind: Kind? = null,
+    categories: Collection<CategoryId?> = emptyList(),
+) =
+    EntryFilter(
+        kind = kind,
+        beneficiaries = setOfNotNull((perspective as? Perspective.Share)?.member),
+        categories = categories.filterNotNullTo(HashSet()),
+        uncategorized = null in categories,
+        from = EntryDate.of(from),
+        until = EntryDate.of(until),
+        transfers = false,
+    )
+
+/**
+ * Under the title of a chart's entries: [kind] if one, [range], and whether it is the user's share.
+ */
+@Composable
+private fun subtitle(range: String, perspective: Perspective, kind: Kind? = null): String =
+    listOfNotNull(
+            kind?.let {
+                stringResource(
+                    if (it == Kind.INCOME) R.string.kind_income else R.string.kind_expense
+                )
+            },
+            range,
+            if (perspective is Perspective.Share) stringResource(R.string.perspective_me) else null,
+        )
+        .joinToString(" · ")
 
 /** Shown only to someone acting as a member. */
 @Composable

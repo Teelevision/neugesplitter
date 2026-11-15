@@ -27,11 +27,16 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.storage.Database
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.ui.overview.EntryFilter
+import eu.teele.neugesplitter.ui.overview.Listing
 import eu.teele.neugesplitter.ui.theme.NeugesplitterTheme
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -122,9 +127,15 @@ class StatisticsScreenTest {
 
     private fun showChart(chart: Chart) {
         val viewModel = viewModel()
-        compose.setContent { NeugesplitterTheme { ChartScreen(viewModel, chart, {}) } }
+        compose.setContent {
+            NeugesplitterTheme {
+                ChartScreen(viewModel, chart, {}, onEntries = { l, f -> listed = l to f })
+            }
+        }
         awaitText(text(chart.title))
     }
+
+    private var listed: Pair<Listing, EntryFilter>? = null
 
     private fun displayedRange(): String =
         compose
@@ -190,5 +201,60 @@ class StatisticsScreenTest {
                 .isNotEmpty()
         }
         compose.onNode(hasText("Anna") and hasClickAction()).assertExists()
+    }
+
+    @Test
+    fun `a category of the categories chart lists its expenses in the period (BA-16)`() {
+        showChart(Chart.CATEGORIES)
+        awaitText(text(R.string.category_none))
+
+        compose.onNodeWithText(text(R.string.category_none)).performClick()
+
+        val (listing, filter) = checkNotNull(listed)
+        assertEquals("$NO_CATEGORY ${text(R.string.category_none)}", listing.title)
+        assertEquals(
+            EntryFilter(
+                kind = Kind.EXPENSE,
+                uncategorized = true,
+                from = EntryDate.parse("2025-10-08"),
+                until = today,
+                transfers = false,
+            ),
+            filter,
+        )
+        assertEquals(listOf("Taxi", "Groceries"), matching(filter))
+    }
+
+    @Test
+    fun `an income node of the flows chart lists the income in the period (BA-16)`() {
+        showChart(Chart.FLOWS)
+        awaitText(text(R.string.kind_income))
+
+        compose.onAllNodesWithText("$NO_CATEGORY ${text(R.string.category_none)}")[0].performClick()
+
+        val (listing, filter) = checkNotNull(listed)
+        assertTrue(listing.subtitle.startsWith(text(R.string.kind_income)))
+        assertEquals(Kind.INCOME, filter.kind)
+        assertEquals(listOf("Refund"), matching(filter))
+    }
+
+    @Test
+    fun `net spending lists the entries of the period read off (BA-16)`() {
+        showChart(Chart.SPENDING)
+        awaitText(text(R.string.spending_net_label))
+
+        compose.onNodeWithText(text(R.string.spending_net_label)).performClick()
+
+        val (listing, filter) = checkNotNull(listed)
+        assertEquals(text(R.string.chart_spending), listing.title)
+        assertEquals(
+            EntryFilter(from = EntryDate.parse("2026-10-04"), until = today, transfers = false),
+            filter,
+        )
+    }
+
+    private fun matching(filter: EntryFilter): List<String> {
+        val overview = checkNotNull(runBlocking { groups.overview(trip, { today }).first() })
+        return filter.matching(overview.entries, overview.scale).map { it.description }
     }
 }

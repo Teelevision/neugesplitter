@@ -86,6 +86,9 @@ import java.util.Locale
 
 private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
 
+/** What entries narrowed from elsewhere, such as a part of a chart, are headed with (BA-16). */
+data class Listing(val title: String, val subtitle: String)
+
 /**
  * A group's total spending, the suggestions waiting, how its sync stands in brief, and its entries,
  * newest first (ui-design 4), narrowed by a filter if the user sets one (EN-12).
@@ -96,6 +99,8 @@ private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
  * @param onTodos opens the group's todo list (TD-1).
  * @param onTidy opens tidying up the group's history (TI-1).
  * @param onSettings opens the group's settings.
+ * @param listing heads only the entries the view model is narrowed to, without the group's total,
+ *   its sync or any action in the bar (BA-16).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,6 +120,7 @@ fun OverviewScreen(
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
     onTidy: () -> Unit = {},
+    listing: Listing? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val overview = state.overview
@@ -150,7 +156,18 @@ fun OverviewScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    if (overview != null) {
+                    if (listing != null) {
+                        Column {
+                            Text(listing.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                listing.subtitle,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    } else if (overview != null) {
                         GroupTitle(
                             listOfNotNull(overview.emoji, overview.name).joinToString(" "),
                             state.sync,
@@ -166,7 +183,7 @@ fun OverviewScreen(
                     }
                 },
                 actions = {
-                    if (overview != null) {
+                    if (overview != null && listing == null) {
                         IconButton(onClick = { filtering = true }) {
                             Icon(
                                 painterResource(R.drawable.ic_search),
@@ -212,13 +229,14 @@ fun OverviewScreen(
     ) { padding ->
         if (overview != null) {
             SyncPullToRefresh(
-                shared = state.sync != null,
+                shared = state.sync != null && listing == null,
                 onRefresh = viewModel::sync,
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
                 Entries(
                     overview,
                     state,
+                    listed = listing != null,
                     onOpen = onOpen,
                     onMenu = { menu = it },
                     onDelete = viewModel::delete,
@@ -293,6 +311,7 @@ private fun SheetAction(@DrawableRes icon: Int, @StringRes label: Int, onClick: 
 private fun Entries(
     overview: Overview,
     state: OverviewState,
+    listed: Boolean,
     onOpen: (EntryId) -> Unit,
     onMenu: (ListedEntry) -> Unit,
     onDelete: (EntryId) -> Unit,
@@ -306,22 +325,23 @@ private fun Entries(
     val locale = LocalConfiguration.current.locales[0]
     val days = state.listed.groupBy { it.date }
     val netExpenses = remember(state.listed) { netExpenses(state.listed) }
-    val sync = state.sync
+    val sync = state.sync.takeUnless { listed }
     LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 16.dp)) {
-        item(key = "header") { Header(overview, locale, onBalances) }
-        if (state.filter.active) {
+        if (!listed) item(key = "header") { Header(overview, locale, onBalances) }
+        if (listed || state.filter.active) {
             item(key = "filter") {
                 FilterLine(
                     state.listed.size,
                     netExpenses,
                     overview.scale,
                     locale,
-                    onFilter,
-                    onClearFilter,
+                    onFilter.takeUnless { listed },
+                    onClearFilter.takeUnless { listed },
+                    if (listed) Modifier.padding(top = 8.dp) else Modifier,
                 )
             }
         }
-        if (state.suggestions > 0) {
+        if (!listed && state.suggestions > 0) {
             item(key = "suggestions") {
                 SuggestionsBanner(
                     state.suggestions,
@@ -424,24 +444,34 @@ private fun Header(overview: Overview, locale: Locale, onBalances: () -> Unit) {
     }
 }
 
-/** The count and net expenses of the narrowed entries (EN-12); tapping it changes the filter. */
+/**
+ * The count and net expenses of the narrowed entries (EN-12); tapping it changes the filter, and
+ * without [onFilter] and [onClear] it only says so.
+ */
 @Composable
 private fun FilterLine(
     count: Int,
     netExpenses: Amount,
     scale: eu.teele.neugesplitter.domain.value.Scale,
     locale: Locale,
-    onFilter: () -> Unit,
-    onClear: () -> Unit,
+    onFilter: (() -> Unit)?,
+    onClear: (() -> Unit)?,
+    modifier: Modifier = Modifier,
 ) {
     val colours = MaterialTheme.colorScheme
     Row(
-        Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+        modifier
+            .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(colours.secondaryContainer)
-            .clickable(onClick = onFilter)
-            .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+            .then(if (onFilter != null) Modifier.clickable(onClick = onFilter) else Modifier)
+            .padding(
+                start = 16.dp,
+                end = 8.dp,
+                top = if (onClear != null) 4.dp else 12.dp,
+                bottom = if (onClear != null) 4.dp else 12.dp,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -461,7 +491,9 @@ private fun FilterLine(
             color = colours.onSecondaryContainer,
             modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
         )
-        TextButton(onClick = onClear) { Text(stringResource(R.string.filter_clear)) }
+        if (onClear != null) {
+            TextButton(onClick = onClear) { Text(stringResource(R.string.filter_clear)) }
+        }
     }
 }
 

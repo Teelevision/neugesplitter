@@ -16,6 +16,7 @@ import eu.teele.neugesplitter.storage.ListedEntry
  * @property least the smallest amount, as typed; and [most] the largest. Both count.
  * @property payers members who all paid; and [beneficiaries] members it was all for.
  * @property from the first date; and [until] the last. Both count.
+ * @property transfers false to leave transfers out, as spending does (BA-8).
  */
 data class EntryFilter(
     val text: String = "",
@@ -28,6 +29,7 @@ data class EntryFilter(
     val uncategorized: Boolean = false,
     val from: EntryDate? = null,
     val until: EntryDate? = null,
+    val transfers: Boolean = true,
 ) {
     val active: Boolean
         get() = copy(text = text.trim(), least = least.trim(), most = most.trim()) != EntryFilter()
@@ -43,6 +45,7 @@ data class EntryFilter(
                 (low == null || it.amount >= low) &&
                 (high == null || it.amount <= high) &&
                 (kind == null || it.kind == kind) &&
+                (transfers || it.kind != Kind.TRANSFER) &&
                 it.payerIds.containsAll(payers) &&
                 it.beneficiaryIds.containsAll(beneficiaries) &&
                 (categories.isEmpty() && !uncategorized ||

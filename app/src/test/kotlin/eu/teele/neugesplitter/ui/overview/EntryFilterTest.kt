@@ -11,6 +11,7 @@ import eu.teele.neugesplitter.storage.ListedEntry
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class EntryFilterTest {
 
@@ -109,5 +110,13 @@ class EntryFilterTest {
             listOf("Dinner", "Taxi home"),
             matching(EntryFilter(categories = setOf(dining), uncategorized = true)),
         )
+    }
+
+    @Test
+    fun `transfers can be left out, as spending leaves them out (BA-16)`() {
+        val settled = listed(4, "Settle up", 50, "2026-10-05", Kind.TRANSFER)
+        val filter = EntryFilter(transfers = false)
+        assertTrue(filter.active)
+        assertEquals(all, filter.matching(all + settled, Scale.DEFAULT))
     }
 }

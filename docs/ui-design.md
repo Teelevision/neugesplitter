@@ -63,6 +63,7 @@ screen or opened as a bottom sheet, and the bar is hidden while it is up.
 | Tidy up history     | pushed      | overview overflow                        |
 | Statistics          | destination | navigation bar                           |
 | Chart               | pushed      | a card on Statistics                     |
+| Chart entries       | pushed      | a category or total under a chart        |
 | Entry editor        | pushed      | centre FAB, editing an entry             |
 | Amount calculator   | full sheet  | tapping the amount field                 |
 | Group picker        | pushed      | another app's text selection toolbar     |
@@ -396,6 +397,16 @@ flows) use the same segments and step back and forth by one span with arrows.
 Under each chart, a readout lists the values of the period last held, or the
 latest one. The line marking it stays after the finger lifts, until a tap
 elsewhere.
+
+On net spending, categories, and income and expenses, a category or total in the
+readout opens the entries it counts (BA-16): the entry list of the Overview,
+narrowed to that period, category and kind, and to the user's entries as a
+beneficiary under **My share**, without transfers. Its top bar names what was
+tapped, with the period under it, and holds no actions; the line under it says
+how many entries match but neither opens the filter nor clears it. Entries open,
+and their long-press menu works, as on the Overview, and back returns to the
+chart. The node that balances one side of the flow chart counts no entries and
+opens nothing.
 
 Where the user acts as a member, a **Group / My share** toggle switches the
 spending charts to the user's share as a beneficiary. Colours are Okabe and

@@ -1,6 +1,7 @@
 package eu.teele.neugesplitter.ui.statistics
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,10 +29,27 @@ import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.MemberId
 
-/** A coloured dot, a label and a value at the end, as under a chart. */
+/**
+ * A coloured dot, a label and a value at the end, as under a chart; [onClick] lists its entries.
+ */
 @Composable
-internal fun Readout(colour: Color?, label: String, value: String, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+internal fun Readout(
+    colour: Color?,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .then(
+                if (onClick != null)
+                    Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick)
+                else Modifier
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         if (colour != null) {
             Box(Modifier.size(10.dp).clip(CircleShape).background(colour))
             Spacer(Modifier.width(8.dp))
@@ -52,12 +70,20 @@ internal fun RankedBars(
     group: Group,
     ranked: List<Pair<CategoryId?, Amount>>,
     modifier: Modifier = Modifier,
+    onClick: ((CategoryId?) -> Unit)? = null,
 ) {
     val amounts = group.amounts()
     val largest = ranked.firstOrNull()?.second?.toDouble() ?: return
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ranked.forEachIndexed { i, (category, amount) ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.then(
+                    if (onClick != null)
+                        Modifier.clip(RoundedCornerShape(8.dp)).clickable { onClick(category) }
+                    else Modifier
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
                     group.emoji(category),
                     Modifier.width(36.dp),

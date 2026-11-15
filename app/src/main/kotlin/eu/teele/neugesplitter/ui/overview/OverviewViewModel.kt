@@ -57,6 +57,7 @@ data class OverviewState(
 /**
  * @param scope outlives this view model, so that a deletion still offered for undo is written when
  *   the screen goes.
+ * @param narrowed what the entries are narrowed to at first.
  */
 class OverviewViewModel(
     private val repository: GroupRepository,
@@ -66,11 +67,12 @@ class OverviewViewModel(
     private val now: () -> Instant,
     private val scope: CoroutineScope,
     private val syncNow: suspend (GroupId) -> Unit,
+    narrowed: EntryFilter = EntryFilter(),
 ) : ViewModel() {
 
     private val deleting = MutableStateFlow<EntryId?>(null)
     private val committing = MutableStateFlow<Set<EntryId>>(emptySet())
-    private val filter = MutableStateFlow(EntryFilter())
+    private val filter = MutableStateFlow(narrowed)
     private val overviewAndCommitting =
         combine(repository.overview(group, today), committing) { overview, committing ->
             overview to committing

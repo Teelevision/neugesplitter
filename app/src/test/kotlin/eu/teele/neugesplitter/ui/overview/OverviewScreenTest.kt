@@ -117,6 +117,8 @@ class OverviewScreenTest {
     private fun show(
         empty: Boolean = false,
         deleteRequested: EntryId? = null,
+        listing: Listing? = null,
+        narrowed: EntryFilter = EntryFilter(),
         before: () -> Unit = {},
     ) {
         groups.create(
@@ -142,6 +144,7 @@ class OverviewScreenTest {
                 { at },
                 CoroutineScope(Dispatchers.Unconfined),
                 {},
+                narrowed,
             )
         compose.setContent {
             NeugesplitterTheme {
@@ -159,11 +162,15 @@ class OverviewScreenTest {
                     { balances++ },
                     { todos++ },
                     {},
+                    listing = listing,
                 )
             }
         }
         compose.waitUntil(5_000) {
-            compose.onAllNodesWithText("Total spending").fetchSemanticsNodes().isNotEmpty()
+            compose
+                .onAllNodesWithText(if (listing == null) "Total spending" else "Taxi")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
         }
     }
 
@@ -543,5 +550,29 @@ class OverviewScreenTest {
         compose.mainClock.advanceTimeBy(11_000)
         compose.waitUntil(5_000) { taxi !in stored() }
         assertEquals(0, compose.onAllNodesWithText("Taxi").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `a part of a chart lists only its entries, without the group's actions (BA-16)`() {
+        show(
+            listing = Listing("Net spending", "Oct 6, 2026"),
+            narrowed = EntryFilter(until = EntryDate.parse("2026-10-06"), transfers = false),
+        ) {
+            share()
+            groups.backends.succeeded(trip, at.minusSeconds(3600))
+        }
+        compose.onNodeWithText("Net spending").assertExists()
+        compose.onNodeWithText("Oct 6, 2026").assertExists()
+        compose.onNodeWithText("1 entry matches · net expenses +12.00").assertExists()
+        compose.onNodeWithText("Clear").assertDoesNotExist()
+        compose.onNodeWithText("Dinner").assertDoesNotExist()
+        compose.onNodeWithText("Total spending").assertDoesNotExist()
+        compose.onNodeWithText("Last successful: 1 hour ago").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Search and filter").assertDoesNotExist()
+        compose.onNodeWithContentDescription("More options").assertDoesNotExist()
+        compose.onNodeWithText("Taxi").performClick()
+        assertEquals(taxi, opened)
+        compose.onNodeWithContentDescription("Back").performClick()
+        assertEquals(1, back)
     }
 }

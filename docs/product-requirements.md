@@ -395,6 +395,11 @@ of everyone entering the same backend settings.
   way back to today, and SHOULD divide time more coarsely as it zooms out. Every
   value axis MUST include zero. Where a member is acting, the spending charts
   MUST offer that member's share instead of the group's.
+- **BA-16** (Core): Tapping a category or a total under the net spending,
+  categories, or income and expenses chart MUST list the entries it counts,
+  narrowed to its period, categories, kind and the member whose share is shown.
+  The list MUST open entries as the overview does, and back MUST return to the
+  chart.
 
 ### 4.10 Sync and Multi-Device
 
