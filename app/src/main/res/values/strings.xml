@@ -38,6 +38,11 @@
         <item quantity="one">It is removed from this device. A group kept only on this device cannot be brought back.</item>
         <item quantity="other">They are removed from this device. A group kept only on this device cannot be brought back.</item>
     </plurals>
+    <string name="group_copy">%1$s (copy)</string>
+    <string name="group_copy_numbered">%1$s (copy %2$d)</string>
+    <string name="duplicate_group">Duplicate group</string>
+    <string name="duplicate_group_text">The copy holds the whole history and is kept only on this device.</string>
+    <string name="duplicating">Copying the history…</string>
 
     <!-- New group -->
     <string name="close">Close</string>

@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.entry.Entry
@@ -50,6 +51,7 @@ class GroupListScreenTest {
     private val today = EntryDate.parse("2026-10-07")
     private val at = Instant.parse("2026-10-07T12:00:00Z")
     private var events = 0
+    private var issued = 0
 
     private fun id(n: Int) = "%032x".format(n)
 
@@ -96,7 +98,7 @@ class GroupListScreenTest {
         onExport: (List<GroupId>) -> Unit = {},
         onImport: () -> Unit = {},
     ) {
-        val viewModel = GroupListViewModel(groups) { today }
+        val viewModel = GroupListViewModel(groups, { id(0x500 + issued++) }, { today }, { at })
         compose.setContent {
             NeugesplitterTheme {
                 GroupListScreen(
@@ -262,5 +264,64 @@ class GroupListScreenTest {
         assertNull(groups.load(trip))
         assertNotNull(groups.load(flat))
         compose.onNodeWithText("Flat").assertExists()
+    }
+
+    @Test
+    fun `a selected group is duplicated with its history but not its backend, under a name asked for`() {
+        seed(trip, "Trip", paid = cents(3000))
+        seed(flat, "Flat")
+        groups.backends.connect(
+            trip,
+            BackendSettings("https://s3.example", "splits", "", "auto", false, "AK"),
+        )
+        show()
+        waitForText("Trip")
+        compose.onNodeWithText("Trip").performTouchInput { longClick() }
+        compose.onNodeWithText("Flat").performClick()
+        compose.onNodeWithContentDescription("Duplicate").assertDoesNotExist()
+        compose.onNodeWithText("Flat").performClick()
+
+        // The progress indicator animates forever, so the clock is advanced by hand.
+        compose.mainClock.autoAdvance = false
+        fun settle() = compose.mainClock.advanceTimeBy(1_000)
+        fun until(condition: () -> Boolean) =
+            compose.waitUntil(5_000) {
+                settle()
+                condition()
+            }
+        settle()
+        compose.onNodeWithContentDescription("Duplicate").performClick()
+        settle()
+        compose.onNodeWithText("Trip (copy)").assertExists()
+        compose.onNodeWithText("Cancel").performClick()
+        settle()
+        compose.onNodeWithText("Trip (copy)").assertDoesNotExist()
+        compose.onNodeWithText("1 selected").assertExists()
+
+        val copy = GroupId.parse(id(0x501))
+        compose.onNodeWithContentDescription("Duplicate").performClick()
+        settle()
+        compose.onNodeWithText("Duplicate").performClick()
+        until {
+            compose.onAllNodesWithText("Copying the history…").fetchSemanticsNodes().isEmpty() &&
+                compose.onAllNodesWithText("Trip (copy)").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Neugesplitter").assertExists()
+
+        val copied = assertNotNull(groups.load(copy))
+        assertEquals("Trip (copy)", copied.name)
+        assertEquals(groups.load(trip)!!.entries.keys, copied.entries.keys)
+        assertEquals(anna.id, groups.actingAs(copy))
+        assertNull(groups.backends.settings(copy))
+        assertEquals(2, compose.onAllNodesWithText("You are owed 15.00").fetchSemanticsNodes().size)
+
+        compose.onNodeWithText("Trip").performTouchInput { longClick() }
+        settle()
+        compose.onNodeWithContentDescription("Duplicate").performClick()
+        settle()
+        compose.onNodeWithText("Trip (copy 2)").performTextReplacement("Experiment")
+        settle()
+        compose.onNodeWithText("Duplicate").performClick()
+        until { compose.onAllNodesWithText("Experiment").fetchSemanticsNodes().isNotEmpty() }
     }
 }

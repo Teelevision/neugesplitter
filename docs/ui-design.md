@@ -88,7 +88,12 @@ only on this device shows no icon.
 - FAB opens a small menu: **new group** or **join an existing group**.
 - Tap opens the group at its Overview.
 - Long press selects, for the two bulk-ish actions worth having: archive (GR-13,
-  later) and delete (GR-11).
+  later) and delete (GR-11). With one group selected, **duplicate** copies its
+  whole history into a new group kept only on this device, with the same member
+  acting and none of the backend, so that something can be tried on the copy. It
+  first asks for the name, prefilled with "Trip (copy)", or "Trip (copy 2)" and
+  on once that is taken, and can still be cancelled there; while copying, a
+  dialog with a progress bar shows that it's working.
 - Overflow: **export**, **import** and app settings.
 - Empty state: one line explaining that a group can be local or shared, and the
   two FAB choices spelled out as buttons.

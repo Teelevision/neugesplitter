@@ -226,7 +226,14 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                             if (uri != null) stack.add(Import(uri.toString()))
                         }
                     GroupListScreen(
-                        viewModel { GroupListViewModel(graph.groups, graph::today) },
+                        viewModel {
+                            GroupListViewModel(
+                                graph.groups,
+                                graph::identifier,
+                                graph::today,
+                                graph::now,
+                            )
+                        },
                         onNewGroup = { stack.add(NewGroup) },
                         onJoin = { stack.add(JoinGroup) },
                         onOpen = { stack.add(GroupOverview(it.hex)) },

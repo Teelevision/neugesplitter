@@ -36,6 +36,11 @@
         <item quantity="one">Sie wird von diesem Gerät entfernt. Eine Gruppe, die nur auf diesem Gerät liegt, lässt sich nicht zurückholen.</item>
         <item quantity="other">Sie werden von diesem Gerät entfernt. Eine Gruppe, die nur auf diesem Gerät liegt, lässt sich nicht zurückholen.</item>
     </plurals>
+    <string name="group_copy">%1$s (Kopie)</string>
+    <string name="group_copy_numbered">%1$s (Kopie %2$d)</string>
+    <string name="duplicate_group">Gruppe duplizieren</string>
+    <string name="duplicate_group_text">Die Kopie enthält den ganzen Verlauf und liegt nur auf diesem Gerät.</string>
+    <string name="duplicating">Der Verlauf wird kopiert…</string>
 
     <!-- New group -->
     <string name="close">Schließen</string>
