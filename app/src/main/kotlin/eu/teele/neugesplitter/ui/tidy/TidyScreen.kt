@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -80,13 +81,33 @@ private val TABULAR = TextStyle(fontFeatureSettings = "tnum")
 @Composable
 fun TidyScreen(viewModel: TidyViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    val list = rememberLazyListState()
+    // The place of the batch last handled from below its top, to come back to once it is written.
+    var handled by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(state.incomes, state.uncategorised) {
+        val index = handled ?: return@LaunchedEffect
+        handled = null
+        list.scrollToItem(index)
+    }
+    fun handle(key: String) {
+        val index = list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }?.index
+        handled = index?.takeIf { it <= list.firstVisibleItemIndex }
+    }
     val preview = state.preview
     if (preview != null) {
-        PreviewScreen(state, preview, onCancel = viewModel::cancel, onConfirm = viewModel::confirm)
+        PreviewScreen(
+            state,
+            preview,
+            onCancel = {
+                handled = null
+                viewModel.cancel()
+            },
+            onConfirm = viewModel::confirm,
+        )
         return
     }
     val locale = LocalConfiguration.current.locales[0]
-    var tab by rememberSaveable { mutableIntStateOf(0) }
     var picking by remember { mutableStateOf<CategoryBatch?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -141,7 +162,7 @@ fun TidyScreen(viewModel: TidyViewModel, onBack: () -> Unit) {
                     },
                 )
             }
-            LazyColumn(Modifier.fillMaxSize()) {
+            LazyColumn(Modifier.fillMaxSize(), state = list) {
                 if (tab == 0) {
                     item(key = "explain") { Explanation(R.string.tidy_income_explain) }
                     if (state.loaded && state.incomes.isEmpty()) {
@@ -154,9 +175,13 @@ fun TidyScreen(viewModel: TidyViewModel, onBack: () -> Unit) {
                             locale,
                             onToggle = viewModel::toggle,
                             onDismiss = {
+                                handle("income ${batch.key}")
                                 viewModel.dismiss(Proposal.INCOME, batch.items.map { it.before.id })
                             },
-                            onApply = { viewModel.makeIncome(batch) },
+                            onApply = {
+                                handle("income ${batch.key}")
+                                viewModel.makeIncome(batch)
+                            },
                         )
                     }
                 } else {
@@ -173,9 +198,13 @@ fun TidyScreen(viewModel: TidyViewModel, onBack: () -> Unit) {
                             onChoose = { viewModel.choose(batch, it) },
                             onMore = { picking = batch },
                             onDismiss = {
+                                handle("category ${batch.key}")
                                 viewModel.dismiss(Proposal.CATEGORY, batch.entries.map { it.id })
                             },
-                            onApply = { viewModel.categorise(batch) },
+                            onApply = {
+                                handle("category ${batch.key}")
+                                viewModel.categorise(batch)
+                            },
                         )
                     }
                 }
@@ -258,7 +287,14 @@ private fun IncomeCard(
                             ),
                     )
                     .joinToString("\n")
-            TidyRow(before, state, locale, supporting, before.id !in state.excluded) {
+            TidyRow(
+                before,
+                state,
+                locale,
+                supporting,
+                before.id !in state.excluded,
+                batch.items.size > 1,
+            ) {
                 onToggle(before.id)
             }
         }
@@ -311,7 +347,14 @@ private fun CategoryCard(
                         R.string.entry_paid_by,
                         names(entry.payers.members, state, locale),
                     )
-            TidyRow(entry, state, locale, supporting, entry.id !in state.excluded) {
+            TidyRow(
+                entry,
+                state,
+                locale,
+                supporting,
+                entry.id !in state.excluded,
+                batch.entries.size > 1,
+            ) {
                 onToggle(entry.id)
             }
         }
@@ -325,6 +368,7 @@ private fun CategoryCard(
     }
 }
 
+/** One entry of a batch, with a box to leave it out where the batch holds others to apply. */
 @Composable
 private fun TidyRow(
     entry: Entry,
@@ -332,6 +376,7 @@ private fun TidyRow(
     locale: Locale,
     supporting: String,
     checked: Boolean,
+    checkable: Boolean,
     onToggle: () -> Unit,
 ) {
     ListItem(
@@ -339,7 +384,10 @@ private fun TidyRow(
             Text(entry.description, maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
         supportingContent = { Text(supporting) },
-        leadingContent = { Checkbox(checked = checked, onCheckedChange = null) },
+        leadingContent =
+            if (checkable) {
+                { Checkbox(checked = checked, onCheckedChange = null) }
+            } else null,
         trailingContent = {
             Text(
                 formatted(entry.amount, state.scale, locale),
@@ -348,11 +396,13 @@ private fun TidyRow(
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier =
-            Modifier.toggleable(
-                value = checked,
-                role = Role.Checkbox,
-                onValueChange = { onToggle() },
-            ),
+            if (checkable) {
+                Modifier.toggleable(
+                    value = checked,
+                    role = Role.Checkbox,
+                    onValueChange = { onToggle() },
+                )
+            } else Modifier,
     )
 }
 

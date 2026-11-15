@@ -1,10 +1,14 @@
 package eu.teele.neugesplitter.ui.tidy
 
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.category.BuiltInCategory
 import eu.teele.neugesplitter.domain.entry.Entry
@@ -72,7 +76,7 @@ class TidyScreenTest {
 
     private fun entry(id: EntryId) = groups.load(trip)!!.entries.getValue(id)
 
-    private fun show(shared: Boolean = false) {
+    private fun show(shared: Boolean = false, more: List<Entry> = emptyList()) {
         groups.create(
             Group.create(trip, "Trip", null, null, null, listOf(anna, ben), at, ::eventId),
             today,
@@ -83,7 +87,7 @@ class TidyScreenTest {
                 expense(september, "Gehalt", "2026-09-01", ben),
                 expense(pizzas[0], "Pizza", "2026-09-02", anna),
                 expense(pizzas[1], "Pizza!", "2026-09-03", anna),
-            )
+            ) + more
         groups.append(trip, entries.map { Event.EntryCreated(eventId(), anna.id, at, it) }, today)
         if (shared) {
             groups.backends.connect(
@@ -99,7 +103,13 @@ class TidyScreenTest {
                 { today },
                 { at },
                 rank = { listOf(BuiltInCategory.DINING_AND_CAFES, BuiltInCategory.GROCERIES) },
-                guess = { if ("Pizza" in it) BuiltInCategory.DINING_AND_CAFES else null },
+                guess = {
+                    when {
+                        "Pizza" in it -> BuiltInCategory.DINING_AND_CAFES
+                        it == "Taxi" -> BuiltInCategory.TRANSPORTATION
+                        else -> null
+                    }
+                },
             )
         compose.setContent { NeugesplitterTheme { TidyScreen(viewModel, onBack = {}) } }
         waitFor("Make income")
@@ -142,6 +152,41 @@ class TidyScreenTest {
         val dining = BuiltInCategory.DINING_AND_CAFES.id
         compose.waitUntil(5_000) { pizzas.all { entry(it).categoryId == dining } }
         assertNull(entry(october).categoryId)
+    }
+
+    private fun toggles(text: String) =
+        compose.onAllNodes(isToggleable() and hasText(text)).fetchSemanticsNodes().size
+
+    @Test
+    fun `only a batch of several entries offers to leave some out (TI-2, TI-3)`() {
+        show(more = listOf(expense(EntryId.parse(id(40)), "Taxi", "2026-09-04", anna)))
+
+        compose.onNodeWithText("Categories (5)").performClick()
+        waitFor("Taxi")
+        assertEquals(2, toggles("Pizza") + toggles("Pizza!"))
+        assertEquals(0, toggles("Taxi"))
+    }
+
+    @Test
+    fun `a long batch handled leaves the next one in view from its top (TI-3)`() {
+        val more =
+            (0 until 30).flatMap { n ->
+                listOf(
+                    expense(EntryId.parse(id(0x400 + n)), "Pizza", "2026-08-01", anna),
+                    expense(EntryId.parse(id(0x500 + n)), "Taxi", "2026-08-01", anna),
+                )
+            }
+        show(more = more)
+
+        compose.onNodeWithText("Categories (64)").performClick()
+        waitFor("32 entries")
+        compose.onAllNodesWithText("Apply").onFirst().performScrollTo().performClick()
+
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("32 entries").fetchSemanticsNodes().isEmpty()
+        }
+        compose.waitForIdle()
+        compose.onNodeWithText("30 entries").assertIsDisplayed()
     }
 
     @Test
