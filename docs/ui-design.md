@@ -392,14 +392,14 @@ small preview that does not move. A tap opens the chart on a screen of its own.
 A group without entries says that there is nothing to chart yet, in place of the
 cards.
 
-| Chart              | Preview                                | On its own screen                                       |
-| ------------------ | -------------------------------------- | ------------------------------------------------------- |
-| Balance            | the user's balance over the last month | chosen members' lines, as chips in their colours (BA-9) |
-| Net spending       | weekly bars over the last year         | split by category, a running total (BA-10)              |
-| Categories         | treemap of the top five and the rest   | every category as a bar, largest first (BA-11)          |
-| Who spends on what | the top four categories by share       | names, amounts, paid or share (BA-12)                   |
-| Average spending   | per day of the month over five years   | weekday, day or month; years; lowest to highest (BA-13) |
-| Income, expenses   | flow chart, four nodes a side          | six nodes a side, and every node listed (BA-14)         |
+| Chart              | Preview                               | On its own screen                                       |
+| ------------------ | ------------------------------------- | ------------------------------------------------------- |
+| Balance            | the user's balance over the last year | chosen members' lines, as chips in their colours (BA-9) |
+| Net spending       | weekly bars over the last year        | split by category, a running total (BA-10)              |
+| Categories         | treemap of the top five and the rest  | every category as a bar, largest first (BA-11)          |
+| Who spends on what | the top four categories by share      | names, amounts, paid or share (BA-12)                   |
+| Average spending   | per day of the month over five years  | weekday, day or month; years; lowest to highest (BA-13) |
+| Income, expenses   | flow chart, four nodes a side         | six nodes a side, and every node listed (BA-14)         |
 
 Charts along time (balance, net spending) open on a span chosen by segments —
 month, quarter, year, five years, all — and then pan and zoom freely (section

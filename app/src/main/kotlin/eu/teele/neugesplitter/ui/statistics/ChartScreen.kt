@@ -143,7 +143,7 @@ private fun BalanceDetail(statistics: Statistics, me: MemberId?, taps: Int) {
         mutableStateOf(listOfNotNull((me ?: offered.firstOrNull()?.id)?.hex))
     }
     val members = chosen.map(MemberId::parse).filter { it in group.members }
-    val viewport = rememberViewport(statistics.today, statistics.first, Span.MONTH)
+    val viewport = rememberViewport(statistics.today, statistics.first, Span.YEAR)
     var scrub by remember(taps) { mutableStateOf<Float?>(null) }
     val granularity = viewport.granularity
     val periods =

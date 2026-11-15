@@ -115,15 +115,14 @@ private fun Preview(chart: Chart, statistics: Statistics, me: MemberId?, onClick
         Chart.BALANCE -> {
             val member =
                 me?.takeIf { it in group.members } ?: group.offered().firstOrNull()?.id ?: return
-            val window = Span.MONTH.window(statistics.today, statistics.first)
             val last = statistics.today.toEpochDay() + 1.0
             val lines =
                 remember(statistics, member, firstDay) {
                     val periods =
                         statistics.balances(
                             listOf(member),
-                            window.from.minusDays(1),
-                            window.until,
+                            year.from.minusDays(1),
+                            year.until,
                             Granularity.DAY,
                             firstDay,
                         )
@@ -136,11 +135,11 @@ private fun Preview(chart: Chart, statistics: Statistics, me: MemberId?, onClick
                     AnnotatedString(
                         "${group.members.getValue(member).name} ${signed(balance, group.scale, locale)}"
                     )
-            Card(chart, windowLabel(window), headline, onClick) {
+            Card(chart, windowLabel(year), headline, onClick) {
                 BalanceChart(
                     lines,
-                    window.from.toEpochDay().toDouble(),
-                    window.days.toDouble(),
+                    year.from.toEpochDay().toDouble(),
+                    year.days.toDouble(),
                     firstDay,
                     axes = false,
                     scrub = null,
