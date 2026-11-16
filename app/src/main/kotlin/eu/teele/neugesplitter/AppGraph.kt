@@ -19,6 +19,8 @@ import eu.teele.neugesplitter.storage.settings.Secrets
 import eu.teele.neugesplitter.storage.settings.SecretsDatabase
 import eu.teele.neugesplitter.sync.Keyring
 import eu.teele.neugesplitter.sync.LogStore
+import eu.teele.neugesplitter.ui.longDate
+import eu.teele.neugesplitter.ui.sync.ago
 import eu.teele.neugesplitter.work.Notifications
 import eu.teele.neugesplitter.work.Syncing
 import eu.teele.neugesplitter.work.WorkPolls
@@ -30,6 +32,7 @@ import java.time.LocalDate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /** The composition root: everything is constructed here, once (architecture.md 2). */
 class AppGraph(context: Context) {
@@ -145,5 +148,11 @@ class Neugesplitter : Application() {
         super.onCreate()
         graph.notifications.channel()
         graph.syncing.start()
+        val locale = resources.configuration.locales[0]
+        // Loading the locale's date data takes the main thread over 100 ms otherwise.
+        graph.scope.launch {
+            longDate(graph.today(), locale)
+            ago(Instant.EPOCH, Instant.EPOCH, locale)
+        }
     }
 }
