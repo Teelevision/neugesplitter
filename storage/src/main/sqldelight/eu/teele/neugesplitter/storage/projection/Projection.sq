@@ -80,6 +80,8 @@ CREATE TABLE IF NOT EXISTS occurrence (
     PRIMARY KEY (group_id, series, due)
 );
 
+CREATE INDEX IF NOT EXISTS occurrence_by_entry ON occurrence (group_id, entry);
+
 -- Each member's exact balance, and the one shown and settled at the group's scale (BA-2).
 CREATE TABLE IF NOT EXISTS balance (
     group_id TEXT NOT NULL,

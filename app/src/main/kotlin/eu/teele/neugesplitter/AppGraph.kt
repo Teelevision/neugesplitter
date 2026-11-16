@@ -2,6 +2,7 @@ package eu.teele.neugesplitter
 
 import android.app.Application
 import android.content.Context
+import androidx.sqlite.db.SupportSQLiteDatabase
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.backend.s3.Credentials
 import eu.teele.neugesplitter.backend.s3.S3Location
@@ -33,7 +34,21 @@ import kotlinx.coroutines.SupervisorJob
 /** The composition root: everything is constructed here, once (architecture.md 2). */
 class AppGraph(context: Context) {
 
-    val groups = GroupRepository(AndroidSqliteDriver(Database.Schema, context, "neugesplitter.db"))
+    val groups =
+        GroupRepository(
+            AndroidSqliteDriver(
+                Database.Schema,
+                context,
+                "neugesplitter.db",
+                callback =
+                    object : AndroidSqliteDriver.Callback(Database.Schema) {
+                        // Reads outside a transaction then go on beside one.
+                        override fun onConfigure(db: SupportSQLiteDatabase) {
+                            db.enableWriteAheadLogging()
+                        }
+                    },
+            )
+        )
 
     val preferences = Preferences(context)
 

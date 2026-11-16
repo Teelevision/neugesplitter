@@ -1,0 +1,2 @@
+-- Version 7 found an entry's occurrence by searching the whole group.
+CREATE INDEX IF NOT EXISTS occurrence_by_entry ON occurrence (group_id, entry);

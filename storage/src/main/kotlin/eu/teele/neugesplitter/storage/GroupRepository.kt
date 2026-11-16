@@ -21,6 +21,10 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.format.json.EventJson
+import eu.teele.neugesplitter.storage.projection.Beneficiaries
+import eu.teele.neugesplitter.storage.projection.Entries
+import eu.teele.neugesplitter.storage.projection.Heading
+import eu.teele.neugesplitter.storage.projection.Members
 import eu.teele.neugesplitter.storage.projection.Projection
 import eu.teele.neugesplitter.storage.settings.Backends
 import eu.teele.neugesplitter.storage.settings.Failure
@@ -92,28 +96,32 @@ class GroupRepository(private val driver: SqlDriver) {
      */
     fun replay(id: GroupId): Replayed? {
         val began = generation.get()
-        var cached: Replayed? = null
-        val (length, texts) =
-            database.transactionWithResult {
-                val length = rows.length(id.hex).executeAsOne()
-                cached = replays[id]?.takeIf { it.length == length }
-                length to if (cached != null) emptyList() else rows.inGroup(id.hex).executeAsList()
-            }
-        cached?.let {
+        fun cached(length: Long) = replays[id]?.takeIf { it.length == length }
+        cached(rows.length(id.hex).executeAsOne())?.let {
             return it
         }
-        if (texts.isEmpty()) return null
+        // Callers at once read the log once: who waited finds what the one before parsed.
         return synchronized(parsing.computeIfAbsent(id) { Any() }) {
-            replays[id]?.takeIf { it.length == length }
-                ?: parsed(length, texts).also { replayed ->
-                    synchronized(replays) {
-                        if (generation.get() == began) {
-                            replays.merge(id, replayed) { old, new ->
-                                if (old.length > new.length) old else new
+            var cached: Replayed? = null
+            val (length, texts) =
+                database.transactionWithResult {
+                    val length = rows.length(id.hex).executeAsOne()
+                    cached = cached(length)
+                    length to
+                        if (cached != null) emptyList() else rows.inGroup(id.hex).executeAsList()
+                }
+            cached
+                ?: if (texts.isEmpty()) null
+                else
+                    parsed(length, texts).also { replayed ->
+                        synchronized(replays) {
+                            if (generation.get() == began) {
+                                replays.merge(id, replayed) { old, new ->
+                                    if (old.length > new.length) old else new
+                                }
                             }
                         }
                     }
-                }
         }
     }
 
@@ -150,9 +158,10 @@ class GroupRepository(private val driver: SqlDriver) {
             .distinctUntilChanged()
             .flowOn(context)
 
-    private fun unsyncedEvents(id: GroupId): List<Event> =
-        if (backends.settings(id) == null) emptyList()
-        else rows.unsynced(id.hex).executeAsList().map(EventJson::read)
+    private fun unsyncedEvents(id: GroupId): List<Event> = unsyncedTexts(id).map(EventJson::read)
+
+    private fun unsyncedTexts(id: GroupId): List<String> =
+        if (backends.settings(id) == null) emptyList() else rows.unsynced(id.hex).executeAsList()
 
     /**
      * Where in group [id]'s log, counted from 0, each event sits that came from another
@@ -290,96 +299,86 @@ class GroupRepository(private val driver: SqlDriver) {
         // Thousands of rows name the same few members; each is parsed once.
         val members = ConcurrentHashMap<String, MemberId>()
         fun member(hex: String) = members.getOrPut(hex) { MemberId.parse(hex) }
-        val entries =
-            queries.entries(id.hex) {
-                entry,
-                kind,
-                description,
-                date,
-                amount,
-                edited,
-                repeats,
-                paid,
-                owed,
-                payer,
-                payerId,
-                unseen,
-                category,
-                emoji ->
-                val type = Kind.valueOf(kind.uppercase())
-                ListedEntry(
-                    id = EntryId.parse(entry),
-                    kind = type,
-                    description = description,
-                    date = EntryDate.parse(date),
-                    amount = Amount.ofUnits(amount),
-                    payers = listOf(payer),
-                    payerIds = setOf(member(payerId)),
-                    own =
-                        if (paid == null && owed == null) null
-                        else {
-                            val own = Amount.ofUnits((paid ?: 0) - (owed ?: 0))
-                            if (type == Kind.INCOME) -own else own
-                        },
-                    repeats = repeats,
-                    edited = edited != 0L,
-                    unseen = unseen,
-                    categoryEmoji = emoji,
-                    categoryId = category?.takeIf { emoji != null }?.let(CategoryId::parse),
-                )
-            }
+        val entries = queries.entries(id.hex)
         val unsynced = rows.unsynced(id.hex)
         val shared = database.backendSettingsQueries.settings(id.hex)
 
-        // The newest [limit] entries without whom they are for, or all of them with it.
-        fun read(limit: Int?): Overview? =
-            database.transactionWithResult {
-                heading.executeAsOneOrNull()?.let {
-                    val waiting = unsyncedEvents(id).mapNotNullTo(mutableSetOf()) { it.entry() }
-                    val beneficiaries = HashMap<String, MutableSet<MemberId>>()
-                    if (limit == null)
-                        for (row in queries.beneficiaries(id.hex).executeAsList()) beneficiaries
-                            .getOrPut(row.entry) { mutableSetOf() }
-                            .add(member(row.member))
-                    // An entry has a row per payer, and one row too many says there are more.
-                    val listed = mutableListOf<MutableList<ListedEntry>>()
-                    var complete = true
-                    entries.execute { cursor ->
-                        while (cursor.next().value) {
-                            val row = entries.mapper(cursor)
-                            if (listed.lastOrNull()?.first()?.id == row.id) listed.last() += row
-                            else if (limit != null && listed.size == limit) {
-                                complete = false
-                                break
-                            } else listed += mutableListOf(row)
+        // The newest [limit] entries without whom they are for, or all of them with it. Only the
+        // rows are read in the transaction; parsing them leaves the database to others meanwhile.
+        fun read(limit: Int?): Overview? {
+            var complete = true
+            val read =
+                database.transactionWithResult<OverviewRows?> {
+                    heading.executeAsOneOrNull()?.let {
+                        // An entry has a row per payer, and one row too many says there are more.
+                        val listed = mutableListOf<MutableList<Entries>>()
+                        entries.execute { cursor ->
+                            while (cursor.next().value) {
+                                val row = entries.mapper(cursor)
+                                if (listed.lastOrNull()?.first()?.id == row.id) listed.last() += row
+                                else if (limit != null && listed.size == limit) {
+                                    complete = false
+                                    break
+                                } else listed += mutableListOf(row)
+                            }
+                            QueryResult.Unit
                         }
-                        QueryResult.Unit
+                        OverviewRows(
+                            it,
+                            listed,
+                            unsyncedTexts(id),
+                            if (limit == null) queries.beneficiaries(id.hex).executeAsList()
+                            else emptyList(),
+                            queries.members(id.hex).executeAsList(),
+                            queries.spent(id.hex).executeAsOne(),
+                        )
                     }
-                    Overview(
-                        name = it.name,
-                        emoji = it.emoji,
-                        colour = it.colour?.let(Colour::parse),
-                        scale = Scale.of(it.scale.toInt()),
-                        own = it.own?.let(Amount::ofUnits),
-                        entries =
-                            listed.map { rows ->
-                                val first = rows.first()
-                                first.copy(
-                                    payers = rows.map { it.payers.single() },
-                                    payerIds = rows.flatMapTo(mutableSetOf()) { it.payerIds },
-                                    beneficiaryIds = beneficiaries[first.id.hex].orEmpty(),
-                                    unsynced = first.id in waiting,
-                                )
-                            },
-                        members =
-                            queries.members(id.hex).executeAsList().associate {
-                                member(it.id) to it.name
-                            },
-                        total = Amount.ofUnits(queries.spent(id.hex).executeAsOne()),
-                        complete = complete,
-                    )
-                }
-            }
+                } ?: return null
+            val waiting = read.unsynced.mapNotNullTo(mutableSetOf()) { EventJson.read(it).entry() }
+            val beneficiaries = HashMap<String, MutableSet<MemberId>>()
+            for (row in read.beneficiaries) beneficiaries
+                .getOrPut(row.entry) { mutableSetOf() }
+                .add(member(row.member))
+            return Overview(
+                name = read.heading.name,
+                emoji = read.heading.emoji,
+                colour = read.heading.colour?.let(Colour::parse),
+                scale = Scale.of(read.heading.scale.toInt()),
+                own = read.heading.own?.let(Amount::ofUnits),
+                entries =
+                    read.entries.map { rows ->
+                        val row = rows.first()
+                        val id = EntryId.parse(row.id)
+                        val type = Kind.valueOf(row.kind.uppercase())
+                        ListedEntry(
+                            id = id,
+                            kind = type,
+                            description = row.description,
+                            date = EntryDate.parse(row.date),
+                            amount = Amount.ofUnits(row.amount),
+                            payers = rows.map { it.payer },
+                            payerIds = rows.mapTo(mutableSetOf()) { member(it.payer_id) },
+                            beneficiaryIds = beneficiaries[row.id].orEmpty(),
+                            own =
+                                if (row.paid == null && row.owed == null) null
+                                else {
+                                    val own = Amount.ofUnits((row.paid ?: 0) - (row.owed ?: 0))
+                                    if (type == Kind.INCOME) -own else own
+                                },
+                            repeats = row.repeats,
+                            edited = row.edited != 0L,
+                            unseen = row.unseen,
+                            unsynced = id in waiting,
+                            categoryEmoji = row.emoji,
+                            categoryId =
+                                row.category?.takeIf { row.emoji != null }?.let(CategoryId::parse),
+                        )
+                    },
+                members = read.members.associate { member(it.id) to it.name },
+                total = Amount.ofUnits(read.spent),
+                complete = complete,
+            )
+        }
 
         // Either query may be told of a write first; all are read again, together, either way.
         val projected = flow {
@@ -661,3 +660,13 @@ internal fun Event.entry(): EntryId? =
         is Event.EntryDeleted -> target
         else -> null
     }
+
+/** What an overview is read from, before it is parsed; [entries] holds each entry's rows. */
+private class OverviewRows(
+    val heading: Heading,
+    val entries: List<List<Entries>>,
+    val unsynced: List<String>,
+    val beneficiaries: List<Beneficiaries>,
+    val members: List<Members>,
+    val spent: Long,
+)

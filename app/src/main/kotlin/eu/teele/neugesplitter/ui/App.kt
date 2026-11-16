@@ -14,6 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -96,8 +97,10 @@ import eu.teele.neugesplitter.ui.todo.TodoScreen
 import eu.teele.neugesplitter.ui.todo.TodoViewModel
 import java.io.IOException
 import java.text.DecimalFormatSymbols
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.serialization.Serializable
 
 @Serializable data object GroupList : NavKey
@@ -484,8 +487,16 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                         rememberLauncherForActivityResult(
                             ActivityResultContracts.RequestPermission()
                         ) {}
+                    val scope = rememberCoroutineScope()
+                    // Read once for both uses below.
+                    val syncState =
+                        remember(group) {
+                            graph.groups.backends
+                                .state(group)
+                                .shareIn(scope, SharingStarted.WhileSubscribed(), replay = 1)
+                        }
                     val shared by
-                        remember(group) { graph.groups.backends.state(group).map { it != null } }
+                        remember(syncState) { syncState.map { it != null } }
                             .collectAsStateWithLifecycle(false)
                     // Others' changes are told about only once a group is shared (SY-10).
                     LaunchedEffect(shared) {
@@ -501,10 +512,10 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                         }
                     }
                     val attention by
-                        remember(group) {
+                        remember(syncState) {
                                 combine(
                                     graph.groups.unseen(group),
-                                    graph.groups.backends.state(group),
+                                    syncState,
                                     graph.groups.pending(group, graph::today),
                                     graph.groups.group(group),
                                 ) { unseen, sync, pending, replayed ->
