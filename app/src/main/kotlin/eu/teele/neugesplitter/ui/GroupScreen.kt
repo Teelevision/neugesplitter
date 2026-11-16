@@ -11,9 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -25,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -93,6 +97,30 @@ fun GroupScreen(
             { destination = it },
             Modifier.padding(padding).consumeWindowInsets(padding),
         )
+    }
+}
+
+/**
+ * A destination's three-dot menu, its own [items] above the group's settings, which every
+ * destination offers (ui-design 1). An item is given what closes the menu.
+ */
+@Composable
+fun GroupMenu(onSettings: () -> Unit, items: @Composable (close: () -> Unit) -> Unit = {}) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(painterResource(R.drawable.ic_more_vert), stringResource(R.string.more_options))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            items { open = false }
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.destination_settings)) },
+                onClick = {
+                    open = false
+                    onSettings()
+                },
+            )
+        }
     }
 }
 

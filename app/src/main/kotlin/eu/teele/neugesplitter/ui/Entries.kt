@@ -98,6 +98,17 @@ fun UnseenDot(modifier: Modifier = Modifier) {
     )
 }
 
+/** Marks what the group's backend does not hold yet (SY-16), by an icon and a label (UX-6). */
+@Composable
+fun UnsyncedMark(modifier: Modifier = Modifier) {
+    Icon(
+        painterResource(R.drawable.ic_cloud_upload),
+        stringResource(R.string.unsynced),
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.size(16.dp),
+    )
+}
+
 /**
  * Income and transfers carry their own icon, and income a sign, so the kind never rests on colour
  * alone (UX-6). Names truncate before the amount does (ui-design 9), and at a large text size the
@@ -153,6 +164,7 @@ fun EntryRow(entry: ListedEntry, scale: Scale, locale: Locale, modifier: Modifie
                     )
                 }
                 if (entry.unseen) UnseenDot(Modifier.padding(start = 8.dp))
+                if (entry.unsynced) UnsyncedMark(Modifier.padding(start = 8.dp))
             }
             Text(
                 meta,

@@ -285,6 +285,31 @@ class SyncingTest {
     }
 
     @Test
+    fun `a paused group sends nothing until resumed, and what it holds unsent can be dropped meanwhile (SY-16, SY-17)`() {
+        created()
+        val syncing = syncing()
+        runBlocking { syncing.connect(trip, settings, "secret") }
+        settled { it.waiting == 0L }
+        val synced = groups.events(trip)
+
+        syncing.pause(trip, true)
+        settled { it.paused }
+        appended()
+        runBlocking { syncing.poll(trip) }
+        assertEquals(1L, settled { it.waiting == 1L }.waiting)
+        assertNull(bucket.at(1))
+
+        runBlocking { syncing.discardUnsynced(trip) }
+        assertEquals(synced, groups.events(trip))
+        assertEquals(0L, settled { it.waiting == 0L }.waiting)
+
+        appended()
+        syncing.pause(trip, false)
+        settled { !it.paused && it.waiting == 0L }
+        assertEquals(1, LogObject.read(bucket.at(1)!!).events.size)
+    }
+
+    @Test
     fun `a pass that could not reach the backend goes again by itself (SY-6)`() {
         created()
         val flaky = BucketStore(reachable = false)

@@ -3,6 +3,7 @@ package eu.teele.neugesplitter.ui.activity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -11,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeLeft
@@ -81,6 +83,8 @@ class ActivityScreenTest {
     private var shares = 0
     private var problems = 0
     private var todoLists = 0
+    private var settings = 0
+    private val discarded = mutableListOf<GroupId>()
 
     private fun id(n: Int) = "%032x".format(n)
 
@@ -143,7 +147,16 @@ class ActivityScreenTest {
         )
         before()
         val viewModel =
-            ActivityViewModel(groups, trip, { today }, { hours(2) }, { synced += it }, {})
+            ActivityViewModel(
+                groups,
+                trip,
+                { today },
+                { hours(2) },
+                { synced += it },
+                {},
+                { id, paused -> groups.backends.setPaused(id, paused) },
+                { discarded += it },
+            )
         val todos =
             TodoViewModel(
                 groups,
@@ -164,6 +177,7 @@ class ActivityScreenTest {
                     onShare = { shares++ },
                     onSyncProblem = { problems++ },
                     onTodos = { todoLists++ },
+                    onSettings = { settings++ },
                 )
             }
         }
@@ -496,6 +510,14 @@ class ActivityScreenTest {
     }
 
     @Test
+    fun `the menu leads to the group's settings (ui-design 1)`() {
+        show()
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Settings").performClick()
+        assertEquals(1, settings)
+    }
+
+    @Test
     fun `a group kept only here offers to share it and shows no sync state (SY-6)`() {
         show()
         compose.onNodeWithText("Only on this device").assertExists()
@@ -540,6 +562,68 @@ class ActivityScreenTest {
         compose.onNodeWithText("Sync stopped").performClick()
         assertEquals(1, problems)
     }
+
+    @Test
+    fun `what the backend does not hold yet is marked, and nothing of a group kept here (SY-16)`() {
+        show()
+        assertEquals(0, marked())
+    }
+
+    @Test
+    fun `a shared group's changes not sent yet are marked (SY-16)`() {
+        show(::share)
+        compose.waitUntil(5_000) { marked() > 0 }
+    }
+
+    @Test
+    fun `sync pauses and resumes from the menu, and local changes are discarded only while paused (SY-16, SY-17)`() {
+        show(::share)
+        compose.onNodeWithContentDescription("More options").performClick()
+        assertEquals(0, count("Discard local changes"))
+        compose.onNodeWithText("Pause sync").performClick()
+        compose.waitUntil(5_000) { count("Sync paused") == 1 }
+        assertEquals(0, count("Sync now"))
+
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Discard local changes").performClick()
+        compose.onNodeWithText("Cancel").performClick()
+        assertEquals(emptyList(), discarded)
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Discard local changes").performClick()
+        compose.onNodeWithText("Discard").performClick()
+        compose.waitUntil(5_000) { discarded.isNotEmpty() }
+        assertEquals(listOf(trip), discarded)
+
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Resume sync").performClick()
+        compose.waitUntil(5_000) { count("Sync now") == 1 }
+    }
+
+    @Test
+    fun `a long history is laid out a page at a time, more as it is scrolled (ui-design 4)`() {
+        show {
+            groups.append(
+                trip,
+                (1..250).map {
+                    Event.EntryCreated(
+                        eventId(),
+                        ben.id,
+                        hours(1).plusSeconds(it.toLong()),
+                        entry(EntryId.parse(id(0x1000 + it)), "Item $it"),
+                    )
+                },
+                today,
+            )
+        }
+        compose.waitUntil(5_000) { count("Ben added 'Item 250'") == 1 }
+        val list = compose.onNode(hasScrollToIndexAction())
+        assertEquals(0, count("Anna created the group"))
+        list.performScrollToNode(hasText("Ben added 'Item 60'"))
+        list.performScrollToNode(hasText("Anna created the group"))
+    }
+
+    private fun marked() =
+        compose.onAllNodesWithContentDescription("Waiting to sync").fetchSemanticsNodes().size
 
     @Test
     fun `how sync stands comes before the history, which folds away and back (ui-design 4)`() {

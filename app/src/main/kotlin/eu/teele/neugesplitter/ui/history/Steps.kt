@@ -48,6 +48,7 @@ import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.ui.UnseenDot
+import eu.teele.neugesplitter.ui.UnsyncedMark
 import eu.teele.neugesplitter.ui.category.categoryNameResource
 import eu.teele.neugesplitter.ui.editor.recurrenceText
 import eu.teele.neugesplitter.ui.formatted
@@ -71,11 +72,14 @@ fun day(at: Instant): EntryDate = EntryDate.of(at.atZone(ZoneId.systemDefault())
 fun mediumDate(date: EntryDate, locale: Locale): String =
     DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).format(date.value)
 
+private val clocks = java.util.concurrent.ConcurrentHashMap<Locale, DateTimeFormatter>()
+
 private fun clock(at: Instant, locale: Locale): String =
-    DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-        .withLocale(locale)
-        .withZone(ZoneId.systemDefault())
-        .format(at)
+    clocks
+        .getOrPut(locale) {
+            DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)
+        }
+        .format(at.atZone(ZoneId.systemDefault()))
 
 /**
  * One step of a history: an [icon] for its kind, who did what, and what changed in [lines], or in
@@ -104,6 +108,7 @@ fun HistoryRow(
     locale: Locale,
     modifier: Modifier = Modifier,
     unseen: Boolean = false,
+    unsynced: Boolean = false,
     detailLines: Int = 1,
 ) {
     val colours = MaterialTheme.colorScheme
@@ -134,6 +139,7 @@ fun HistoryRow(
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 if (unseen) UnseenDot(Modifier.padding(start = 8.dp))
+                if (unsynced) UnsyncedMark(Modifier.padding(start = 8.dp))
             }
             Text(
                 told.detail,

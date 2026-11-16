@@ -4,7 +4,6 @@ import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.value.EntryDate
-import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.format.json.BatchId
 import eu.teele.neugesplitter.format.json.EventJson
@@ -17,13 +16,18 @@ import eu.teele.neugesplitter.sync.Retained
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.withContext
 
-/** Group [id]'s log in the database, as sync sees it. Each call is one transaction. */
+/**
+ * Group [id]'s log in the database, as sync sees it. Each call is one transaction. [replayed] is
+ * the repository's replay of the log, within one, and [kept] is handed the replay a receipt leaves.
+ */
 internal class StoredLog(
     private val database: Database,
     private val projection: Projection,
     private val id: GroupId,
     private val today: () -> EntryDate,
     private val context: CoroutineContext,
+    private val replayed: () -> Replayed?,
+    private val kept: (Replayed) -> Unit,
 ) : LocalLog {
 
     private val rows = database.eventRowQueries
@@ -73,9 +77,11 @@ internal class StoredLog(
             database.transactionWithResult {
                 val (synced, waiting) =
                     rows.rows(id.hex).executeAsList().partition { it.object_number != null }
-                val written = synced.map { EventJson.read(it.json) }
+                // With nothing waiting, the log is what was written, likely parsed already.
+                val log = if (waiting.isEmpty()) replayed() else null
+                val written = log?.events ?: synced.map { EventJson.read(it.json) }
                 val pending = waiting.map { EventJson.read(it.json) }
-                val from = written.takeIf { it.isNotEmpty() }?.let(Group::replay)
+                val from = log?.group ?: written.takeIf { it.isNotEmpty() }?.let(Group::replay)
                 val before = pending.fold(from, ::applied)
                 var onto = from
                 var rebased = pending
@@ -117,6 +123,9 @@ internal class StoredLog(
                     }
                 }
                 projection.write(before, after, today())
+                val events = written + applied.flatMap { it.received.carried.events } + rebased
+                val replay = Replayed(synced.size + count + waiting.size, events, after)
+                afterCommit { kept(replay) }
                 taken
             }
         }
@@ -129,12 +138,4 @@ internal class StoredLog(
 
     private fun applied(state: Group?, event: Event): Group =
         state?.plus(event) ?: Group.replay(listOf(event))
-
-    private fun Event.entry(): EntryId? =
-        when (this) {
-            is Event.EntryCreated -> entry.id
-            is Event.EntryUpdated -> target
-            is Event.EntryDeleted -> target
-            else -> null
-        }
 }

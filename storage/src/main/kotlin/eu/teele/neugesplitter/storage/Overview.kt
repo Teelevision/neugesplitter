@@ -1,6 +1,5 @@
 package eu.teele.neugesplitter.storage
 
-import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.CategoryId
@@ -26,7 +25,6 @@ data class Overview(
     val own: Amount?,
     val entries: List<ListedEntry>,
     val members: Map<MemberId, String> = emptyMap(),
-    val categories: List<Category> = emptyList(),
 ) {
     /** What the group has spent: its expenses, and neither income nor transfers (EN-7). */
     val total: Amount
@@ -47,6 +45,7 @@ data class Overview(
  * @property repeats whether it is an occurrence of a series (RE-9).
  * @property edited whether it was changed after it was created (HI-4).
  * @property unseen whether another installation changed it and that has not been seen yet (HI-5).
+ * @property unsynced whether a change to it is not on the group's backend yet (SY-16).
  */
 data class ListedEntry(
     val id: EntryId,
@@ -63,4 +62,29 @@ data class ListedEntry(
     val beneficiaryIds: Set<MemberId> = emptySet(),
     val categoryEmoji: String? = null,
     val categoryId: CategoryId? = null,
+    val unsynced: Boolean = false,
+)
+
+/**
+ * A group as its people screen shows it (ui-design 4).
+ *
+ * @property members everyone, removed members too, in the order they were added.
+ */
+data class People(
+    val name: String,
+    val emoji: String?,
+    val scale: Scale,
+    val members: List<ListedMember>,
+)
+
+/**
+ * A member with their settled balance (BA-2), and whether an entry that counts or is offered names
+ * them, which keeps a removed member listed (GR-9).
+ */
+data class ListedMember(
+    val id: MemberId,
+    val name: String,
+    val removed: Boolean,
+    val balance: Amount,
+    val involved: Boolean,
 )

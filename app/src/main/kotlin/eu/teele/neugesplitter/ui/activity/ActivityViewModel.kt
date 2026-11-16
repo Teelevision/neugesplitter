@@ -19,13 +19,16 @@ import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.domain.value.SeriesId
 import eu.teele.neugesplitter.storage.GroupRepository
 import eu.teele.neugesplitter.storage.ListedEntry
+import eu.teele.neugesplitter.storage.Replayed
 import eu.teele.neugesplitter.storage.settings.SyncState
+import eu.teele.neugesplitter.ui.history.day
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -34,7 +37,6 @@ import kotlinx.coroutines.launch
  *   the group.
  * @property names every member of the group by name, removed ones too.
  * @property history newest first, what one action wrote at once as one step (HI-2).
- * @property unseen the places in [history] of the steps holding changes not seen yet (HI-5).
  * @property suggestions the suggested occurrences waiting to be confirmed or declined, oldest first
  *   (RE-4, RE-10), as the overview would list them once confirmed.
  * @property scale the group's decimal places, which amounts are shown with.
@@ -46,13 +48,29 @@ data class ActivityState(
     val title: String? = null,
     val names: Map<MemberId, String> = emptyMap(),
     val categories: Map<CategoryId, Category> = emptyMap(),
-    val history: List<Step> = emptyList(),
-    val unseen: Set<Int> = emptySet(),
+    val history: List<HistoryItem> = emptyList(),
     val suggestions: List<Suggestion> = emptyList(),
     val scale: Scale = Scale.of(2),
     val sync: SyncState? = null,
     val now: Instant = Instant.EPOCH,
+) {
+    /** Whether any step holds changes not seen yet (HI-5). */
+    val unseen: Boolean = history.any { it.unseen }
+}
+
+/**
+ * A [step] of the history, filed under the [day] it fell on here, with whether it holds changes not
+ * seen yet (HI-5) or not on the group's backend yet (SY-16).
+ */
+data class HistoryItem(
+    val step: Step,
+    val day: EntryDate,
+    val unseen: Boolean = false,
+    val unsynced: Boolean = false,
 )
+
+/** A replayed log as the history shows it, worked out once for each version of the log. */
+private class Told(val replayed: Replayed, val steps: List<HistoryItem>)
 
 /** The occurrence of [series] due on [due], offered as [entry] (RE-4). */
 data class Suggestion(val series: SeriesId, val due: EntryDate, val entry: ListedEntry)
@@ -75,32 +93,59 @@ class ActivityViewModel(
     /** Runs a pass over a group at once (SY-9, TR-13). */
     private val syncNow: (GroupId) -> Unit,
     private val syncAndWait: suspend (GroupId) -> Unit,
+    /** Stops or resumes syncing the group (SY-16). */
+    private val pauseSync: (GroupId, Boolean) -> Unit = { _, _ -> },
+    /** Drops what the backend does not hold yet, while paused (SY-17). */
+    private val discardLocal: suspend (GroupId) -> Unit = {},
 ) : ViewModel() {
+
+    private val told =
+        repository
+            .replays(group)
+            .map { replayed ->
+                replayed?.let {
+                    Told(
+                        it,
+                        steps(history(it.events)).asReversed().map { step ->
+                            HistoryItem(step, day(step.happening.at))
+                        },
+                    )
+                }
+            }
+            .flowOn(Dispatchers.IO)
 
     val state: StateFlow<ActivityState> =
         combine(
-                repository.log(group),
+                told,
                 repository.unseen(group),
+                repository.unsynced(group),
                 repository.backends.state(group),
                 // Changes when a new day brings suggestions, as the log does not.
                 repository.pending(group, today),
-            ) { events, unseen, sync, _ ->
-                if (events.isEmpty()) return@combine ActivityState(loaded = true)
-                val replayed = Group.replay(events)
+            ) { told, unseen, unsynced, sync, _ ->
+                if (told == null || told.replayed.events.isEmpty())
+                    return@combine ActivityState(loaded = true)
+                val events = told.replayed.events
+                val replayed = told.replayed.group
                 val me = repository.actingAs(group)
                 fun name(member: MemberId) = replayed.members[member]?.name ?: member.hex.take(8)
-                val history = steps(history(events)).asReversed()
                 val fresh = unseen.mapNotNullTo(mutableSetOf()) { events.getOrNull(it)?.id }
                 ActivityState(
                     loaded = true,
                     title = listOfNotNull(replayed.emoji, replayed.name).joinToString(" "),
                     names = replayed.members.mapValues { it.value.name },
                     categories = replayed.categories,
-                    history = history,
-                    unseen =
-                        history.indices.filterTo(mutableSetOf()) { index ->
-                            history[index].parts.any { it.event in fresh }
-                        },
+                    history =
+                        if (fresh.isEmpty() && unsynced.isEmpty()) told.steps
+                        else
+                            told.steps.map { item ->
+                                val parts = item.step.parts
+                                val isUnseen = parts.any { it.event in fresh }
+                                val isUnsynced = parts.any { it.event in unsynced }
+                                if (isUnseen || isUnsynced)
+                                    item.copy(unseen = isUnseen, unsynced = isUnsynced)
+                                else item
+                            },
                     suggestions =
                         replayed
                             .occurrences(today())
@@ -134,6 +179,17 @@ class ActivityViewModel(
 
     suspend fun refresh() = syncAndWait(group)
 
+    /** Stops syncing the group until [resume] (SY-16). */
+    fun pause() = pauseSync(group, true)
+
+    fun resume() = pauseSync(group, false)
+
+    /** Drops every change the backend does not hold yet; only while paused (SY-17). */
+    fun discard() {
+        if (state.value.sync?.paused != true) return
+        viewModelScope.launch(Dispatchers.IO) { discardLocal(group) }
+    }
+
     /** Counts [suggestion] from now on (RE-4). */
     fun confirm(suggestion: Suggestion) =
         decide(suggestion) { id, by, at ->
@@ -159,9 +215,9 @@ class ActivityViewModel(
         }
     }
 
-    /** Marks the step at [index] in the history as seen, every change it holds. */
-    fun read(index: Int) {
-        val told = state.value.history[index].parts.mapTo(mutableSetOf()) { it.event }
+    /** Marks [step] as seen, every change it holds. */
+    fun read(step: Step) {
+        val told = step.parts.mapTo(mutableSetOf()) { it.event }
         viewModelScope.launch(Dispatchers.IO) {
             repository.events(group).forEachIndexed { position, event ->
                 if (event.id in told) repository.seen(group, position)

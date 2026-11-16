@@ -159,6 +159,19 @@ class Syncing(
     }
 
     /**
+     * Has group [id] neither send nor fetch anything while [paused], and sync again after (SY-16).
+     */
+    fun pause(id: GroupId, paused: Boolean) {
+        scope.launch(context) {
+            groups.backends.setPaused(id, paused)
+            if (!paused) runner(id).debounce.now()
+        }
+    }
+
+    /** Drops what group [id]'s backend does not hold yet, while it is paused (SY-17). */
+    suspend fun discardUnsynced(id: GroupId) = withContext(context) { runner(id).discard() }
+
+    /**
      * The group whose log follows the encrypted [root] in [store], once [passphrase] opens it; its
      * key is held for [fetch]. Null if no group's log follows it. [passphrase] stays the caller's.
      *
@@ -297,7 +310,16 @@ class Syncing(
         /** One at a time, so that a poll and a manual sync share one [GroupSync] (TR-15). */
         suspend fun pass() = lock.withLock { attempt() }
 
+        /** Between passes, so that none sends what is being dropped; its sync starts afresh. */
+        suspend fun discard() =
+            lock.withLock {
+                if (!groups.backends.paused(id)) return@withLock
+                groups.discardUnsynced(id, today())
+                sync = null
+            }
+
         private suspend fun attempt() {
+            if (groups.backends.paused(id)) return
             again?.cancel()
             val sync = sync ?: built() ?: return groups.backends.failed(id, Failure.LOCKED)
             this.sync = sync

@@ -38,12 +38,26 @@ internal class Projection(private val driver: SqlDriver, private val queries: Pr
             )
         }
 
+        val order by lazy { after.members.keys.withIndex().associate { it.value to it.index } }
         for ((id, member) in after.members) {
             val removed = id in after.removed
             if (
                 before == null || before.members[id] != member || (id in before.removed) != removed
             ) {
-                queries.putMember(group, id.hex, member.name, removed.flag)
+                queries.putMember(
+                    group,
+                    id.hex,
+                    member.name,
+                    removed.flag,
+                    order.getValue(id).toLong(),
+                )
+            }
+        }
+
+        if (before?.categories != after.categories) {
+            queries.dropCategories(group)
+            for ((id, category) in after.categories) {
+                queries.putCategory(group, id.hex, category.emoji)
             }
         }
 
@@ -111,6 +125,7 @@ internal class Projection(private val driver: SqlDriver, private val queries: Pr
                 author?.by?.hex,
                 position?.toLong(),
                 (author?.edited == true).flag,
+                categoryId?.hex,
             )
         }
         put(group, entry, "payers", entry.payers)
@@ -146,10 +161,11 @@ internal class Projection(private val driver: SqlDriver, private val queries: Pr
          * reaches an installed database: the next start discards the projection and rebuilds it
          * before anything is read (TR-18b).
          */
-        const val VERSION: Long = 2
+        const val VERSION: Long = 3
 
         /** The derived tables of architecture.md 5; every other table is a source of truth. */
-        val TABLES = listOf("group_row", "member", "entry", "side", "occurrence", "balance")
+        val TABLES =
+            listOf("group_row", "member", "category", "entry", "side", "occurrence", "balance")
     }
 }
 

@@ -19,8 +19,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -39,10 +40,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,16 +58,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.teele.neugesplitter.R
-import eu.teele.neugesplitter.domain.history.Happening
 import eu.teele.neugesplitter.domain.value.EntryId
 import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.TodoId
 import eu.teele.neugesplitter.storage.settings.SyncState
 import eu.teele.neugesplitter.ui.DayHeading
 import eu.teele.neugesplitter.ui.EntryRow
+import eu.teele.neugesplitter.ui.GroupMenu
 import eu.teele.neugesplitter.ui.SwipeToDismissSnackbarHost
 import eu.teele.neugesplitter.ui.history.HistoryRow
-import eu.teele.neugesplitter.ui.history.day
 import eu.teele.neugesplitter.ui.history.told
 import eu.teele.neugesplitter.ui.longDate
 import eu.teele.neugesplitter.ui.sync.GroupTitle
@@ -78,6 +80,9 @@ import eu.teele.neugesplitter.ui.todo.TodoWrites
 import java.time.Instant
 import java.util.Locale
 
+/** How many more steps of the history are laid out at a time. */
+private const val PAGE = 200
+
 /**
  * How a group's sync stands, with a manual sync (SY-6, SY-9, TR-12), then the suggestions waiting
  * for someone (RE-4, RE-10) and the todos due (TD-7), above what changed in it, by whom and when
@@ -90,6 +95,7 @@ import java.util.Locale
  * @param onShare starts sharing a group kept only on this device.
  * @param onSyncProblem opens why the group stopped syncing.
  * @param onTodos opens the todo list.
+ * @param onSettings opens the group's settings.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,6 +108,7 @@ fun ActivityScreen(
     onShare: () -> Unit,
     onSyncProblem: () -> Unit,
     onTodos: () -> Unit,
+    onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -111,7 +118,20 @@ fun ActivityScreen(
     var suggestions by rememberSaveable { mutableStateOf(true) }
     var todos by rememberSaveable { mutableStateOf(true) }
     var history by rememberSaveable { mutableStateOf(true) }
-    var menu by remember { mutableStateOf(false) }
+    // Only so many steps are laid out at first, and more as the list nears their end.
+    var shown by rememberSaveable { mutableIntStateOf(PAGE) }
+    var discarding by rememberSaveable { mutableStateOf(false) }
+    val list = rememberLazyListState()
+    LaunchedEffect(list) {
+        snapshotFlow {
+                val info = list.layoutInfo
+                (info.visibleItemsInfo.lastOrNull()?.index ?: 0) to info.totalItemsCount
+            }
+            .collect { (last, total) ->
+                if (last >= total - PAGE / 4 && shown < viewModel.state.value.history.size)
+                    shown += PAGE
+            }
+    }
     // Those ticked here stay, struck through, so that they can be ticked open again.
     var ticked by remember { mutableStateOf(emptySet<TodoId>()) }
     val due =
@@ -143,20 +163,36 @@ fun ActivityScreen(
                 },
                 actions = {
                     if (state.title == null) return@TopAppBar
-                    Box {
-                        IconButton(onClick = { menu = true }) {
-                            Icon(
-                                painterResource(R.drawable.ic_more_vert),
-                                stringResource(R.string.more_options),
-                            )
-                        }
-                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    GroupMenu(onSettings) { close ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.mark_all_read)) },
+                            enabled = state.unseen,
+                            onClick = {
+                                close()
+                                viewModel.readAll()
+                            },
+                        )
+                        val sync = state.sync ?: return@GroupMenu
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    stringResource(
+                                        if (sync.paused) R.string.sync_resume
+                                        else R.string.sync_pause
+                                    )
+                                )
+                            },
+                            onClick = {
+                                close()
+                                if (sync.paused) viewModel.resume() else viewModel.pause()
+                            },
+                        )
+                        if (sync.paused && sync.waiting > 0) {
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.mark_all_read)) },
-                                enabled = state.unseen.isNotEmpty(),
+                                text = { Text(stringResource(R.string.discard_local)) },
                                 onClick = {
-                                    menu = false
-                                    viewModel.readAll()
+                                    close()
+                                    discarding = true
                                 },
                             )
                         }
@@ -166,12 +202,35 @@ fun ActivityScreen(
         },
     ) { padding ->
         if (state.title == null) return@Scaffold
+        if (discarding) {
+            AlertDialog(
+                onDismissRequest = { discarding = false },
+                title = { Text(stringResource(R.string.discard_local_title)) },
+                text = { Text(stringResource(R.string.discard_local_text)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            discarding = false
+                            viewModel.discard()
+                        }
+                    ) {
+                        Text(stringResource(R.string.discard_local_confirm))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { discarding = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
         SyncPullToRefresh(
             shared = state.sync != null,
             onRefresh = viewModel::refresh,
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             LazyColumn(
+                state = list,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 16.dp),
             ) {
@@ -224,15 +283,17 @@ fun ActivityScreen(
                 }
                 section("history", R.string.history, history) { history = !history }
                 if (history) {
-                    state.history.forEachIndexed { index, step ->
-                        val at = step.happening.at
-                        if (index == 0 || day(state.history[index - 1].happening.at) != day(at)) {
-                            item(key = "day-$index") { DayHeading(day(at), locale) }
+                    val steps = state.history
+                    for (index in 0 until minOf(shown, steps.size)) {
+                        val item = steps[index]
+                        val key = item.step.happening.event.hex
+                        if (index == 0 || steps[index - 1].day != item.day) {
+                            item(key = "day-$key") { DayHeading(item.day, locale) }
                         }
-                        item(key = "happened-$index") {
-                            HappeningRow(step.happening, index in state.unseen, state, locale) {
-                                if (index in state.unseen) viewModel.read(index)
-                                onStep(step.happening.event)
+                        item(key = "happened-$key") {
+                            HappeningRow(item, state, locale) {
+                                if (item.unseen) viewModel.read(item.step)
+                                onStep(item.step.happening.event)
                             }
                         }
                     }
@@ -313,17 +374,22 @@ private fun SuggestionRow(
 /** One change, the size of an entry row; tapping it reads it and opens it in full (HI-2, HI-5). */
 @Composable
 private fun HappeningRow(
-    happening: Happening,
-    unseen: Boolean,
+    item: HistoryItem,
     state: ActivityState,
     locale: Locale,
     onOpen: () -> Unit,
 ) {
+    val resources = LocalResources.current
+    val told =
+        remember(item.step.happening, state.names, state.categories, state.scale, locale) {
+            resources.told(item.step.happening, state.names, state.categories, state.scale, locale)
+        }
     HistoryRow(
-        LocalResources.current.told(happening, state.names, state.categories, state.scale, locale),
-        happening.at,
+        told,
+        item.step.happening.at,
         locale,
-        unseen = unseen,
+        unseen = item.unseen,
+        unsynced = item.unsynced,
         modifier = Modifier.clickable(onClick = onOpen),
     )
 }
@@ -376,16 +442,22 @@ private fun SyncCard(
                 // The top bar already says how it stands to a screen reader.
                 Icon(
                     painterResource(
-                        if (sync.troubled) R.drawable.ic_warning else R.drawable.ic_check
+                        when {
+                            sync.troubled -> R.drawable.ic_warning
+                            sync.paused -> R.drawable.ic_cloud_off
+                            else -> R.drawable.ic_check
+                        }
                     ),
                     null,
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    sync.succeeded?.let {
-                        stringResource(R.string.sync_succeeded, ago(it, now, locale))
-                    } ?: stringResource(R.string.sync_never),
+                    if (sync.paused) stringResource(R.string.sync_paused)
+                    else
+                        sync.succeeded?.let {
+                            stringResource(R.string.sync_succeeded, ago(it, now, locale))
+                        } ?: stringResource(R.string.sync_never),
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
@@ -404,8 +476,9 @@ private fun SyncCard(
                     pluralStringResource(R.plurals.sync_waiting, waiting, waiting)
                 } else stringResource(R.string.sync_uploaded)
             )
-            // A halted group's way on is on the screen that says why (SY-15).
-            if (sync.halted == null) {
+            // A halted group's way on is on the screen that says why (SY-15); a paused one's is the
+            // menu (SY-16).
+            if (sync.halted == null && !sync.paused) {
                 FilledTonalButton(onClick = onSync) { Text(stringResource(R.string.sync_now)) }
             }
         }

@@ -66,6 +66,14 @@ class Backends internal constructor(private val database: Database) {
         settings.setInterval(interval.inWholeMinutes, id.hex)
     }
 
+    /** Whether group [id]'s sync is paused, so that nothing goes up or comes down (SY-16). */
+    fun paused(id: GroupId): Boolean = settings.paused(id.hex).executeAsOneOrNull() == 1L
+
+    /** Pauses group [id]'s sync, or resumes it (SY-16). */
+    fun setPaused(id: GroupId, paused: Boolean) {
+        settings.setPaused(if (paused) 1 else 0, id.hex)
+    }
+
     /** An encrypted group's root object, which its key is unlocked from; null for any other. */
     fun root(id: GroupId): ByteArray? = database.logObjectQueries.root(id.hex).executeAsOneOrNull()
 
@@ -91,9 +99,10 @@ class Backends internal constructor(private val database: Database) {
     /** How group [id]'s sync stands, again whenever that changes; null while it has no backend. */
     fun state(id: GroupId, context: CoroutineContext = Dispatchers.IO): Flow<SyncState?> {
         val connected = settings.settings(id.hex)
+        val paused = settings.paused(id.hex)
         val state = states.state(id.hex)
         val waiting = database.eventRowQueries.waiting(id.hex)
-        return merge(connected.asFlow(), state.asFlow(), waiting.asFlow())
+        return merge(connected.asFlow(), paused.asFlow(), state.asFlow(), waiting.asFlow())
             .map {
                 database.transactionWithResult {
                     connected.executeAsOneOrNull()?.let {
@@ -109,6 +118,7 @@ class Backends internal constructor(private val database: Database) {
                                 },
                             failure = row?.failure?.let(Failure::valueOf),
                             waiting = waiting.executeAsOne(),
+                            paused = paused.executeAsOneOrNull() == 1L,
                         )
                     }
                 }
@@ -148,6 +158,8 @@ data class SyncState(
     val failure: Failure?,
     /** How many events are not on the backend yet. */
     val waiting: Long,
+    /** Whether nothing is synced until it is resumed (SY-16). */
+    val paused: Boolean = false,
 )
 
 /** Why a pass could not finish, in the terms the app reports it in (BE-7). */

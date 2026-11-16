@@ -501,6 +501,7 @@
     <string name="invite_summary">Whoever scans it joins without typing any settings.</string>
     <string name="invite_text">On the other phone, choose Join group and scan this code. The storage is set up there, and they choose who they are in the group.</string>
     <string name="invite_code">QR code to join the group</string>
+    <string name="invite_show">Show the code</string>
     <string name="invite_secret_title">Show it only to them</string>
     <string name="invite_secret_text">The code holds the storage\'s secret key. Anyone who scans it can read and change the group, even after being removed as a member.</string>
     <string name="invite_secret_passphrase_text">The code holds the storage\'s secret key and the passphrase. Anyone who scans it can read and change the group, even after being removed as a member.</string>
@@ -602,6 +603,7 @@
     <string name="expand">Expand</string>
     <string name="collapse">Collapse</string>
     <string name="unseen">New</string>
+    <string name="unsynced">Waiting to sync</string>
     <string name="mark_all_read">Mark all as read</string>
     <string name="needs_attention">Needs attention</string>
     <string name="happened_created">%1$s created the group</string>
@@ -714,6 +716,13 @@
         <item quantity="other">%d changes waiting</item>
     </plurals>
     <string name="sync_now">Sync now</string>
+    <string name="sync_pause">Pause sync</string>
+    <string name="sync_resume">Resume sync</string>
+    <string name="sync_paused">Sync paused</string>
+    <string name="discard_local">Discard local changes</string>
+    <string name="discard_local_title">Discard local changes?</string>
+    <string name="discard_local_text">Everything changed on this device that is not synced yet is deleted for good. What is synced stays.</string>
+    <string name="discard_local_confirm">Discard</string>
     <string name="sync_locked">Secret missing</string>
     <string name="sync_locked_text">The secret key or the passphrase has to be entered again.</string>
     <string name="sync_halted">Sync stopped</string>

@@ -1,0 +1,2 @@
+-- Version 6 could not pause a group's sync, so none is paused.
+ALTER TABLE backend_settings ADD COLUMN paused INTEGER NOT NULL DEFAULT 0;

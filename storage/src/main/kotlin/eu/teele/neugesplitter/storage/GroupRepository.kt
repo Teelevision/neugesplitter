@@ -1,6 +1,7 @@
 package eu.teele.neugesplitter.storage
 
 import app.cash.sqldelight.Query
+import app.cash.sqldelight.TransactionCallbacks
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOne
@@ -10,9 +11,11 @@ import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.value.Amount
+import eu.teele.neugesplitter.domain.value.CategoryId
 import eu.teele.neugesplitter.domain.value.Colour
 import eu.teele.neugesplitter.domain.value.EntryDate
 import eu.teele.neugesplitter.domain.value.EntryId
+import eu.teele.neugesplitter.domain.value.EventId
 import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
@@ -28,12 +31,12 @@ import eu.teele.neugesplitter.sync.writer.Halt
 import eu.teele.neugesplitter.sync.writer.Upload
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
@@ -51,6 +54,13 @@ private fun changes(vararg queries: Query<*>): Flow<Unit> =
         .conflate()
 
 /**
+ * A group's log as parsed, its first [length] events, and the [group] they replay to. Two are equal
+ * only if they are one, which a flow can tell apart without comparing whole logs.
+ */
+class Replayed
+internal constructor(internal val length: Long, val events: List<Event>, val group: Group)
+
+/**
  * The groups this installation holds: each one's local event log, which is the source of truth, and
  * the projection kept up to date from it (architecture.md 4, 5).
  *
@@ -60,52 +70,87 @@ class GroupRepository(private val driver: SqlDriver) {
 
     private val database = Database(driver)
     private val projection = Projection(driver, database.projectionQueries)
+    private val rows = database.eventRowQueries
 
     val backends = Backends(database)
 
-    /** Each group's latest replay, and how many events of its log it took. */
-    private val replays = ConcurrentHashMap<GroupId, Pair<Long, Group>>()
+    /** Each group's latest replay. */
+    private val replays = ConcurrentHashMap<GroupId, Replayed>()
+
+    /** What a cold [replay] of each group waits on, so that only one of them parses. */
+    private val parsing = ConcurrentHashMap<GroupId, Any>()
+
+    /** Counts logs shrunk or removed, after which a replay begun before is not kept. */
+    private val generation = AtomicInteger()
 
     /**
-     * Group [id] as its log produces it, or null if this installation holds no such group. Only
-     * reading the log takes the database; parsing and replaying it leave it to others meanwhile.
+     * Group [id]'s log, parsed, and the group it replays to; null if this installation holds no
+     * such group. Only reading the log takes the database; parsing and replaying it leave it to
+     * others meanwhile, and callers at once wait for one parse. Not to be called in a transaction.
      */
-    fun load(id: GroupId): Group? {
-        var cached: Group? = null
+    fun replay(id: GroupId): Replayed? {
+        val began = generation.get()
+        var cached: Replayed? = null
         val (length, texts) =
             database.transactionWithResult {
-                val length = database.eventRowQueries.length(id.hex).executeAsOne()
-                cached = replays[id]?.takeIf { it.first == length }?.second
-                val texts =
-                    if (cached != null) emptyList()
-                    else database.eventRowQueries.inGroup(id.hex).executeAsList()
-                length to texts
+                val length = rows.length(id.hex).executeAsOne()
+                cached = replays[id]?.takeIf { it.length == length }
+                length to if (cached != null) emptyList() else rows.inGroup(id.hex).executeAsList()
             }
         cached?.let {
             return it
         }
         if (texts.isEmpty()) return null
-        val group = Group.replay(texts.map(EventJson::read))
-        replays.merge(id, length to group) { old, new -> if (old.first > new.first) old else new }
-        return group
+        return synchronized(parsing.computeIfAbsent(id) { Any() }) {
+            replays[id]?.takeIf { it.length == length }
+                ?: parsed(length, texts).also { replayed ->
+                    synchronized(replays) {
+                        if (generation.get() == began) {
+                            replays.merge(id, replayed) { old, new ->
+                                if (old.length > new.length) old else new
+                            }
+                        }
+                    }
+                }
+        }
     }
+
+    /** Group [id] as its log produces it, or null if this installation holds no such group. */
+    fun load(id: GroupId): Group? = replay(id)?.group
+
+    /** [replay], again whenever group [id]'s log changes. */
+    fun replays(id: GroupId, context: CoroutineContext = Dispatchers.IO): Flow<Replayed?> =
+        rows
+            .length(id.hex)
+            .asFlow()
+            .map { replay(id) }
+            .distinctUntilChanged { old, new -> old === new }
+            .flowOn(context)
 
     /** [load], again whenever group [id]'s log changes. */
     fun group(id: GroupId, context: CoroutineContext = Dispatchers.IO): Flow<Group?> =
-        database.eventRowQueries
-            .length(id.hex)
-            .asFlow()
-            .map { load(id) }
-            .distinctUntilChanged()
-            .flowOn(context)
+        replays(id, context).map { it?.group }.distinctUntilChanged()
 
     /** Group [id]'s log in order, empty if this installation holds no such group (HI-3). */
-    fun events(id: GroupId): List<Event> =
-        database.eventRowQueries.inGroup(id.hex).executeAsList().map(EventJson::read)
+    fun events(id: GroupId): List<Event> = replay(id)?.events.orEmpty()
 
     /** [events], again whenever group [id]'s log changes. */
     fun log(id: GroupId, context: CoroutineContext = Dispatchers.IO): Flow<List<Event>> =
-        database.eventRowQueries.length(id.hex).asFlow().map { events(id) }.flowOn(context)
+        replays(id, context).map { it?.events.orEmpty() }
+
+    /**
+     * The events of group [id] its backend does not hold yet (SY-16), again whenever that changes;
+     * none for a group kept only on this device.
+     */
+    fun unsynced(id: GroupId, context: CoroutineContext = Dispatchers.IO): Flow<Set<EventId>> =
+        changes(rows.unsynced(id.hex), database.backendSettingsQueries.settings(id.hex))
+            .map { unsyncedEvents(id).mapTo(mutableSetOf()) { it.id } }
+            .distinctUntilChanged()
+            .flowOn(context)
+
+    private fun unsyncedEvents(id: GroupId): List<Event> =
+        if (backends.settings(id) == null) emptyList()
+        else rows.unsynced(id.hex).executeAsList().map(EventJson::read)
 
     /**
      * Where in group [id]'s log, counted from 0, each event sits that came from another
@@ -166,7 +211,8 @@ class GroupRepository(private val driver: SqlDriver) {
         id: GroupId,
         today: () -> EntryDate,
         context: CoroutineContext = Dispatchers.IO,
-    ): LocalLog = StoredLog(database, projection, id, today, context)
+    ): LocalLog =
+        StoredLog(database, projection, id, today, context, { current(id) }) { replays[id] = it }
 
     /**
      * Every group this installation holds, again whenever a write changes the list. The projection
@@ -225,8 +271,8 @@ class GroupRepository(private val driver: SqlDriver) {
 
     /**
      * Group [id] as its overview shows it, again whenever a write changes it, or null once the
-     * installation no longer holds it. The projection is brought to [today] each time collecting
-     * starts.
+     * installation no longer holds it. It is read from the projection alone, so it shows before the
+     * log is replayed. The projection is brought to [today] each time collecting starts.
      */
     fun overview(
         id: GroupId,
@@ -248,7 +294,9 @@ class GroupRepository(private val driver: SqlDriver) {
                 owed,
                 payer,
                 payerId,
-                unseen ->
+                unseen,
+                category,
+                emoji ->
                 val type = Kind.valueOf(kind.uppercase())
                 ListedEntry(
                     id = EntryId.parse(entry),
@@ -267,14 +315,20 @@ class GroupRepository(private val driver: SqlDriver) {
                     repeats = repeats,
                     edited = edited != 0L,
                     unseen = unseen,
+                    categoryEmoji = emoji,
+                    categoryId = category?.takeIf { emoji != null }?.let(CategoryId::parse),
                 )
             }
+        val unsynced = rows.unsynced(id.hex)
+        val shared = database.backendSettingsQueries.settings(id.hex)
         // Either query may be told of a write first; both are read again, together, either way.
         val projected =
-            changes(heading, entries)
+            changes(heading, entries, unsynced, shared)
                 .map {
                     database.transactionWithResult {
                         heading.executeAsOneOrNull()?.let {
+                            val waiting =
+                                unsyncedEvents(id).mapNotNullTo(mutableSetOf()) { it.entry() }
                             val beneficiaries =
                                 queries
                                     .beneficiaries(id.hex)
@@ -307,6 +361,7 @@ class GroupRepository(private val driver: SqlDriver) {
                                                         beneficiaries[rows.first().id]
                                                             .orEmpty()
                                                             .toSet(),
+                                                    unsynced = rows.first().id in waiting,
                                                 )
                                         },
                                 members =
@@ -318,24 +373,42 @@ class GroupRepository(private val driver: SqlDriver) {
                     }
                 }
                 .distinctUntilChanged()
-        return combine(projected, group(id, context)) { overview, state ->
-                if (overview == null || state == null) null
-                else {
-                    val categories = state.categories
-                    val entries =
-                        (state.entries.values + state.occurrences(today()).map { it.entry })
-                            .associateBy { it.id }
-                    overview.copy(
-                        categories = categories.values.toList(),
-                        entries =
-                            overview.entries.map { listed ->
-                                val category = entries[listed.id]?.categoryId?.let(categories::get)
-                                listed.copy(
-                                    categoryEmoji = category?.emoji,
-                                    categoryId = category?.id,
-                                )
-                            },
-                    )
+        return projected.onStart { refresh(today()) }.flowOn(context)
+    }
+
+    /**
+     * Who is in group [id] and what each of them is owed, from the projection alone (ui-design 4),
+     * again whenever a write changes it; null once the installation no longer holds it. The
+     * projection is brought to [today] each time collecting starts.
+     */
+    fun people(
+        id: GroupId,
+        today: () -> EntryDate,
+        context: CoroutineContext = Dispatchers.IO,
+    ): Flow<People?> {
+        val queries = database.projectionQueries
+        val heading = queries.heading(id.hex)
+        val members =
+            queries.people(id.hex) { member, name, removed, settled, involved ->
+                ListedMember(
+                    MemberId.parse(member),
+                    name,
+                    removed != 0L,
+                    Amount.ofUnits(settled),
+                    involved,
+                )
+            }
+        return changes(heading, members)
+            .map {
+                database.transactionWithResult {
+                    heading.executeAsOneOrNull()?.let {
+                        People(
+                            it.name,
+                            it.emoji,
+                            Scale.of(it.scale.toInt()),
+                            members.executeAsList(),
+                        )
+                    }
                 }
             }
             .distinctUntilChanged()
@@ -388,18 +461,19 @@ class GroupRepository(private val driver: SqlDriver) {
     fun append(id: GroupId, events: List<Event>, today: EntryDate): Group =
         database.transactionWithResult {
             require(events.isNotEmpty()) { "nothing to append" }
-            val before = replayed(id)
+            val before = current(id)
             val after =
-                events.fold(before) { state, event ->
+                events.fold(before?.group) { state, event ->
                     state?.plus(event) ?: Group.replay(listOf(event))
                 }!!
             require(after.id == id) { "events for group ${after.id} appended to group $id" }
             for (event in events) {
-                database.eventRowQueries.append(id.hex, EventJson.write(event))
+                rows.append(id.hex, EventJson.write(event))
             }
-            projection.write(before, after, today)
-            val length = database.eventRowQueries.length(id.hex).executeAsOne()
-            afterCommit { replays[id] = length to after }
+            projection.write(before?.group, after, today)
+            val length = rows.length(id.hex).executeAsOne()
+            val log = before?.events.orEmpty() + events
+            afterCommit { replays[id] = Replayed(length, log, after) }
             after
         }
 
@@ -409,7 +483,7 @@ class GroupRepository(private val driver: SqlDriver) {
     }
 
     /** The text of each event in group [id]'s log, in order and exactly as kept (TR-17c). */
-    fun texts(id: GroupId): List<String> = database.eventRowQueries.inGroup(id.hex).executeAsList()
+    fun texts(id: GroupId): List<String> = rows.inGroup(id.hex).executeAsList()
 
     /**
      * Stores an exported group's log [texts] as new group [id], with none of it written to any
@@ -427,11 +501,11 @@ class GroupRepository(private val driver: SqlDriver) {
     ): Group =
         database.transactionWithResult {
             require(texts.isNotEmpty()) { "a group has at least its group.created" }
-            require(replayed(id) == null) { "group $id exists already" }
+            require(current(id) == null) { "group $id exists already" }
             val log = texts.map { EventJson.imported(it, id) }
             val group = Group.replay(log.map(EventJson::read) + added)
-            log.forEach { database.eventRowQueries.append(id.hex, it) }
-            added.forEach { database.eventRowQueries.append(id.hex, EventJson.write(it)) }
+            log.forEach { rows.append(id.hex, it) }
+            added.forEach { rows.append(id.hex, EventJson.write(it)) }
             actAs(id, me)
             projection.write(null, group, today)
             group
@@ -454,7 +528,7 @@ class GroupRepository(private val driver: SqlDriver) {
                 rebuilt(today)
             } else {
                 for (hex in database.projectionQueries.stale(today.toString()).executeAsList()) {
-                    val group = replayed(GroupId.parse(hex))!!
+                    val group = current(GroupId.parse(hex))!!.group
                     projection.write(group, group, today)
                 }
             }
@@ -467,6 +541,26 @@ class GroupRepository(private val driver: SqlDriver) {
     }
 
     /**
+     * Drops the changes to group [id] its backend does not hold yet, and brings the projection back
+     * to what it does hold (SY-17).
+     *
+     * @return false, dropping nothing, if the backend holds none of the group yet.
+     */
+    fun discardUnsynced(id: GroupId, today: EntryDate): Boolean =
+        database.transactionWithResult {
+            if (rows.waiting(id.hex).executeAsOne() == rows.length(id.hex).executeAsOne()) {
+                return@transactionWithResult false
+            }
+            rows.discardWaiting(id.hex)
+            forgotten(id)
+            database.projectionQueries.forget(id.hex)
+            val kept = current(id)!!
+            projection.write(null, kept.group, today)
+            afterCommit { replays[id] = kept }
+            true
+        }
+
+    /**
      * Removes group [id] from this installation: its log, its retained objects, its projection, the
      * member it acts as, what has been seen of it and its backend (TR-20, GR-11). Its secrets are
      * [Secrets.forget]'s.
@@ -474,6 +568,7 @@ class GroupRepository(private val driver: SqlDriver) {
     fun delete(id: GroupId) {
         database.transaction {
             database.eventRowQueries.forget(id.hex)
+            forgotten(id)
             database.logObjectQueries.forget(id.hex)
             database.actingAsQueries.forget(id.hex)
             database.backendSettingsQueries.forget(id.hex)
@@ -481,7 +576,6 @@ class GroupRepository(private val driver: SqlDriver) {
             database.unseenQueries.forget(id.hex)
             database.dismissalQueries.forget(id.hex)
             database.projectionQueries.forget(id.hex)
-            afterCommit { replays.remove(id) }
         }
     }
 
@@ -496,27 +590,56 @@ class GroupRepository(private val driver: SqlDriver) {
             database.unseenQueries.forgetAll()
             database.dismissalQueries.forgetAll()
             database.projectionQueries.forgetAll()
-            afterCommit { replays.clear() }
+            forgotten(null)
         }
+    }
+
+    /**
+     * Forgets group [id]'s replay, or every group's if null, and any begun before, as its log
+     * shrinks or goes: at once, and again once committed, for one begun meanwhile.
+     */
+    private fun TransactionCallbacks.forgotten(id: GroupId?) {
+        val forget = {
+            synchronized(replays) {
+                generation.incrementAndGet()
+                if (id == null) replays.clear() else replays.remove(id)
+            }
+        }
+        forget()
+        afterCommit { forget() }
     }
 
     private fun rebuilt(today: EntryDate) {
         projection.discard()
-        for (hex in database.eventRowQueries.groups().executeAsList()) {
-            projection.write(null, replayed(GroupId.parse(hex))!!, today)
+        for (hex in rows.groups().executeAsList()) {
+            projection.write(null, current(GroupId.parse(hex))!!.group, today)
         }
         database.projectionQueries.setVersion(Projection.VERSION)
     }
 
     /**
-     * Group [id] as its log produces it. A log only ever grows until it is deleted, so a replay
-     * holds for as long as the log has as many events as it took.
+     * Group [id]'s [Replayed], within a transaction. A log only grows, unless it is shrunk or
+     * removed and its replay [forgotten], so a replay holds while the log has as many events.
      */
-    private fun replayed(id: GroupId): Group? {
-        val length = database.eventRowQueries.length(id.hex).executeAsOne()
-        replays[id]?.let { (at, group) -> if (at == length) return group }
-        val group = events(id).takeIf { it.isNotEmpty() }?.let(Group::replay) ?: return null
-        replays[id] = length to group
-        return group
+    private fun current(id: GroupId): Replayed? {
+        val length = rows.length(id.hex).executeAsOne()
+        replays[id]?.let { if (it.length == length) return it }
+        val texts = rows.inGroup(id.hex).executeAsList()
+        if (texts.isEmpty()) return null
+        return parsed(length, texts).also { replays[id] = it }
+    }
+
+    private fun parsed(length: Long, texts: List<String>): Replayed {
+        val events = texts.map(EventJson::read)
+        return Replayed(length, events, Group.replay(events))
     }
 }
+
+/** The entry [this] changes, if it changes one (HI-6). */
+internal fun Event.entry(): EntryId? =
+    when (this) {
+        is Event.EntryCreated -> entry.id
+        is Event.EntryUpdated -> target
+        is Event.EntryDeleted -> target
+        else -> null
+    }

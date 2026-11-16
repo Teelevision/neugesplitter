@@ -19,11 +19,21 @@ CREATE TABLE IF NOT EXISTS group_row (
     projected_on TEXT NOT NULL
 );
 
+-- `position` is the member's place in the order they were added.
 CREATE TABLE IF NOT EXISTS member (
     group_id TEXT NOT NULL,
     id TEXT NOT NULL,
     name TEXT NOT NULL,
     removed INTEGER NOT NULL,
+    position INTEGER NOT NULL,
+    PRIMARY KEY (group_id, id)
+);
+
+-- Each category's emoji, which the overview shows its entries with.
+CREATE TABLE IF NOT EXISTS category (
+    group_id TEXT NOT NULL,
+    id TEXT NOT NULL,
+    emoji TEXT NOT NULL,
     PRIMARY KEY (group_id, id)
 );
 
@@ -41,6 +51,7 @@ CREATE TABLE IF NOT EXISTS entry (
     author TEXT,
     position INTEGER,
     edited INTEGER NOT NULL,
+    category TEXT,
     PRIMARY KEY (group_id, id)
 );
 
@@ -101,12 +112,20 @@ INSERT OR REPLACE INTO group_row (id, name, description, emoji, colour, scale, p
 VALUES (?, ?, ?, ?, ?, ?, ?);
 
 putMember:
-INSERT OR REPLACE INTO member (group_id, id, name, removed)
-VALUES (?, ?, ?, ?);
+INSERT OR REPLACE INTO member (group_id, id, name, removed, position)
+VALUES (?, ?, ?, ?, ?);
+
+putCategory:
+INSERT INTO category (group_id, id, emoji)
+VALUES (?, ?, ?);
+
+dropCategories:
+DELETE FROM category
+WHERE group_id = ?;
 
 putEntry:
-INSERT OR REPLACE INTO entry (group_id, id, kind, description, date, amount, note, deleted, author, position, edited)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT OR REPLACE INTO entry (group_id, id, kind, description, date, amount, note, deleted, author, position, edited, category)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 putSide:
 INSERT INTO side (group_id, entry, role, position, member, scheme, input, part)
@@ -175,10 +194,13 @@ SELECT
     mb.part AS owed,
     m.name AS payer,
     p.member AS payer_id,
-    EXISTS (SELECT 1 FROM unseen u WHERE u.group_id = e.group_id AND u.entry = e.id) AS unseen
+    EXISTS (SELECT 1 FROM unseen u WHERE u.group_id = e.group_id AND u.entry = e.id) AS unseen,
+    e.category,
+    c.emoji
 FROM entry e
 JOIN side p ON p.group_id = e.group_id AND p.entry = e.id AND p.role = 'payers'
 JOIN member m ON m.group_id = p.group_id AND m.id = p.member
+LEFT JOIN category c ON c.group_id = e.group_id AND c.id = e.category
 LEFT JOIN occurrence o ON o.group_id = e.group_id AND o.entry = e.id
 LEFT JOIN acting_as a ON a.group_id = e.group_id
 -- Joins rather than subqueries, which SQLDelight would take for never null.
@@ -201,6 +223,25 @@ SELECT id, name
 FROM member
 WHERE group_id = ?
 ORDER BY name;
+
+-- The people screen (ui-design 4): every member in the order they were added, with their settled
+-- balance (BA-2) and whether an entry that counts or is offered names them (GR-9).
+people:
+SELECT
+    m.id,
+    m.name,
+    m.removed,
+    coalesce(b.settled, 0) AS settled,
+    EXISTS (
+        SELECT 1
+        FROM side s
+        JOIN entry e ON e.group_id = s.group_id AND e.id = s.entry
+        WHERE s.group_id = m.group_id AND s.member = m.id AND e.deleted = 0
+    ) AS involved
+FROM member m
+LEFT JOIN balance b ON b.group_id = m.group_id AND b.member = m.id
+WHERE m.group_id = ?
+ORDER BY m.position;
 
 -- How many of a group's occurrences are offered and wait for someone to confirm them (RE-10).
 pending:
@@ -248,6 +289,7 @@ forget {
     DELETE FROM occurrence WHERE group_id = :group_id;
     DELETE FROM side WHERE group_id = :group_id;
     DELETE FROM entry WHERE group_id = :group_id;
+    DELETE FROM category WHERE group_id = :group_id;
     DELETE FROM member WHERE group_id = :group_id;
     DELETE FROM group_row WHERE id = :group_id;
 }
@@ -257,6 +299,7 @@ forgetAll {
     DELETE FROM occurrence;
     DELETE FROM side;
     DELETE FROM entry;
+    DELETE FROM category;
     DELETE FROM member;
     DELETE FROM group_row;
 }

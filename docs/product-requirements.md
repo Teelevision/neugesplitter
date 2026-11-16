@@ -191,7 +191,7 @@ over as a QR code (BE-18).
   it while joining MUST fill all of that in, so that nothing is typed. The app
   MUST say that the code holds these secrets, MUST keep the screen showing it
   from being captured, and MUST ask for the camera only when the user chooses to
-  scan.
+  scan. Before the code shows, the app MUST warn that whoever sees it can join.
 
 ### 4.4 Entries
 
@@ -462,10 +462,15 @@ over as a QR code (BE-18).
   own copy, and it MUST say when a repair can only be made with the storage
   provider's own tools. Syncing resumes once the backend agrees with the
   installation again.
-- **SY-16** (Later): The user MUST be able to pause syncing a group and resume
+- **SY-16** (Core): The user MUST be able to pause syncing a group and resume
   it later. A paused group MUST NOT contact its backend, MUST keep everything
   syncing needs, and MUST show that it is paused rather than failing. Local
-  changes wait and are uploaded once it resumes.
+  changes wait and are uploaded once it resumes. Whether paused or not, every
+  entry and history step holding a change the backend does not hold yet MUST be
+  marked as such.
+- **SY-17** (Core): While a group is paused, the user MUST be able to discard
+  every local change its backend does not hold yet, after confirming. What the
+  backend holds MUST stay, and the group stays paused until resumed.
 
 ### 4.11 Privacy and Security
 

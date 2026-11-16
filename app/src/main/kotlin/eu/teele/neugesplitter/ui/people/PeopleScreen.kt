@@ -58,6 +58,7 @@ import eu.teele.neugesplitter.R
 import eu.teele.neugesplitter.domain.balance.Transfer
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
+import eu.teele.neugesplitter.ui.GroupMenu
 import eu.teele.neugesplitter.ui.InlineEditor
 import eu.teele.neugesplitter.ui.formatted
 import eu.teele.neugesplitter.ui.sync.GroupTitle
@@ -78,6 +79,7 @@ fun PeopleScreen(
     viewModel: PeopleViewModel,
     onBack: () -> Unit,
     onRecord: (Transfer) -> Unit,
+    onSettings: () -> Unit,
     modifier: Modifier = Modifier,
     /** Shows the shared group's invitation as a QR code (BE-18). */
     onInvite: () -> Unit = {},
@@ -105,6 +107,7 @@ fun PeopleScreen(
                         )
                     }
                 },
+                actions = { if (state.title != null) GroupMenu(onSettings) },
             )
         },
     ) { padding ->

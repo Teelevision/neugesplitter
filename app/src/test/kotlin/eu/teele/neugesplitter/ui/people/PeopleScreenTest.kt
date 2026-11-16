@@ -51,6 +51,7 @@ class PeopleScreenTest {
     private val today = EntryDate.parse("2026-10-07")
     private val at = Instant.parse("2026-10-07T12:00:00Z")
     private var events = 0
+    private var settings = 0
 
     private fun id(n: Int) = "%032x".format(n)
 
@@ -100,7 +101,9 @@ class PeopleScreenTest {
         val viewModel =
             PeopleViewModel(groups, trip, { id(0x100 + events++) }, { today }, { at }, {})
         compose.setContent {
-            NeugesplitterTheme { PeopleScreen(viewModel, {}, onRecord, onInvite = onInvite) }
+            NeugesplitterTheme {
+                PeopleScreen(viewModel, {}, onRecord, { settings++ }, onInvite = onInvite)
+            }
         }
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("⛺ Trip").fetchSemanticsNodes().isNotEmpty()
@@ -122,6 +125,14 @@ class PeopleScreenTest {
 
     private fun top(text: String) =
         compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top
+
+    @Test
+    fun `the menu leads to the group's settings (ui-design 1)`() {
+        show(null)
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Settings").performClick()
+        assertEquals(1, settings)
+    }
 
     @Test
     fun `a shared group's title follows how its sync stands, a local one's stands alone (SY-6)`() {

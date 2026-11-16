@@ -499,6 +499,7 @@
     <string name="invite_summary">Wer ihn scannt, tritt bei, ohne Einstellungen abzutippen.</string>
     <string name="invite_text">Auf dem anderen Telefon „Gruppe beitreten“ wählen und diesen Code scannen. Der Speicher wird dort eingerichtet, danach wählt die Person, wer sie in der Gruppe ist.</string>
     <string name="invite_code">QR-Code zum Beitreten</string>
+    <string name="invite_show">Code zeigen</string>
     <string name="invite_secret_title">Nur dieser Person zeigen</string>
     <string name="invite_secret_text">Der Code enthält den geheimen Schlüssel des Speichers. Wer ihn scannt, kann die Gruppe lesen und ändern, auch nachdem er als Mitglied entfernt wurde.</string>
     <string name="invite_secret_passphrase_text">Der Code enthält den geheimen Schlüssel des Speichers und die Passphrase. Wer ihn scannt, kann die Gruppe lesen und ändern, auch nachdem er als Mitglied entfernt wurde.</string>
@@ -597,6 +598,7 @@
     <string name="expand">Ausklappen</string>
     <string name="collapse">Einklappen</string>
     <string name="unseen">Neu</string>
+    <string name="unsynced">Wartet auf Synchronisierung</string>
     <string name="mark_all_read">Alle als gelesen markieren</string>
     <string name="needs_attention">Braucht Aufmerksamkeit</string>
     <string name="happened_created">%1$s hat die Gruppe erstellt</string>
@@ -709,6 +711,13 @@
         <item quantity="other">%d Änderungen warten</item>
     </plurals>
     <string name="sync_now">Jetzt synchronisieren</string>
+    <string name="sync_pause">Synchronisierung pausieren</string>
+    <string name="sync_resume">Synchronisierung fortsetzen</string>
+    <string name="sync_paused">Synchronisierung pausiert</string>
+    <string name="discard_local">Lokale Änderungen verwerfen</string>
+    <string name="discard_local_title">Lokale Änderungen verwerfen?</string>
+    <string name="discard_local_text">Alles, was auf diesem Gerät geändert und noch nicht synchronisiert wurde, wird endgültig gelöscht. Was synchronisiert ist, bleibt.</string>
+    <string name="discard_local_confirm">Verwerfen</string>
     <string name="sync_locked">Zugangsdaten fehlen</string>
     <string name="sync_locked_text">Der Secret Key oder die Passphrase muss neu eingegeben werden.</string>
     <string name="sync_halted">Synchronisierung angehalten</string>

@@ -41,6 +41,7 @@ import eu.teele.neugesplitter.domain.statistics.Perspective
 import eu.teele.neugesplitter.domain.statistics.Statistics
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.MemberId
+import eu.teele.neugesplitter.ui.GroupMenu
 import eu.teele.neugesplitter.ui.position
 import eu.teele.neugesplitter.ui.signed
 
@@ -54,6 +55,7 @@ fun StatisticsScreen(
     viewModel: StatisticsViewModel,
     onBack: () -> Unit,
     onOpen: (Chart) -> Unit,
+    onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -74,6 +76,7 @@ fun StatisticsScreen(
                         )
                     }
                 },
+                actions = { if (state.statistics != null) GroupMenu(onSettings) },
             )
         },
     ) { padding ->

@@ -2,6 +2,7 @@ package eu.teele.neugesplitter.ui.overview
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.teele.neugesplitter.domain.category.Category
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -42,6 +44,7 @@ import kotlinx.coroutines.launch
  * @property now when this state was read, which relative times count back from.
  * @property filter what the entries are narrowed to (EN-12).
  * @property listed the entries that match [filter], which the overview lists.
+ * @property categories what the entries can be narrowed to, once the log is replayed.
  */
 data class OverviewState(
     val loaded: Boolean = false,
@@ -52,6 +55,7 @@ data class OverviewState(
     val now: Instant = Instant.EPOCH,
     val filter: EntryFilter = EntryFilter(),
     val listed: List<ListedEntry> = emptyList(),
+    val categories: List<Category> = emptyList(),
 )
 
 /**
@@ -77,6 +81,12 @@ class OverviewViewModel(
         combine(repository.overview(group, today), committing) { overview, committing ->
             overview to committing
         }
+    private val categories =
+        repository
+            .group(group)
+            .map { it?.categories?.values?.toList().orEmpty() }
+            .onStart { emit(emptyList()) }
+            .distinctUntilChanged()
 
     /** The settled balance (BA-7) as it would be without the entry offered for undo. */
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -142,6 +152,7 @@ class OverviewViewModel(
                     listed = overview?.let { filter.matching(it.entries, it.scale) }.orEmpty(),
                 )
             }
+            .combine(categories) { state, categories -> state.copy(categories = categories) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), OverviewState())
 
     /** Narrows the entries listed to those [filter] matches (EN-12). */

@@ -16,6 +16,7 @@ import eu.teele.neugesplitter.domain.entry
 import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.entry.Side
 import eu.teele.neugesplitter.domain.entryId
+import eu.teele.neugesplitter.domain.event.CategoryChanges
 import eu.teele.neugesplitter.domain.event.Change
 import eu.teele.neugesplitter.domain.event.EntryChanges
 import eu.teele.neugesplitter.domain.event.Event
@@ -40,6 +41,7 @@ import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -255,7 +257,11 @@ class GroupRepositoryTest {
         val kept = projection()
 
         driver.execute(null, "UPDATE entry SET amount = 1 WHERE group_id = '${GROUP.hex}'", 0)
-        driver.execute(null, "INSERT INTO member VALUES ('${GROUP.hex}', 'stray', 'Stray', 0)", 0)
+        driver.execute(
+            null,
+            "INSERT INTO member VALUES ('${GROUP.hex}', 'stray', 'Stray', 0, 9)",
+            0,
+        )
         for (table in listOf("side", "occurrence", "balance")) {
             driver.execute(null, "DROP TABLE $table", 0)
         }
@@ -318,7 +324,7 @@ class GroupRepositoryTest {
     }
 
     @Test
-    fun `the overview shows the emoji for an assigned category`() {
+    fun `the overview shows the emoji for an assigned category, from the projection alone`() {
         groups.create(weekend, TODAY)
         val category = defaultCategories().first()
         groups.append(
@@ -335,8 +341,8 @@ class GroupRepositoryTest {
             TODAY,
         )
 
-        val overview = assertNotNull(runBlocking { groups.overview(trip, { TODAY }).first() })
-        assertEquals(defaultCategories(), overview.categories)
+        val cold = GroupRepository(driver)
+        val overview = assertNotNull(runBlocking { cold.overview(trip, { TODAY }).first() })
         assertEquals(category.emoji, overview.entries.single().categoryEmoji)
         assertEquals(category.id, overview.entries.single().categoryId)
     }
@@ -731,5 +737,151 @@ class GroupRepositoryTest {
         for (table in tables().filter { it != "projection_state" && !it.startsWith("sqlite_") }) {
             assertEquals(listOf("0"), rows("SELECT count(*) FROM $table"), table)
         }
+    }
+
+    @Test
+    fun `the people are read from the projection alone, as the log has them (BA-1, BA-2, GR-9)`() {
+        groups.append(GROUP, household, TODAY)
+        val group = Group.replay(household)
+        val settled = group.settlement(TODAY)
+
+        val people =
+            assertNotNull(runBlocking { GroupRepository(driver).people(GROUP, { TODAY }).first() })
+
+        assertEquals("WG", people.name)
+        assertEquals(Scale.DEFAULT, people.scale)
+        assertEquals(
+            group.members.values.map {
+                ListedMember(it.id, it.name, it.id in group.removed, settled.getValue(it.id), true)
+            },
+            people.members,
+        )
+        assertNull(runBlocking { groups.people(trip, { TODAY }).first() })
+    }
+
+    @Test
+    fun `an entry's emoji follows its category being changed (TR-18)`() {
+        groups.create(weekend, TODAY)
+        val category = defaultCategories().first()
+        val entry = groups.load(trip)!!.entries.keys.single()
+        val at = Instant.parse("2026-10-10T12:00:01Z")
+        groups.append(
+            trip,
+            listOf(
+                Event.EntryUpdated(
+                    EventId.parse("%032x".format(0x900)),
+                    BEN,
+                    at,
+                    entry,
+                    EntryChanges(categoryId = Change.To(category.id)),
+                ),
+                Event.CategoryUpdated(
+                    EventId.parse("%032x".format(0x901)),
+                    BEN,
+                    at,
+                    category.id,
+                    CategoryChanges(emoji = Change.To("🧺")),
+                ),
+            ),
+            TODAY,
+        )
+
+        val overview = assertNotNull(runBlocking { groups.overview(trip, { TODAY }).first() })
+        assertEquals("🧺", overview.entries.single().categoryEmoji)
+        val written = projection()
+        groups.rebuild(TODAY)
+        assertEquals(written, projection())
+    }
+
+    @Test
+    fun `what a shared group's backend does not hold yet is marked, and nothing of a local group (SY-16)`() {
+        groups.create(weekend, TODAY)
+        assertEquals(emptySet(), runBlocking { groups.unsynced(trip).first() })
+        assertTrue(
+            runBlocking { groups.overview(trip, { TODAY }).first() }!!.entries.none { it.unsynced }
+        )
+
+        connected(trip)
+        synced(trip)
+        val later = Log(BEN, trip).create("Wochenende").add(BEN, "Ben").add(ANNA, "Anna")
+        val written =
+            later
+                .record(entry(1, euros(120), equal(listOf(BEN)), equal(listOf(ANNA, BEN))))
+                .record(entry(2, euros(30), equal(listOf(ANNA)), equal(listOf(BEN))))
+                .events()
+                .last()
+        groups.append(trip, listOf(written), TODAY)
+
+        assertEquals(setOf(written.id), runBlocking { groups.unsynced(trip).first() })
+        val overview = assertNotNull(runBlocking { groups.overview(trip, { TODAY }).first() })
+        assertEquals(listOf(entryId(2)), overview.entries.filter { it.unsynced }.map { it.id })
+    }
+
+    @Test
+    fun `discarding what the backend does not hold yet leaves the log and projection it does hold (SY-17)`() {
+        groups.create(weekend, TODAY)
+        connected(trip)
+        assertFalse(groups.discardUnsynced(trip, TODAY))
+        assertEquals(weekend, groups.events(trip))
+
+        synced(trip)
+        val before = projection()
+        val more =
+            Log(BEN, trip)
+                .create("Wochenende")
+                .add(BEN, "Ben")
+                .add(ANNA, "Anna")
+                .record(entry(1, euros(120), equal(listOf(BEN)), equal(listOf(ANNA, BEN))))
+                .add(CLARA, "Clara")
+                .record(entry(2, euros(30), equal(listOf(CLARA)), equal(listOf(BEN))))
+                .events()
+                .drop(weekend.size)
+        groups.append(trip, more, TODAY)
+        assertEquals(weekend + more, groups.events(trip))
+
+        assertTrue(groups.discardUnsynced(trip, TODAY))
+
+        assertEquals(weekend, groups.events(trip))
+        assertEquals(Group.replay(weekend), groups.load(trip))
+        assertEquals(before, projection())
+        assertEquals(emptySet(), runBlocking { groups.unsynced(trip).first() })
+    }
+
+    @Test
+    fun `a group's sync is paused until it is resumed (SY-16)`() {
+        groups.create(weekend, TODAY)
+        connected(trip)
+        assertFalse(groups.backends.paused(trip))
+
+        groups.backends.setPaused(trip, true)
+        assertTrue(groups.backends.paused(trip))
+        assertTrue(runBlocking { groups.backends.state(trip).first() }!!.paused)
+
+        groups.backends.setPaused(trip, false)
+        assertFalse(runBlocking { groups.backends.state(trip).first() }!!.paused)
+    }
+
+    @Test
+    fun `callers at once share one replay of a group, which follows every write`() {
+        groups.append(GROUP, household, TODAY)
+        val cold = GroupRepository(driver)
+
+        val replays = List(4) { Thread { cold.replay(GROUP) } }
+        replays.forEach(Thread::start)
+        replays.forEach(Thread::join)
+
+        val replay = assertNotNull(cold.replay(GROUP))
+        assertTrue(replay === cold.replay(GROUP))
+        assertEquals(household, replay.events)
+        assertEquals(Group.replay(household), replay.group)
+    }
+
+    /** Marks everything group [id] holds as written to its backend. */
+    private fun synced(id: GroupId) {
+        driver.execute(
+            null,
+            "UPDATE event_row SET object_number = 1 WHERE group_id = '${id.hex}'",
+            0,
+        )
     }
 }

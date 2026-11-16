@@ -83,6 +83,16 @@ SELECT count(*)
 FROM event_row
 WHERE group_id = ? AND object_number IS NULL;
 
+unsynced:
+SELECT json
+FROM event_row
+WHERE group_id = ? AND object_number IS NULL
+ORDER BY local_order;
+
+discardWaiting:
+DELETE FROM event_row
+WHERE group_id = ? AND object_number IS NULL;
+
 forget:
 DELETE FROM event_row
 WHERE group_id = ?;

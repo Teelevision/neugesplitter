@@ -566,6 +566,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                     },
                                     onBack = back,
                                     onOpen = { stack.add(StatisticsChart(key.group, it.name)) },
+                                    onSettings = { go(Destination.SETTINGS) },
                                     modifier = modifier,
                                 )
                             Destination.TODOS ->
@@ -608,6 +609,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                             )
                                         )
                                     },
+                                    onSettings = { go(Destination.SETTINGS) },
                                     modifier = modifier,
                                     onInvite = { stack.add(Invite(key.group)) },
                                 )
@@ -621,6 +623,8 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                             graph::now,
                                             graph.syncing::now,
                                             graph.syncing::poll,
+                                            graph.syncing::pause,
+                                            graph.syncing::discardUnsynced,
                                         )
                                     },
                                     // The same one as the todo list's, which shares the group's
@@ -641,6 +645,7 @@ fun App(graph: AppGraph, notified: String? = null, onNotifiedTaken: () -> Unit =
                                     onShare = { stack.add(BackendSetup(key.group)) },
                                     onSyncProblem = { stack.add(SyncProblem(key.group)) },
                                     onTodos = { go(Destination.TODOS) },
+                                    onSettings = { go(Destination.SETTINGS) },
                                     modifier = modifier,
                                 )
                             Destination.SETTINGS ->

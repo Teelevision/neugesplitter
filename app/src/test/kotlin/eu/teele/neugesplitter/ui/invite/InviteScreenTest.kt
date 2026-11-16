@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
@@ -80,15 +81,19 @@ class InviteScreenTest {
         compose.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE
 
     @Test
-    fun `a shared group's invitation shows as a QR code that cannot be captured (BE-18)`() {
+    fun `a shared group's invitation shows as a QR code that cannot be captured, once warned (BE-18)`() {
         show()
-        compose.onNodeWithContentDescription("QR code to join the group").assertExists()
         compose.onNodeWithText("Show it only to them").assertExists()
         compose
             .onNodeWithText("The code holds the storage's secret key.", substring = true)
             .assertExists()
         compose.onNodeWithText("Screenshots of this screen are blocked.").assertExists()
+        compose.onNodeWithContentDescription("QR code to join the group").assertDoesNotExist()
         assertNotEquals(0, secure())
+
+        compose.onNodeWithText("Show the code").performClick()
+        compose.onNodeWithContentDescription("QR code to join the group").assertExists()
+        compose.onNodeWithText("Show it only to them").assertExists()
         assertEquals(
             Invitation(
                 Location(
@@ -118,6 +123,7 @@ class InviteScreenTest {
     @Test
     fun `a passphrase that no longer opens is left out, and asked for when joining (BE-18)`() {
         show(passphrase = null, encrypted = true)
+        compose.onNodeWithText("Show the code").performClick()
         compose
             .onNodeWithText("The passphrase no longer opens on this device", substring = true)
             .assertExists()

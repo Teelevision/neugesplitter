@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import eu.teele.neugesplitter.domain.balance.Settlement
 import eu.teele.neugesplitter.domain.balance.Transfer
 import eu.teele.neugesplitter.domain.event.Event
-import eu.teele.neugesplitter.domain.group.Group
 import eu.teele.neugesplitter.domain.group.Member
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
@@ -14,6 +13,7 @@ import eu.teele.neugesplitter.domain.value.GroupId
 import eu.teele.neugesplitter.domain.value.MemberId
 import eu.teele.neugesplitter.domain.value.Scale
 import eu.teele.neugesplitter.storage.GroupRepository
+import eu.teele.neugesplitter.storage.People
 import eu.teele.neugesplitter.storage.settings.SyncState
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
@@ -64,9 +64,9 @@ class PeopleViewModel(
 ) : ViewModel() {
 
     val state: StateFlow<PeopleState> =
-        combine(repository.group(group), repository.backends.state(group)) { log, sync ->
-                if (log == null) PeopleState(loaded = true)
-                else people(log, repository.actingAs(group), today()).copy(sync = sync)
+        combine(repository.people(group, today), repository.backends.state(group)) { people, sync ->
+                if (people == null) PeopleState(loaded = true)
+                else people(people, repository.actingAs(group)).copy(sync = sync)
             }
             .flowOn(Dispatchers.IO)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PeopleState())
@@ -113,32 +113,16 @@ class PeopleViewModel(
  * [group] as the people screen shows it to [me]. A removed member stays listed while they have a
  * balance or appear in an entry (GR-9).
  */
-internal fun people(group: Group, me: MemberId?, today: EntryDate): PeopleState {
-    val balances = group.settlement(today)
-    val occurrences = group.occurrences(today)
-    val involved =
-        (group.entries.values + occurrences.map { it.entry })
-            .flatMap { it.payers.members + it.beneficiaries.members }
-            .toSet()
+internal fun people(group: People, me: MemberId?): PeopleState {
     val people =
-        group.members.values
-            .filter {
-                it.id !in group.removed || it.id in involved || !balances.getValue(it.id).isZero
-            }
-            .map {
-                Person(
-                    id = it.id,
-                    name = it.name,
-                    balance = balances.getValue(it.id),
-                    removed = it.id in group.removed,
-                    me = it.id == me,
-                )
-            }
+        group.members
+            .filter { !it.removed || it.involved || !it.balance.isZero }
+            .map { Person(it.id, it.name, it.balance, it.removed, it.id == me) }
     return PeopleState(
         loaded = true,
         title = listOfNotNull(group.emoji, group.name).joinToString(" "),
         scale = group.scale,
         people = people,
-        transfers = Settlement.transfers(balances),
+        transfers = Settlement.transfers(group.members.associate { it.id to it.balance }),
     )
 }

@@ -93,11 +93,21 @@ class StatisticsScreenTest {
     private fun show(withEntries: Boolean = true) {
         val viewModel = viewModel(withEntries)
         compose.setContent {
-            NeugesplitterTheme { StatisticsScreen(viewModel, {}, { opened = it }) }
+            NeugesplitterTheme { StatisticsScreen(viewModel, {}, { opened = it }, { settings++ }) }
         }
     }
 
     private var opened: Chart? = null
+    private var settings = 0
+
+    @Test
+    fun `the menu leads to the group's settings (ui-design 1)`() {
+        show()
+        awaitText("Statistics")
+        compose.onNodeWithContentDescription("More options", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("Settings").performClick()
+        assertEquals(1, settings)
+    }
 
     private fun entry(
         number: Int,

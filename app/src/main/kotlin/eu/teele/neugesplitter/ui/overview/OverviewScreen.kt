@@ -8,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -20,7 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -67,6 +65,7 @@ import eu.teele.neugesplitter.storage.settings.SyncState
 import eu.teele.neugesplitter.ui.DayHeading
 import eu.teele.neugesplitter.ui.DeleteAction
 import eu.teele.neugesplitter.ui.EntryRow
+import eu.teele.neugesplitter.ui.GroupMenu
 import eu.teele.neugesplitter.ui.SWIPE_ACTION
 import eu.teele.neugesplitter.ui.SwipeToDismissSnackbarHost
 import eu.teele.neugesplitter.ui.SwipeToReveal
@@ -128,7 +127,6 @@ fun OverviewScreen(
     val snackbar = remember { SnackbarHostState() }
     var menu by remember { mutableStateOf<ListedEntry?>(null) }
     var filtering by rememberSaveable { mutableStateOf(false) }
-    var more by remember { mutableStateOf(false) }
     val deleted = stringResource(R.string.entry_deleted)
     val undo = stringResource(R.string.undo)
 
@@ -190,36 +188,21 @@ fun OverviewScreen(
                                 stringResource(R.string.filter),
                             )
                         }
-                        Box {
-                            IconButton(onClick = { more = true }) {
-                                Icon(
-                                    painterResource(R.drawable.ic_more_vert),
-                                    stringResource(R.string.more_options),
-                                )
-                            }
-                            DropdownMenu(expanded = more, onDismissRequest = { more = false }) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.todos)) },
-                                    onClick = {
-                                        more = false
-                                        onTodos()
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.tidy_title)) },
-                                    onClick = {
-                                        more = false
-                                        onTidy()
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.destination_settings)) },
-                                    onClick = {
-                                        more = false
-                                        onSettings()
-                                    },
-                                )
-                            }
+                        GroupMenu(onSettings) { close ->
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.todos)) },
+                                onClick = {
+                                    close()
+                                    onTodos()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.tidy_title)) },
+                                onClick = {
+                                    close()
+                                    onTidy()
+                                },
+                            )
                         }
                     }
                 },
@@ -255,7 +238,7 @@ fun OverviewScreen(
         FilterSheet(
             state.filter,
             overview.members,
-            overview.categories,
+            state.categories,
             remember(overview) { overview.entries.groupingBy { it.categoryId }.eachCount() },
             overview.scale,
             viewModel.today(),

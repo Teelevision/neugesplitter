@@ -28,8 +28,9 @@ action docked in the middle:
 | 4        | **Statistics** | the group's charts (BA-8)                          |
 
 The overview's overflow menu leads to the **to-dos**, **tidy up history** and
-the group's **settings**: the group, its backend, its members' defaults. To-dos
-and settings are shown under Overview in the bar, and back returns to it.
+the group's **settings**: the group, its backend, its members' defaults. Every
+one of the four destinations has an overflow menu that leads to the settings.
+To-dos and settings are shown under Overview in the bar, and back returns to it.
 
 Two deliberate notes on that bar. Material 3 says a navigation bar holds
 destinations and not actions; the centre FAB breaks that on purpose, because
@@ -265,8 +266,9 @@ stacked in collapsible sections below it:
    neutral for a group kept only here. It holds the time of the last
    _successful_ sync (SY-6, TR-12), why the last passes failed if they did, what
    is queued, and a manual sync button (SY-9). When sync has halted, it says so
-   instead of offering the button, and leads to the sync problem screen. A group
-   kept only on this device says so here and offers to share it (BE-1).
+   instead of offering the button, and leads to the sync problem screen. A
+   paused group's card says it is paused and offers no button either (SY-16). A
+   group kept only on this device says so here and offers to share it (BE-1).
 2. **Pending suggestions** (RE-4, RE-10), shown only while there are some,
    oldest first: each with confirm, edit, or decline. Edit opens the entry
    editor, and saving there confirms it, as it was or changed. Declining does
@@ -283,7 +285,12 @@ stacked in collapsible sections below it:
    made recurring rather than "deleted" and "changed a recurring entry". Every
    line opens its change in full (HI-10). Unseen items are highlighted; tapping
    one clears it, and opening an entry clears every line about it (HI-5, HI-6).
-   The overflow holds **mark all as read** (HI-7).
+   A line, like an entry row, holding a change the backend does not hold yet
+   carries an upload mark (SY-16). The list lays out a few hundred lines at
+   first and more as it is scrolled towards its end. The overflow holds **mark
+   all as read** (HI-7) and, for a shared group, **pause sync** or **resume
+   sync** (SY-16); while paused with changes waiting, also **discard local
+   changes**, after a confirmation (SY-17).
 
 Between the suggestions and the history, **To-dos due** lists the to-dos not
 done whose due date has come, earliest first, as rows of the to-do list; one
