@@ -14,8 +14,10 @@ import eu.teele.neugesplitter.domain.value.Scale
  *
  * @property own the settled balance of the member this installation acts as (BA-7), or null if it
  *   acts as none.
- * @property entries every entry that counts, newest first.
+ * @property entries every entry that counts, newest first; only the newest of them unless
+ *   [complete].
  * @property members the names of everyone the entries can name, removed members too, by name.
+ * @property total what the group has spent: its expenses, and neither income nor transfers (EN-7).
  */
 data class Overview(
     val name: String,
@@ -25,14 +27,9 @@ data class Overview(
     val own: Amount?,
     val entries: List<ListedEntry>,
     val members: Map<MemberId, String> = emptyMap(),
-) {
-    /** What the group has spent: its expenses, and neither income nor transfers (EN-7). */
-    val total: Amount
-        get() =
-            entries
-                .filter { it.kind == Kind.EXPENSE }
-                .fold(Amount.ZERO) { sum, it -> sum + it.amount }
-}
+    val total: Amount = Amount.ZERO,
+    val complete: Boolean = true,
+)
 
 /**
  * An entry as the overview lists it (ui-design 4).

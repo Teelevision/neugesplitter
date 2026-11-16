@@ -462,8 +462,8 @@ over as a QR code (BE-18).
   own copy, and it MUST say when a repair can only be made with the storage
   provider's own tools. Syncing resumes once the backend agrees with the
   installation again.
-- **SY-16** (Core): The user MUST be able to pause syncing a group and resume
-  it later. A paused group MUST NOT contact its backend, MUST keep everything
+- **SY-16** (Core): The user MUST be able to pause syncing a group and resume it
+  later. A paused group MUST NOT contact its backend, MUST keep everything
   syncing needs, and MUST show that it is paused rather than failing. Local
   changes wait and are uploaded once it resumes. Whether paused or not, every
   entry and history step holding a change the backend does not hold yet MUST be

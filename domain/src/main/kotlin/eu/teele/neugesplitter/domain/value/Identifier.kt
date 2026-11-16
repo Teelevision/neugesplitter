@@ -12,11 +12,12 @@ import java.security.MessageDigest
  */
 private const val LENGTH = 32
 
+// Matched by the platform rather than char by char, which an interpreted start-up makes slow.
+private val WIRE = Regex("[0-9a-f]{$LENGTH}")
+
 private fun requireIdentifier(hex: String, what: String): String {
     require(hex.length == LENGTH) { "$what must be $LENGTH hex characters, was ${hex.length}" }
-    require(hex.all { it in '0'..'9' || it in 'a'..'f' }) {
-        "$what must be lowercase hex, was '$hex'"
-    }
+    require(WIRE.matches(hex)) { "$what must be lowercase hex, was '$hex'" }
     return hex
 }
 

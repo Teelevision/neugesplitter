@@ -217,6 +217,13 @@ SELECT entry, member
 FROM side
 WHERE group_id = ? AND role = 'beneficiaries';
 
+-- What a group has spent: the expenses that count, and neither income nor transfers (EN-7).
+spent:
+SELECT coalesce(sum(e.amount), 0) AS spent
+FROM entry e
+LEFT JOIN occurrence o ON o.group_id = e.group_id AND o.entry = e.id
+WHERE e.group_id = ? AND e.kind = 'expense' AND e.deleted = 0 AND coalesce(o.pending, 0) = 0;
+
 -- Everyone a group's entries can name, removed members too, for the overview's filter (EN-12).
 members:
 SELECT id, name

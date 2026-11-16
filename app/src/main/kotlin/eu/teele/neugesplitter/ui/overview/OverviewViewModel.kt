@@ -3,6 +3,7 @@ package eu.teele.neugesplitter.ui.overview
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.teele.neugesplitter.domain.category.Category
+import eu.teele.neugesplitter.domain.entry.Kind
 import eu.teele.neugesplitter.domain.event.Event
 import eu.teele.neugesplitter.domain.value.Amount
 import eu.teele.neugesplitter.domain.value.EntryDate
@@ -58,6 +59,9 @@ data class OverviewState(
     val categories: List<Category> = emptyList(),
 )
 
+/** How many of the newest entries show before the rest are read: more than a screen holds. */
+private const val FIRST = 40
+
 /**
  * @param scope outlives this view model, so that a deletion still offered for undo is written when
  *   the screen goes.
@@ -78,7 +82,11 @@ class OverviewViewModel(
     private val committing = MutableStateFlow<Set<EntryId>>(emptySet())
     private val filter = MutableStateFlow(narrowed)
     private val overviewAndCommitting =
-        combine(repository.overview(group, today), committing) { overview, committing ->
+        // A narrowed overview waits for every entry, so as not to show a count it would correct.
+        combine(
+            repository.overview(group, today, newest = FIRST.takeUnless { narrowed.active }),
+            committing,
+        ) { overview, committing ->
             overview to committing
         }
     private val categories =
@@ -127,7 +135,8 @@ class OverviewViewModel(
                 val (overview, committing) = overviewAndCommitting
                 val persisted =
                     committing.filterTo(mutableSetOf()) { id ->
-                        overview == null || overview.entries.none { it.id == id }
+                        overview == null ||
+                            overview.complete && overview.entries.none { it.id == id }
                     }
                 if (persisted.isNotEmpty())
                     this@OverviewViewModel.committing.update { it - persisted }
@@ -138,6 +147,13 @@ class OverviewViewModel(
                         overview?.copy(
                             own = if (without?.first == hidden) without.second else overview.own,
                             entries = overview.entries.filterNot { it.id in hidden },
+                            total =
+                                overview.total -
+                                    Amount.sum(
+                                        overview.entries
+                                            .filter { it.id in hidden && it.kind == Kind.EXPENSE }
+                                            .map { it.amount }
+                                    ),
                         ),
                     deleting = deleting,
                     sync = sync,

@@ -48,6 +48,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 
 class GroupRepositoryTest {
@@ -514,6 +515,27 @@ class GroupRepositoryTest {
         )
         assertEquals(listOf(euros(120), euros(150)), seen.take(2).map { it!!.total })
         assertNull(seen[2])
+    }
+
+    @Test
+    fun `a long overview shows its newest entries first, with the whole total (EN-7)`() {
+        groups.create(weekend, TODAY)
+        val events =
+            Log(BEN, trip)
+                .create("Wochenende")
+                .add(BEN, "Ben")
+                .add(ANNA, "Anna")
+                .record(entry(1, euros(120), equal(listOf(BEN)), equal(listOf(ANNA, BEN))))
+                .record(entry(2, euros(30), equal(listOf(ANNA, BEN)), equal(listOf(BEN))))
+                .events()
+        groups.append(trip, events.drop(weekend.size), TODAY)
+        val seen = runBlocking { groups.overview(trip, { TODAY }, newest = 1).take(2).toList() }
+        val (first, all) = seen.map { assertNotNull(it) }
+        assertEquals(listOf(false, true), listOf(first.complete, all.complete))
+        assertEquals(all.entries.take(1).map { it.id }, first.entries.map { it.id })
+        assertEquals(listOf(listOf("Anna", "Ben")), first.entries.map { it.payers })
+        assertEquals(listOf(euros(150), euros(150)), listOf(first.total, all.total))
+        assertEquals(2, all.entries.size)
     }
 
     @Test

@@ -5,6 +5,7 @@ import app.cash.sqldelight.TransactionCallbacks
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOne
+import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import eu.teele.neugesplitter.domain.Malformed
 import eu.teele.neugesplitter.domain.entry.Kind
@@ -39,6 +40,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
@@ -273,14 +275,21 @@ class GroupRepository(private val driver: SqlDriver) {
      * Group [id] as its overview shows it, again whenever a write changes it, or null once the
      * installation no longer holds it. It is read from the projection alone, so it shows before the
      * log is replayed. The projection is brought to [today] each time collecting starts.
+     *
+     * @param newest if not null, how many of the newest entries are read first, without whom they
+     *   are for, before all of them are; so that a long overview shows sooner.
      */
     fun overview(
         id: GroupId,
         today: () -> EntryDate,
         context: CoroutineContext = Dispatchers.IO,
+        newest: Int? = null,
     ): Flow<Overview?> {
         val queries = database.projectionQueries
         val heading = queries.heading(id.hex)
+        // Thousands of rows name the same few members; each is parsed once.
+        val members = ConcurrentHashMap<String, MemberId>()
+        fun member(hex: String) = members.getOrPut(hex) { MemberId.parse(hex) }
         val entries =
             queries.entries(id.hex) {
                 entry,
@@ -305,7 +314,7 @@ class GroupRepository(private val driver: SqlDriver) {
                     date = EntryDate.parse(date),
                     amount = Amount.ofUnits(amount),
                     payers = listOf(payer),
-                    payerIds = setOf(MemberId.parse(payerId)),
+                    payerIds = setOf(member(payerId)),
                     own =
                         if (paid == null && owed == null) null
                         else {
@@ -321,59 +330,68 @@ class GroupRepository(private val driver: SqlDriver) {
             }
         val unsynced = rows.unsynced(id.hex)
         val shared = database.backendSettingsQueries.settings(id.hex)
-        // Either query may be told of a write first; both are read again, together, either way.
-        val projected =
-            changes(heading, entries, unsynced, shared)
-                .map {
-                    database.transactionWithResult {
-                        heading.executeAsOneOrNull()?.let {
-                            val waiting =
-                                unsyncedEvents(id).mapNotNullTo(mutableSetOf()) { it.entry() }
-                            val beneficiaries =
-                                queries
-                                    .beneficiaries(id.hex)
-                                    .executeAsList()
-                                    .groupBy(
-                                        { EntryId.parse(it.entry) },
-                                        { MemberId.parse(it.member) },
-                                    )
-                            Overview(
-                                name = it.name,
-                                emoji = it.emoji,
-                                colour = it.colour?.let(Colour::parse),
-                                scale = Scale.of(it.scale.toInt()),
-                                own = it.own?.let(Amount::ofUnits),
-                                entries =
-                                    entries
-                                        .executeAsList()
-                                        .groupBy { it.id }
-                                        .values
-                                        .map { rows ->
-                                            rows
-                                                .first()
-                                                .copy(
-                                                    payers = rows.map { it.payers.single() },
-                                                    payerIds =
-                                                        rows.flatMapTo(mutableSetOf()) {
-                                                            it.payerIds
-                                                        },
-                                                    beneficiaryIds =
-                                                        beneficiaries[rows.first().id]
-                                                            .orEmpty()
-                                                            .toSet(),
-                                                    unsynced = rows.first().id in waiting,
-                                                )
-                                        },
-                                members =
-                                    queries.members(id.hex).executeAsList().associate {
-                                        MemberId.parse(it.id) to it.name
-                                    },
-                            )
+
+        // The newest [limit] entries without whom they are for, or all of them with it.
+        fun read(limit: Int?): Overview? =
+            database.transactionWithResult {
+                heading.executeAsOneOrNull()?.let {
+                    val waiting = unsyncedEvents(id).mapNotNullTo(mutableSetOf()) { it.entry() }
+                    val beneficiaries = HashMap<String, MutableSet<MemberId>>()
+                    if (limit == null)
+                        for (row in queries.beneficiaries(id.hex).executeAsList()) beneficiaries
+                            .getOrPut(row.entry) { mutableSetOf() }
+                            .add(member(row.member))
+                    // An entry has a row per payer, and one row too many says there are more.
+                    val listed = mutableListOf<MutableList<ListedEntry>>()
+                    var complete = true
+                    entries.execute { cursor ->
+                        while (cursor.next().value) {
+                            val row = entries.mapper(cursor)
+                            if (listed.lastOrNull()?.first()?.id == row.id) listed.last() += row
+                            else if (limit != null && listed.size == limit) {
+                                complete = false
+                                break
+                            } else listed += mutableListOf(row)
                         }
+                        QueryResult.Unit
                     }
+                    Overview(
+                        name = it.name,
+                        emoji = it.emoji,
+                        colour = it.colour?.let(Colour::parse),
+                        scale = Scale.of(it.scale.toInt()),
+                        own = it.own?.let(Amount::ofUnits),
+                        entries =
+                            listed.map { rows ->
+                                val first = rows.first()
+                                first.copy(
+                                    payers = rows.map { it.payers.single() },
+                                    payerIds = rows.flatMapTo(mutableSetOf()) { it.payerIds },
+                                    beneficiaryIds = beneficiaries[first.id.hex].orEmpty(),
+                                    unsynced = first.id in waiting,
+                                )
+                            },
+                        members =
+                            queries.members(id.hex).executeAsList().associate {
+                                member(it.id) to it.name
+                            },
+                        total = Amount.ofUnits(queries.spent(id.hex).executeAsOne()),
+                        complete = complete,
+                    )
                 }
-                .distinctUntilChanged()
-        return projected.onStart { refresh(today()) }.flowOn(context)
+            }
+
+        // Either query may be told of a write first; all are read again, together, either way.
+        val projected = flow {
+            var limit = newest
+            changes(heading, entries, unsynced, shared).collect {
+                val overview = read(limit)
+                limit = null
+                emit(overview)
+                if (overview?.complete == false) emit(read(null))
+            }
+        }
+        return projected.distinctUntilChanged().onStart { refresh(today()) }.flowOn(context)
     }
 
     /**

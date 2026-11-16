@@ -6,6 +6,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -103,7 +104,14 @@ class StatisticsScreenTest {
     @Test
     fun `the menu leads to the group's settings (ui-design 1)`() {
         show()
-        awaitText("Statistics")
+        // The menu shows once the statistics are, after the title.
+        compose.waitUntil(5_000) {
+            shadowOf(Looper.getMainLooper()).idle()
+            compose
+                .onAllNodesWithContentDescription("More options", useUnmergedTree = true)
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
         compose.onNodeWithContentDescription("More options", useUnmergedTree = true).performClick()
         compose.onNodeWithText("Settings").performClick()
         assertEquals(1, settings)

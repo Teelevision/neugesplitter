@@ -24,7 +24,14 @@ value class EntryDate private constructor(val value: LocalDate) : Comparable<Ent
 
         fun parse(text: String): EntryDate {
             require(WIRE.matches(text)) { "not a canonical date: '$text'" }
-            return EntryDate(LocalDate.parse(text))
+            // Read by hand: the platform's formatter takes long, thousands of times at start-up.
+            return EntryDate(
+                LocalDate.of(
+                    text.substring(0, 4).toInt(),
+                    text.substring(5, 7).toInt(),
+                    text.substring(8, 10).toInt(),
+                )
+            )
         }
     }
 }
