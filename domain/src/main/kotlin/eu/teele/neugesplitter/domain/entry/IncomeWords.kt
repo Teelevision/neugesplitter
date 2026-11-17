@@ -5,7 +5,8 @@ package eu.teele.neugesplitter.domain.entry
  *
  * This only proposes candidates; a person confirms every conversion. Refunds and deposits returned
  * are not income. Stems match anywhere, so German compounds such as "Monatsgehalt" are found; words
- * match whole, so "Rente" does not catch "Rentenversicherung".
+ * match whole, so "Rente" does not catch "Rentenversicherung". A description starting with "von" or
+ * "from" ("von Oma") reads like money someone gave.
  */
 object IncomeWords {
 
@@ -65,8 +66,13 @@ object IncomeWords {
 
     private val separator = Regex("[^\\p{L}\\p{N}]+")
 
+    private val from = setOf("von", "from")
+
     fun match(description: String): Boolean {
         val text = description.lowercase()
-        return stems.any { it in text } || text.split(separator).any { it in words }
+        val split = text.split(separator).filter(String::isNotEmpty)
+        return stems.any { it in text } ||
+            split.any { it in words } ||
+            (split.size > 1 && split.first() in from)
     }
 }

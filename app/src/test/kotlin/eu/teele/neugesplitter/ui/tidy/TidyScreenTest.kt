@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.teele.neugesplitter.domain.category.BuiltInCategory
 import eu.teele.neugesplitter.domain.entry.Entry
@@ -187,6 +188,59 @@ class TidyScreenTest {
         }
         compose.waitForIdle()
         compose.onNodeWithText("30 entries").assertIsDisplayed()
+    }
+
+    @Test
+    fun `searching offers any expense containing the text as an income (TI-6)`() {
+        val oma = EntryId.parse(id(41))
+        show(more = listOf(expense(oma, "Oma Geburtstag", "2026-09-05", ben)))
+
+        compose.onNodeWithText("Search all expenses").performTextInput("oma")
+        waitFor("Oma Geburtstag")
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Gehalt").fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithText("Make income").performClick()
+
+        compose.waitUntil(5_000) { entry(oma).kind == Kind.INCOME }
+        assertEquals(Kind.EXPENSE, entry(october).kind)
+    }
+
+    @Test
+    fun `searching offers declined expenses again (TI-6)`() {
+        show()
+
+        compose.onNodeWithText("Not an income").performClick()
+        waitFor("No entries left that look like an income.")
+        compose.onNodeWithText("Search all expenses").performTextInput("gehalt")
+
+        waitFor("2 entries")
+        compose.onNodeWithText("Make income").performClick()
+        compose.waitUntil(5_000) {
+            entry(october).kind == Kind.INCOME && entry(september).kind == Kind.INCOME
+        }
+    }
+
+    @Test
+    fun `single entries come in sets of the category they most likely are of (TI-7)`() {
+        val singles =
+            listOf("Brot", "Milch", "Käse", "Eier", "Butter", "Mehl", "Zucker").mapIndexed { n, it
+                ->
+                expense(EntryId.parse(id(0x40 + n)), it, "2026-08-0${n + 1}", anna)
+            }
+        show(more = singles)
+
+        compose.onNodeWithText("Categories (11)").performClick()
+        waitFor("6 entries")
+        compose.onNodeWithText("Probably", substring = true).assertExists()
+        assertEquals(0, toggles("Brot"))
+        compose.onNodeWithText("Milch").performClick()
+        compose.onAllNodesWithText("Apply").onFirst().performClick()
+
+        val dining = BuiltInCategory.DINING_AND_CAFES.id
+        compose.waitUntil(5_000) { singles.drop(2).all { entry(it.id).categoryId == dining } }
+        assertNull(entry(singles[0].id).categoryId)
+        assertNull(entry(singles[1].id).categoryId)
     }
 
     @Test

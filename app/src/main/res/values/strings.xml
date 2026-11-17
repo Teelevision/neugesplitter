@@ -663,8 +663,12 @@
     <string name="tidy_tab_income">Incomes (%1$d)</string>
     <string name="tidy_tab_categories">Categories (%1$d)</string>
     <string name="tidy_income_explain">Splitwise has no incomes, so money someone received may have been recorded as an expense paid by the others. Turned into an income, every balance stays the same.</string>
-    <string name="tidy_categories_explain">Entries without a category, grouped by description.</string>
+    <string name="tidy_categories_explain">Entries without a category, grouped by description. Single entries are gathered by the category they most likely belong to.</string>
     <string name="tidy_income_empty">No entries left that look like an income.</string>
+    <string name="tidy_income_search">Search all expenses</string>
+    <string name="tidy_income_search_empty">No expense containing “%1$s” can become an income.</string>
+    <!-- A set of single entries; %1$s is a category, such as "🛒 Groceries" -->
+    <string name="tidy_set">Probably %1$s</string>
     <string name="tidy_categories_empty">Every entry has a category.</string>
     <plurals name="tidy_entries">
         <item quantity="one">%1$d entry</item>

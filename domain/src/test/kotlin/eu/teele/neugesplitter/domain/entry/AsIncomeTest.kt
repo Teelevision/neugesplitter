@@ -115,6 +115,9 @@ class AsIncomeTest {
                 "Rente März",
                 "Kindergeld",
                 "eBay Verkauf",
+                "von Oma",
+                "Von Papa für den Urlaub",
+                "from Grandma",
             )
             .forEach { assertTrue(IncomeWords.match(it), it) }
         listOf(
@@ -127,6 +130,8 @@ class AsIncomeTest {
                 "Kaution",
                 "Tax refund",
                 "Cashback",
+                "Von",
+                "Brötchen von Bäcker",
             )
             .forEach { assertFalse(IncomeWords.match(it), it) }
     }

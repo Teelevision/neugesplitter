@@ -657,8 +657,11 @@
     <string name="tidy_tab_income">Einnahmen (%1$d)</string>
     <string name="tidy_tab_categories">Kategorien (%1$d)</string>
     <string name="tidy_income_explain">Splitwise kennt keine Einnahmen, deshalb wurde Geld, das jemand bekommen hat, eventuell als Ausgabe der anderen erfasst. Als Einnahme bleibt jeder Saldo gleich.</string>
-    <string name="tidy_categories_explain">Einträge ohne Kategorie, nach Beschreibung gruppiert.</string>
+    <string name="tidy_categories_explain">Einträge ohne Kategorie, nach Beschreibung gruppiert. Einzelne Einträge sind nach ihrer wahrscheinlichsten Kategorie gesammelt.</string>
     <string name="tidy_income_empty">Keine Einträge mehr, die nach einer Einnahme aussehen.</string>
+    <string name="tidy_income_search">Alle Ausgaben durchsuchen</string>
+    <string name="tidy_income_search_empty">Keine Ausgabe mit „%1$s“ kann eine Einnahme werden.</string>
+    <string name="tidy_set">Wahrscheinlich %1$s</string>
     <string name="tidy_categories_empty">Jeder Eintrag hat eine Kategorie.</string>
     <plurals name="tidy_entries">
         <item quantity="one">%1$d Eintrag</item>

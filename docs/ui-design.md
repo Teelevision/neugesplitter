@@ -349,17 +349,23 @@ Pushed from the Overview's overflow menu, for cleaning up an imported history a
 batch at a time (TI-1). Two tabs, each counting its entries:
 
 - **Incomes**: expenses whose description reads like money coming in — salary, a
-  sale, a pension, but not a refund, in English or German — and that leave
-  exactly one member owing (TI-2). A line explains why Splitwise recorded them
-  as expenses. Each row says who paid and whom the income would be received by
-  and for. **Make income** turns the ticked ones into incomes with every balance
-  as before; the unticked ones and those of a batch marked **Not an income** are
-  not proposed again on this device (TI-4).
+  sale, a pension, money from someone ("von Oma"), but not a refund, in English
+  or German — and that leave exactly one member owing (TI-2). A line explains
+  why Splitwise recorded them as expenses. Above the list, **Search all
+  expenses** shows instead every expense whose description contains the text and
+  that can become an income, whatever its wording and even if declined before
+  (TI-6). Each row says who paid and whom the income would be received by and
+  for. **Make income** turns the ticked ones into incomes with every balance as
+  before; the unticked ones and those of a batch marked **Not an income** are
+  not proposed again on this device unless searched for (TI-4).
 - **Categories**: entries without a category. Each batch shows up to three
   categories the built-in model suggests as chips, the likeliest chosen already
   where the model is sure enough, and **Choose…** opens the category sheet for
-  any other (TI-3). **Apply** gives the ticked ones the chosen category;
-  **Skip** leaves the batch out from then on.
+  any other (TI-3). Entries alone in their batch are gathered instead in sets of
+  up to six by the category the model finds likeliest, headed "Probably 🛒
+  Groceries" and with that category chosen, the surer ones first (TI-7).
+  **Apply** gives the ticked ones the chosen category; **Skip** leaves the batch
+  out from then on.
 
 A batch is a card of the entries whose descriptions read the same once case,
 digits and punctuation are set aside, newest first, each with a checkbox where

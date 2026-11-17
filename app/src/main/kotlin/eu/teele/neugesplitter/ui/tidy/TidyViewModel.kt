@@ -43,7 +43,8 @@ data class IncomeItem(val before: Entry, val after: Entry)
 data class IncomeBatch(val key: String, val items: List<IncomeItem>)
 
 /**
- * Uncategorised entries whose descriptions read the same, newest first (TI-3).
+ * Uncategorised entries whose descriptions read the same, newest first (TI-3), or a [set] of single
+ * entries the model finds likeliest to be of the same category (TI-7).
  *
  * @property suggested the group's categories the model finds likeliest, likeliest first.
  * @property guessed the category the model is sure enough of to choose it beforehand.
@@ -53,6 +54,7 @@ data class CategoryBatch(
     val entries: List<Entry>,
     val suggested: List<CategoryId>,
     val guessed: CategoryId?,
+    val set: Boolean = false,
 )
 
 /**
@@ -97,16 +99,29 @@ internal fun normalised(description: String): String =
         description.trim().lowercase()
     }
 
-/** The expenses of [group] that read like and can be restated as incomes (TI-2). */
-internal fun incomes(group: Group, dismissed: Set<EntryId>): List<IncomeBatch> =
+/**
+ * The expenses of [group] that read like and can be restated as incomes (TI-2), or, while the user
+ * searches, those whose description contains [search], declined ones too (TI-6).
+ */
+internal fun incomes(
+    group: Group,
+    dismissed: Set<EntryId>,
+    search: String = "",
+): List<IncomeBatch> =
     group.entries.values
         .asSequence()
-        .filter { it.kind == Kind.EXPENSE && it.id !in dismissed }
-        .filter { IncomeWords.match(it.description) }
+        .filter { it.kind == Kind.EXPENSE }
+        .filter {
+            if (search.isBlank()) it.id !in dismissed && IncomeWords.match(it.description)
+            else it.description.contains(search, ignoreCase = true)
+        }
         .mapNotNull { entry -> entry.asIncome()?.let { IncomeItem(entry, it) } }
         .groupBy { normalised(it.before.description) }
         .map { (key, items) -> IncomeBatch(key, items.sortedByDescending { it.before.date }) }
         .sortedWith(compareByDescending<IncomeBatch> { it.items.size }.thenBy { it.key })
+
+/** How many single entries a set holds at most, few enough to check at a glance (TI-7). */
+private const val SET = 6
 
 /** The entries of [group] without a category, with what the model suggests for them (TI-3). */
 internal fun uncategorised(
@@ -117,24 +132,48 @@ internal fun uncategorised(
 ): List<CategoryBatch> {
     fun available(category: BuiltInCategory?): CategoryId? =
         category?.id?.takeIf { group.categories[it]?.deleted == false }
-    return group.entries.values
-        .filter { it.categoryId == null && it.kind != Kind.TRANSFER && it.id !in dismissed }
-        .groupBy { normalised(it.description) }
-        .map { (key, entries) ->
-            val newest = entries.sortedByDescending { it.date }
-            val description = newest.first().description
-            CategoryBatch(
-                key,
-                newest,
-                rank(description).mapNotNull(::available),
-                available(guess(description)),
-            )
-        }
-        .sortedWith(
-            compareBy<CategoryBatch> { it.guessed == null }
-                .thenByDescending { it.entries.size }
-                .thenBy { it.key }
-        )
+    val batches =
+        group.entries.values
+            .filter { it.categoryId == null && it.kind != Kind.TRANSFER && it.id !in dismissed }
+            .groupBy { normalised(it.description) }
+            .map { (key, entries) ->
+                val newest = entries.sortedByDescending { it.date }
+                val description = newest.first().description
+                CategoryBatch(
+                    key,
+                    newest,
+                    rank(description).mapNotNull(::available),
+                    available(guess(description)),
+                )
+            }
+    val (single, several) = batches.partition { it.entries.size == 1 && it.suggested.isNotEmpty() }
+    val sets =
+        single
+            .groupBy { it.suggested.first() }
+            .flatMap { (category, alone) ->
+                alone
+                    .sortedWith(
+                        compareBy<CategoryBatch> { it.guessed != category }
+                            .thenByDescending { it.entries.single().date }
+                    )
+                    .chunked(SET)
+                    .map { chunk ->
+                        chunk.singleOrNull()
+                            ?: CategoryBatch(
+                                // normalised() drops colons, so no description has this key.
+                                "set:${category.hex}:${chunk.first().entries.single().id.hex}",
+                                chunk.map { it.entries.single() },
+                                listOf(category),
+                                category,
+                                set = true,
+                            )
+                    }
+            }
+    return (several + sets).sortedWith(
+        compareBy<CategoryBatch> { it.guessed == null }
+            .thenByDescending { it.entries.size }
+            .thenBy { it.key }
+    )
 }
 
 /**
@@ -155,7 +194,7 @@ class TidyViewModel(
     private data class Candidates(
         val group: Group?,
         val shared: Boolean,
-        val incomes: List<IncomeBatch>,
+        val noIncome: Set<EntryId>,
         val uncategorised: List<CategoryBatch>,
     )
 
@@ -168,6 +207,8 @@ class TidyViewModel(
 
     private val selection = MutableStateFlow(Selection())
 
+    private val query = MutableStateFlow("")
+
     private val candidates =
         combine(
                 repository.group(group),
@@ -178,14 +219,22 @@ class TidyViewModel(
                 Candidates(
                     loaded,
                     shared,
-                    loaded?.let { incomes(it, noIncome) }.orEmpty(),
+                    noIncome,
                     loaded?.let { uncategorised(it, noCategory, rank, guess) }.orEmpty(),
                 )
             }
             .flowOn(Dispatchers.IO)
 
+    // Apart from the categories, so that typing a search does not run the model again.
+    private val found =
+        combine(candidates, query) { candidates, query ->
+                candidates to
+                    candidates.group?.let { incomes(it, candidates.noIncome, query) }.orEmpty()
+            }
+            .flowOn(Dispatchers.IO)
+
     val state: StateFlow<TidyState> =
-        combine(candidates, selection) { candidates, selection ->
+        combine(found, selection) { (candidates, incomes), selection ->
                 val loaded = candidates.group
                 TidyState(
                     loaded = true,
@@ -193,7 +242,7 @@ class TidyViewModel(
                     scale = loaded?.scale ?: Scale.of(2),
                     categories = loaded?.categories?.values?.filter { !it.deleted }.orEmpty(),
                     shared = candidates.shared,
-                    incomes = candidates.incomes,
+                    incomes = incomes,
                     uncategorised = candidates.uncategorised,
                     excluded = selection.excluded,
                     chosen = selection.chosen,
@@ -202,6 +251,13 @@ class TidyViewModel(
                 )
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TidyState())
+
+    /**
+     * Offers every expense whose description contains [text] as an income, if it can be one (TI-6).
+     */
+    fun search(text: String) {
+        query.value = text
+    }
 
     /** Ticks [entry] in its batch, or unticks it. */
     fun toggle(entry: EntryId) =

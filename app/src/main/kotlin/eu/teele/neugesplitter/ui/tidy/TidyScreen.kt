@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -25,6 +26,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -52,6 +54,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -109,6 +112,8 @@ fun TidyScreen(viewModel: TidyViewModel, onBack: () -> Unit) {
     }
     val locale = LocalConfiguration.current.locales[0]
     var picking by remember { mutableStateOf<CategoryBatch?>(null) }
+    var search by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(search) { viewModel.search(search) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val applied = state.applied
@@ -162,11 +167,43 @@ fun TidyScreen(viewModel: TidyViewModel, onBack: () -> Unit) {
                     },
                 )
             }
+            if (tab == 0) {
+                OutlinedTextField(
+                    value = search,
+                    onValueChange = { search = it },
+                    label = { Text(stringResource(R.string.tidy_income_search)) },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_search), null) },
+                    trailingIcon =
+                        if (search.isNotEmpty()) {
+                            {
+                                IconButton(onClick = { search = "" }) {
+                                    Icon(
+                                        painterResource(R.drawable.ic_close),
+                                        stringResource(R.string.filter_clear),
+                                    )
+                                }
+                            }
+                        } else null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
             LazyColumn(Modifier.fillMaxSize(), state = list) {
                 if (tab == 0) {
                     item(key = "explain") { Explanation(R.string.tidy_income_explain) }
                     if (state.loaded && state.incomes.isEmpty()) {
-                        item(key = "empty") { Explanation(R.string.tidy_income_empty) }
+                        item(key = "empty") {
+                            if (search.isBlank()) Explanation(R.string.tidy_income_empty)
+                            else
+                                Text(
+                                    stringResource(R.string.tidy_income_search_empty, search),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier =
+                                        Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                )
+                        }
                     }
                     items(state.incomes, key = { "income ${it.key}" }) { batch ->
                         IncomeCard(
@@ -323,7 +360,12 @@ private fun CategoryCard(
     val choice = state.choice(batch)
     val known = state.categories.associateBy { it.id }
     OutlinedCard(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        BatchHeading(batch.entries.first().description, batch.entries.size)
+        val likely = known[batch.suggested.first()].takeIf { batch.set }
+        BatchHeading(
+            likely?.let { stringResource(R.string.tidy_set, "${it.emoji} ${categoryName(it)}") }
+                ?: batch.entries.first().description,
+            batch.entries.size,
+        )
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(horizontal = 16.dp),

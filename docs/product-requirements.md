@@ -582,9 +582,9 @@ confirm, so that years of entries can be cleaned up gradually.
   changes in batches of entries whose descriptions read the same. Each entry of
   a batch MUST be untickable before the batch is applied.
 - **TI-2** (Optional): An expense whose description reads like money coming in
-  (salary, a sale, a pension, …, but not a refund) and that leaves exactly one
-  member owing MUST be offered as an income received by that member. Every
-  member's balance MUST stay the same.
+  (salary, a sale, a pension, money from someone, …, but not a refund) and that
+  leaves exactly one member owing MUST be offered as an income received by that
+  member. Every member's balance MUST stay the same.
 - **TI-3** (Optional): An entry without a category MUST be offered the
   categories the built-in model suggests for its description, and any other
   category of the group.
@@ -593,6 +593,12 @@ confirm, so that years of entries can be cleaned up gradually.
 - **TI-5** (Optional): In a shared group, the app MUST show the changes as the
   group's activity will show them before writing anything, and write nothing
   unless the user confirms.
+- **TI-6** (Optional): The user MUST be able to search all expenses by
+  description for more incomes, each offered as in TI-2 whatever its wording,
+  declined ones too.
+- **TI-7** (Optional): Entries whose description no other entry shares MUST be
+  offered together in small sets, each of entries the built-in model finds
+  likeliest to be of the same category.
 
 ---
 
