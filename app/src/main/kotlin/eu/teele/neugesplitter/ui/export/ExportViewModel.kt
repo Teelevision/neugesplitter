@@ -72,23 +72,29 @@ class ExportViewModel(
     private val mutable = MutableStateFlow(ExportState(count = ids.size))
     val state: StateFlow<ExportState> = mutable.asStateFlow()
 
+    private var names: List<String> = emptyList()
+
     /** What an attacker tries first (TR-25b). */
     private var context: List<String> = emptyList()
     private var measuring: Job? = null
 
     init {
         viewModelScope.launch {
-            context =
-                withContext(Dispatchers.IO) {
-                    ids.mapNotNull { groups.load(it)?.name }
-                        .flatMap { it.lowercase().split(' ') }
-                        .filter { it.isNotBlank() }
-                }
+            names = withContext(Dispatchers.IO) { ids.mapNotNull { groups.load(it)?.name } }
+            context = names.flatMap { it.lowercase().split(' ') }.filter { it.isNotBlank() }
         }
     }
 
-    /** The name the file is offered under. */
-    fun fileName(): String = "neugesplitter-${today()}.zip"
+    /**
+     * The name the file is offered under: with the group's name if it is one, and with [encrypted]
+     * if it is.
+     */
+    fun fileName(encrypted: String): String {
+        val name = names.singleOrNull()?.let(::safe)?.takeIf { it.isNotEmpty() }
+        val tag = encrypted.takeIf { mutable.value.encrypted == true }
+        return listOfNotNull("neugesplitter", name, today().toString(), tag).joinToString("-") +
+            ".zip"
+    }
 
     fun encrypted(encrypted: Boolean) = mutable.update { it.copy(encrypted = encrypted) }
 
@@ -181,4 +187,12 @@ class ExportViewModel(
             }
         }
     }
+}
+
+private val UNSAFE = Regex("""[\\/:*?"<>|\p{Cntrl}\s]+""")
+
+/** [name] as part of a file name: without what some file systems refuse, and not too long. */
+private fun safe(name: String): String {
+    val points = name.replace(UNSAFE, " ").trim().trimStart('.').codePoints().limit(60).toArray()
+    return String(points, 0, points.size).trim()
 }

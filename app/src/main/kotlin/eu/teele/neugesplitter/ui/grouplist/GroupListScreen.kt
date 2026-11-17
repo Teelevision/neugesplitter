@@ -165,13 +165,6 @@ fun GroupListScreen(
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.import_action)) },
-                                    onClick = {
-                                        menu = false
-                                        onImport()
-                                    },
-                                )
-                                DropdownMenuItem(
                                     text = { Text(stringResource(R.string.destination_settings)) },
                                     onClick = {
                                         menu = false
@@ -199,10 +192,17 @@ fun GroupListScreen(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.join_existing)) },
+                            text = { Text(stringResource(R.string.join_shared)) },
                             onClick = {
                                 adding = false
                                 onJoin()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.import_from_file)) },
+                            onClick = {
+                                adding = false
+                                onImport()
                             },
                         )
                     }
@@ -213,7 +213,7 @@ fun GroupListScreen(
         val groups = state.groups
         when {
             groups == null -> Unit
-            groups.isEmpty() -> Empty(onNewGroup, onJoin, Modifier.padding(padding))
+            groups.isEmpty() -> Empty(onNewGroup, onJoin, onImport, Modifier.padding(padding))
             else ->
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(padding),
@@ -309,7 +309,12 @@ fun GroupListScreen(
 }
 
 @Composable
-private fun Empty(onNewGroup: () -> Unit, onJoin: () -> Unit, modifier: Modifier = Modifier) {
+private fun Empty(
+    onNewGroup: () -> Unit,
+    onJoin: () -> Unit,
+    onImport: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier.fillMaxSize().padding(horizontal = 32.dp),
         verticalArrangement = Arrangement.Center,
@@ -342,7 +347,11 @@ private fun Empty(onNewGroup: () -> Unit, onJoin: () -> Unit, modifier: Modifier
         }
         Spacer(Modifier.height(12.dp))
         OutlinedButton(onClick = onJoin, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-            Text(stringResource(R.string.join_existing))
+            Text(stringResource(R.string.join_shared))
+        }
+        Spacer(Modifier.height(12.dp))
+        OutlinedButton(onClick = onImport, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            Text(stringResource(R.string.import_from_file))
         }
     }
 }

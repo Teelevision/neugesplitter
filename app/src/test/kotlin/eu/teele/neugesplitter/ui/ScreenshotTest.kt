@@ -351,7 +351,7 @@ class ScreenshotTest(private val scale: Float) {
         back()
 
         compose.onNodeWithContentDescription(s(R.string.new_group)).performClick()
-        awaitText(s(R.string.join_existing))
+        awaitText(s(R.string.join_shared))
         shot("03-hinzufuegen")
         compose.onNodeWithText(s(R.string.new_group)).performClick()
         awaitText(s(R.string.group_name))
@@ -359,8 +359,8 @@ class ScreenshotTest(private val scale: Float) {
         back()
 
         compose.onNodeWithContentDescription(s(R.string.new_group)).performClick()
-        awaitText(s(R.string.join_existing))
-        compose.onNodeWithText(s(R.string.join_existing)).performClick()
+        awaitText(s(R.string.join_shared))
+        compose.onNodeWithText(s(R.string.join_shared)).performClick()
         awaitText(s(R.string.join_group))
         shot("05-beitreten")
         back()

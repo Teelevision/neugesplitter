@@ -337,6 +337,28 @@ class ExportImportTest {
         }
         await { viewModel.state.value.failed }
         assertTrue(viewModel.state.value.canSave)
-        assertEquals("neugesplitter-2026-10-07.zip", viewModel.fileName())
+        assertEquals("neugesplitter-Trip-2026-10-07.zip", viewModel.fileName("encrypted"))
+    }
+
+    @Test
+    fun `the file is named after the group, and says whether it is encrypted (DA-3, DA-4)`() {
+        seed()
+        val rome = GroupId.parse(id(10))
+        groups.create(
+            Group.create(rome, "Trip: Rome/Naples", null, "⛺", null, listOf(anna, ben), at) {
+                EventId.parse(id(0x200 + ids++))
+            },
+            today,
+        )
+        val one = ExportViewModel(groups, listOf(rome), { today }, Locale.ENGLISH)
+        val both = ExportViewModel(groups, listOf(trip, rome), { today }, Locale.ENGLISH)
+        one.encrypted(true)
+        both.encrypted(false)
+        await { "Rome" in one.fileName("encrypted") }
+        assertEquals(
+            "neugesplitter-Trip Rome Naples-2026-10-07-encrypted.zip",
+            one.fileName("encrypted"),
+        )
+        assertEquals("neugesplitter-2026-10-07.zip", both.fileName("encrypted"))
     }
 }

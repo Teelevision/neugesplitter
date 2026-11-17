@@ -132,28 +132,36 @@ class GroupListScreenTest {
     }
 
     @Test
-    fun `without groups the user is offered a new one or joining one (GR-1, BE-5)`() {
+    fun `without groups the user is offered a new one, joining one or importing one (GR-1, BE-5, DA-3)`() {
         var created = 0
         var joined = 0
-        show(onNewGroup = { created++ }, onJoin = { joined++ })
+        var imported = 0
+        show(onNewGroup = { created++ }, onJoin = { joined++ }, onImport = { imported++ })
         waitForText("A group stays on this device or is shared.")
         compose.onNodeWithText("New group").performClick()
-        compose.onNodeWithText("Join an existing group").performClick()
+        compose.onNodeWithText("Join a shared group").performClick()
+        compose.onNodeWithText("Import from file").performClick()
         assertEquals(1, created)
         assertEquals(1, joined)
+        assertEquals(1, imported)
     }
 
     @Test
-    fun `the add button offers a new group or joining one (GR-1, BE-5)`() {
+    fun `the add button offers a new group, joining one or importing one (GR-1, BE-5, DA-3)`() {
         seed(trip, "Trip")
         var created = 0
         var joined = 0
-        show(onNewGroup = { created++ }, onJoin = { joined++ })
+        var imported = 0
+        show(onNewGroup = { created++ }, onJoin = { joined++ }, onImport = { imported++ })
         waitForText("Trip")
         compose.onNodeWithContentDescription("New group").performClick()
-        compose.onNodeWithText("Join an existing group").performClick()
+        compose.onNodeWithText("Join a shared group").performClick()
         assertEquals(1, joined)
-        compose.onNodeWithText("Join an existing group").assertDoesNotExist()
+        compose.onNodeWithText("Join a shared group").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("New group").performClick()
+        compose.onNodeWithText("Import from file").performClick()
+        assertEquals(1, imported)
 
         compose.onNodeWithContentDescription("New group").performClick()
         compose.onNodeWithText("New group").performClick()
@@ -189,16 +197,12 @@ class GroupListScreenTest {
     }
 
     @Test
-    fun `the menu opens the app settings and importing (UX-3, DA-3)`() {
+    fun `the menu opens the app settings (UX-3)`() {
         var opened = 0
-        var imported = 0
-        show(onSettings = { opened++ }, onImport = { imported++ })
+        show(onSettings = { opened++ })
         compose.onNodeWithContentDescription("More options").performClick()
         compose.onNodeWithText("Settings").performClick()
         assertEquals(1, opened)
-        compose.onNodeWithContentDescription("More options").performClick()
-        compose.onNodeWithText("Import").performClick()
-        assertEquals(1, imported)
     }
 
     @Test

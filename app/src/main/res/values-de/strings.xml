@@ -454,7 +454,8 @@
 
     <!-- Join group -->
     <string name="join_group">Gruppe beitreten</string>
-    <string name="join_existing">Bestehender Gruppe beitreten</string>
+    <string name="join_shared">Geteilter Gruppe beitreten</string>
+    <string name="import_from_file">Aus Datei importieren</string>
     <string name="join_empty">Kein Inhalt gefunden</string>
     <string name="join_empty_text">Der konfigurierte Speicherort ist leer. Du kannst ihn für eine neue Gruppe verwenden.</string>
     <string name="join_empty_read_only">Der konfigurierte Speicherort ist leer. Mit reinem Lesezugriff kann hier keine Gruppe angelegt werden.</string>
@@ -525,6 +526,7 @@
     <string name="export_passphrase_lost">Ohne diese Passphrase kann niemand die Datei öffnen — auch wir nicht.</string>
     <string name="export_save">Datei speichern</string>
     <string name="export_failed">Die Datei konnte nicht geschrieben werden. Wähle eine andere.</string>
+    <string name="export_file_encrypted">verschlüsselt</string>
     <string name="export_done">Export gespeichert</string>
     <string name="export_done_text">Die Datei enthält die Gruppen mit ihrem ganzen Verlauf.</string>
     <string name="export_done_encrypted">Bewahre die Passphrase auf: Ohne sie lässt sich die Datei nicht öffnen.</string>

@@ -456,7 +456,8 @@
 
     <!-- Join group -->
     <string name="join_group">Join group</string>
-    <string name="join_existing">Join an existing group</string>
+    <string name="join_shared">Join a shared group</string>
+    <string name="import_from_file">Import from file</string>
     <string name="join_empty">No content found</string>
     <string name="join_empty_text">This location is empty. You can use it for a new group.</string>
     <string name="join_empty_read_only">This location is empty. With read access only, no group can be created here.</string>
@@ -527,6 +528,8 @@
     <string name="export_passphrase_lost">Without this passphrase, nobody can open the file — us included.</string>
     <string name="export_save">Save file</string>
     <string name="export_failed">The file could not be written. Choose another one.</string>
+    <!-- Ends the export's file name, as in neugesplitter-Trip-2026-10-07-encrypted.zip. -->
+    <string name="export_file_encrypted">encrypted</string>
     <string name="export_done">Export saved</string>
     <string name="export_done_text">The file holds the groups with their whole history.</string>
     <string name="export_done_encrypted">Keep the passphrase: without it, the file cannot be opened.</string>

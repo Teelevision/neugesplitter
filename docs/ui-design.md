@@ -14,7 +14,7 @@ There are two levels, and only one of them has a bottom bar.
 
 **Outside a group** the group list is the root screen. There is nothing to
 switch between there, so it carries no navigation bar — just a list, a FAB and
-an overflow into export, import and app settings.
+an overflow into export and app settings.
 
 **Inside a group** a navigation bar carries four destinations with the new-entry
 action docked in the middle:
@@ -53,9 +53,9 @@ screen or opened as a bottom sheet, and the bar is hidden while it is up.
 | Group list          | root        | launcher                                 |
 | App settings        | pushed      | group list overflow                      |
 | New group           | pushed flow | group list FAB                           |
-| Join group          | pushed flow | group list FAB → "join existing"         |
+| Join group          | pushed flow | group list FAB → "join a shared group"   |
 | Export              | pushed flow | group list overflow, group settings      |
-| Import              | pushed flow | group list overflow, after a file picker |
+| Import              | pushed flow | group list FAB, after a file picker      |
 | Group overview      | destination | opening a group                          |
 | People and balances | destination | navigation bar                           |
 | Activity            | destination | navigation bar                           |
@@ -90,7 +90,8 @@ shared group, the same sync icon its own top bars show, at the trailing end
 group with unseen changes carries a dot before that icon (HI-5). A group kept
 only on this device shows no icon.
 
-- FAB opens a small menu: **new group** or **join an existing group**.
+- FAB opens a small menu: **new group**, **join a shared group** or **import
+  from file**.
 - Tap opens the group at its Overview.
 - Long press selects, for the two bulk-ish actions worth having: archive (GR-13,
   later) and delete (GR-11). With one group selected, **duplicate** copies its
@@ -99,9 +100,9 @@ only on this device shows no icon.
   first asks for the name, prefilled with "Trip (copy)", or "Trip (copy 2)" and
   on once that is taken, and can still be cancelled there; while copying, a
   dialog with a progress bar shows that it's working.
-- Overflow: **export**, **import** and app settings.
+- Overflow: **export** and app settings.
 - Empty state: one line explaining that a group can be local or shared, and the
-  two FAB choices spelled out as buttons.
+  three FAB choices spelled out as buttons.
 
 ### App settings
 
@@ -145,8 +146,9 @@ export action in place of delete; the user deselects what should stay out. Group
 settings offer the same for one group. A short pushed flow follows: without or
 with a passphrase, as two cards; for a passphrase, the same generated one or own
 one as backend setup (PR-12a, PR-12b); then the system's save dialog, offering
-`neugesplitter-<date>.zip`. Nothing about a backend goes into the file, and the
-flow says so (DA-3, DA-4).
+`neugesplitter-<group>-<date>.zip`, without the group's name for several groups
+and ending in `-encrypted` for an encrypted file. Nothing about a backend goes
+into the file, and the flow says so (DA-3, DA-4).
 
 **Import** opens the system's file picker first, then a pushed flow: the
 passphrase if the file is encrypted, said on the spot when it is wrong; the

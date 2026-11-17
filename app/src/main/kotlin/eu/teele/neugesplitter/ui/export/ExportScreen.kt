@@ -55,6 +55,7 @@ fun ExportScreen(viewModel: ExportViewModel, onClose: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val back = { if (!viewModel.back()) onClose() }
+    val encrypted = stringResource(R.string.export_file_encrypted)
     val file =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(ZIP)) { uri ->
             if (uri != null) {
@@ -102,7 +103,7 @@ fun ExportScreen(viewModel: ExportViewModel, onClose: () -> Unit) {
                             }
                         else ->
                             Button(
-                                onClick = { file.launch(viewModel.fileName()) },
+                                onClick = { file.launch(viewModel.fileName(encrypted)) },
                                 enabled = state.canSave,
                             ) {
                                 Text(stringResource(R.string.export_save))
